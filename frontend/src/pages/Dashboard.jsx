@@ -5,6 +5,7 @@ import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { rememberFaceIdDevice } from "../lib/faceId.js";
 import AppShell from "../components/AppShell.jsx";
+import PinSettings from "../components/PinSettings.jsx";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -140,6 +141,8 @@ export default function Dashboard() {
           </div>
         </>
       )}
+
+      <PinSettings />
 
       {supportsWebAuthn && (
         <div className="panel">

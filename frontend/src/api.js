@@ -35,6 +35,14 @@ export const api = {
   deletePerson: (token, id) => request(`/people/${id}`, { method: "DELETE", token }),
   importPeople: (token, csv) => request("/people/import", { method: "POST", body: { csv }, token }),
 
+  setPin: (token, pin, currentPin) =>
+    request("/auth/pin", { method: "POST", body: { pin, currentPin }, token }),
+  removePin: (token) => request("/auth/pin", { method: "DELETE", token }),
+  pinLogin: (email, pin) => request("/auth/pin/login", { method: "POST", body: { email, pin } }),
+
+  bulkSavePeople: (token, changes) =>
+    request("/people/bulk", { method: "PUT", body: changes, token }),
+
   getRoster: (token, signal) => request("/roster", { token, signal }),
   saveRoster: (token, roster) => request("/roster", { method: "PUT", body: roster, token }),
 

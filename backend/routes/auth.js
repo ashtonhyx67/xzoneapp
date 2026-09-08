@@ -10,6 +10,7 @@ const {
 
 const { pool } = require("../db");
 const { requireAuth } = require("../middleware/auth");
+const { isOwnerEmail } = require("../lib/owner");
 
 const router = express.Router();
 
@@ -58,6 +59,36 @@ async function takeChallenge(userId) {
   return result.rows[0]?.challenge || null;
 }
 
+// ---------- PIN ----------
+
+// Four digits is only 10,000 combinations, so guessing is rate limited: after
+// this many wrong tries in a row the account stops accepting PINs for a while.
+// The password (and Face ID) still work, so nobody is ever locked out for good.
+const MAX_PIN_ATTEMPTS = 5;
+const PIN_LOCKOUT = "15 minutes";
+
+function isValidPin(pin) {
+  return /^[0-9]{4}$/.test(String(pin ?? ""));
+}
+
+function minutesUntil(when) {
+  const ms = new Date(when).getTime() - Date.now();
+  return Math.max(1, Math.ceil(ms / 60000));
+}
+
+// Everything the client needs to decide what to show after a successful
+// sign-in, whichever way the user got here.
+function sessionPayload(row) {
+  return {
+    token: signToken(row.id),
+    user: publicUser(row),
+    faceIdEnabled: Boolean(row.face_id_enabled),
+    isAdmin: Boolean(row.is_admin),
+    isOwner: isOwnerEmail(row.email),
+    pinSet: Boolean(row.pin_set ?? row.pin_hash),
+  };
+}
+
 // ---------- Email + password ----------
 
 router.post(
@@ -83,9 +114,9 @@ router.post(
       // way to grant the first admin.
       const result = await pool.query(
         `INSERT INTO users (name, email, password_hash, is_admin)
-         VALUES ($1, $2, $3, NOT EXISTS (SELECT 1 FROM users))
-         RETURNING id, name, email, is_admin`,
-        [String(name).trim(), email, passwordHash]
+         VALUES ($1, $2, $3, $4 OR NOT EXISTS (SELECT 1 FROM users))
+         RETURNING id, name, email, is_admin, pin_hash`,
+        [String(name).trim(), email, passwordHash, isOwnerEmail(email)]
       );
       user = result.rows[0];
     } catch (err) {
@@ -95,11 +126,7 @@ router.post(
       throw err;
     }
 
-    res.json({
-      token: signToken(user.id),
-      user: publicUser(user),
-      isAdmin: user.is_admin,
-    });
+    res.json(sessionPayload(user));
   })
 );
 
@@ -114,7 +141,7 @@ router.post(
     }
 
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.password_hash, u.is_admin,
+      `SELECT u.id, u.name, u.email, u.password_hash, u.is_admin, u.pin_hash,
               EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled
          FROM users u
         WHERE u.email = $1`,
@@ -126,12 +153,14 @@ router.post(
       return res.status(401).json({ error: "Incorrect email or password." });
     }
 
-    res.json({
-      token: signToken(user.id),
-      user: publicUser(user),
-      faceIdEnabled: user.face_id_enabled,
-      isAdmin: user.is_admin,
-    });
+    // The owner keeps admin access even if the row was created before the
+    // owner email was configured, or if it was revoked by hand.
+    if (isOwnerEmail(user.email) && !user.is_admin) {
+      await pool.query("UPDATE users SET is_admin = true WHERE id = $1", [user.id]);
+      user.is_admin = true;
+    }
+
+    res.json(sessionPayload(user));
   })
 );
 
@@ -142,7 +171,7 @@ router.get(
     // One round trip for the profile and whether Face ID is already enrolled,
     // so the dashboard never has to guess.
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.is_admin,
+      `SELECT u.id, u.name, u.email, u.is_admin, u.pin_hash,
               EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled
          FROM users u
         WHERE u.id = $1`,
@@ -151,11 +180,10 @@ router.get(
     const row = result.rows[0];
     if (!row) return res.status(404).json({ error: "User not found." });
 
-    res.json({
-      user: publicUser(row),
-      faceIdEnabled: row.face_id_enabled,
-      isAdmin: row.is_admin,
-    });
+    // The caller already holds a valid token; re-issuing one here would be
+    // noise, so send everything except that.
+    const { token, ...session } = sessionPayload(row);
+    res.json(session);
   })
 );
 
@@ -298,7 +326,8 @@ router.post(
     }
 
     const credResult = await pool.query(
-      `SELECT c.id, c.credential_id, c.public_key, c.counter, u.id AS user_id, u.name, u.email
+      `SELECT c.id, c.credential_id, c.public_key, c.counter,
+              u.id AS user_id, u.name, u.email, u.is_admin, u.pin_hash
          FROM webauthn_credentials c
          JOIN users u ON u.id = c.user_id
         WHERE c.credential_id = $1 AND c.user_id = $2`,
@@ -333,10 +362,147 @@ router.post(
       saved.id,
     ]);
 
-    res.json({
-      token: signToken(saved.user_id),
-      user: { id: saved.user_id, name: saved.name, email: saved.email },
-    });
+    res.json(
+      sessionPayload({
+        id: saved.user_id,
+        name: saved.name,
+        email: saved.email,
+        is_admin: saved.is_admin,
+        pin_hash: saved.pin_hash,
+        face_id_enabled: true,
+      })
+    );
+  })
+);
+
+// ---------- PIN sign-in ----------
+
+// Set a PIN, or change an existing one. The user is already signed in here;
+// changing a PIN that exists also needs the current one, so a borrowed unlocked
+// session cannot quietly lock the real owner out.
+router.post(
+  "/pin",
+  requireAuth,
+  route(async (req, res) => {
+    const { pin, currentPin } = req.body || {};
+
+    if (!isValidPin(pin)) {
+      return res.status(400).json({ error: "Your PIN must be exactly 4 digits." });
+    }
+
+    const existing = await pool.query("SELECT pin_hash FROM users WHERE id = $1", [req.userId]);
+    if (!existing.rows[0]) return res.status(404).json({ error: "User not found." });
+
+    const currentHash = existing.rows[0].pin_hash;
+    if (currentHash) {
+      if (!isValidPin(currentPin)) {
+        return res.status(400).json({ error: "Enter your current PIN to change it." });
+      }
+      if (!(await bcrypt.compare(String(currentPin), currentHash))) {
+        return res.status(401).json({ error: "That current PIN is incorrect." });
+      }
+    }
+
+    const pinHash = await bcrypt.hash(String(pin), 10);
+    await pool.query(
+      `UPDATE users
+          SET pin_hash = $1, pin_set_at = now(), pin_attempts = 0, pin_locked_until = NULL
+        WHERE id = $2`,
+      [pinHash, req.userId]
+    );
+
+    res.json({ pinSet: true });
+  })
+);
+
+// Turning the PIN off falls back to email and password on the next launch.
+router.delete(
+  "/pin",
+  requireAuth,
+  route(async (req, res) => {
+    await pool.query(
+      `UPDATE users
+          SET pin_hash = NULL, pin_set_at = NULL, pin_attempts = 0, pin_locked_until = NULL
+        WHERE id = $1`,
+      [req.userId]
+    );
+    res.json({ pinSet: false });
+  })
+);
+
+// Sign in with the PIN. This is the screen a returning user sees after the app
+// has been closed, so it takes the email the device already remembers.
+router.post(
+  "/pin/login",
+  route(async (req, res) => {
+    const email = normalizeEmail(req.body.email);
+    const pin = String(req.body.pin ?? "");
+
+    if (!email || !isValidPin(pin)) {
+      return res.status(400).json({ error: "Enter your 4-digit PIN." });
+    }
+
+    const result = await pool.query(
+      `SELECT u.id, u.name, u.email, u.is_admin, u.pin_hash, u.pin_attempts, u.pin_locked_until,
+              EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled
+         FROM users u
+        WHERE u.email = $1`,
+      [email]
+    );
+    const user = result.rows[0];
+
+    // An unknown account and a wrong PIN read the same, so this page can't be
+    // used to find out who has an account.
+    if (!user || !user.pin_hash) {
+      return res.status(401).json({ error: "That PIN didn't work. Sign in with your password." });
+    }
+
+    if (user.pin_locked_until && new Date(user.pin_locked_until) > new Date()) {
+      return res.status(429).json({
+        error: `Too many wrong PINs. Try again in ${minutesUntil(
+          user.pin_locked_until
+        )} minutes, or sign in with your password.`,
+        lockedOut: true,
+      });
+    }
+
+    if (!(await bcrypt.compare(pin, user.pin_hash))) {
+      const attempts = Number(user.pin_attempts || 0) + 1;
+      const lock = attempts >= MAX_PIN_ATTEMPTS;
+
+      await pool.query(
+        `UPDATE users
+            SET pin_attempts = $1,
+                pin_locked_until = CASE WHEN $2 THEN now() + interval '${PIN_LOCKOUT}' ELSE NULL END
+          WHERE id = $3`,
+        [lock ? 0 : attempts, lock, user.id]
+      );
+
+      if (lock) {
+        return res.status(429).json({
+          error: "Too many wrong PINs. Try again in 15 minutes, or sign in with your password.",
+          lockedOut: true,
+        });
+      }
+
+      const left = MAX_PIN_ATTEMPTS - attempts;
+      return res.status(401).json({
+        error: `Incorrect PIN. ${left} ${left === 1 ? "try" : "tries"} left before it locks.`,
+        attemptsLeft: left,
+      });
+    }
+
+    await pool.query(
+      "UPDATE users SET pin_attempts = 0, pin_locked_until = NULL WHERE id = $1",
+      [user.id]
+    );
+
+    if (isOwnerEmail(user.email) && !user.is_admin) {
+      await pool.query("UPDATE users SET is_admin = true WHERE id = $1", [user.id]);
+      user.is_admin = true;
+    }
+
+    res.json(sessionPayload(user));
   })
 );
 

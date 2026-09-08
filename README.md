@@ -61,6 +61,9 @@ your real domain.
    - `NODE_ENV` — `production`
    - `RP_ID` — your Railway domain with no protocol, e.g. `team-app.up.railway.app`
    - `ORIGIN` — the same domain with protocol, e.g. `https://team-app.up.railway.app`
+   - `OWNER_EMAIL` — the email that owns the instance (defaults to
+     `ashtonhengyongxin@gmail.com`). That account is always an admin, whether
+     it signs up before or after you set this.
    
    (You can find your domain under the service's **Settings → Networking**
    once Railway generates it — deploy once first, copy the domain, then set
@@ -75,7 +78,17 @@ so it should work correctly on real devices once deployed.
 ## 3. What's already built
 
 - Email/password sign up and login (passwords hashed with bcrypt)
-- JWT-based sessions
+- JWT-based sessions that end when the app is closed — the token lives in
+  `sessionStorage`, so the next launch asks for a PIN rather than reopening an
+  old session
+- A 4-digit PIN: every new account is asked to choose one right after sign up,
+  and returning to the app opens on the PIN screen instead of the sign-up card.
+  Five wrong PINs locks PIN entry for 15 minutes; the password always still
+  works. Manage or turn it off from the dashboard.
+- An owner account (`OWNER_EMAIL`) that is always an admin
+- The people database as an editable spreadsheet at `/database` — every column
+  in one grid, add and remove rows, save the whole screen in one transaction,
+  export what's on screen as CSV
 - Face ID / Touch ID / Windows Hello sign-in via WebAuthn, once enabled from
   the dashboard
 - A protected `/dashboard` route with a sidebar shell, stat cards, and one

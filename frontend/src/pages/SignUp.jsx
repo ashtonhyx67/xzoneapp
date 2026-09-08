@@ -31,8 +31,13 @@ export default function SignUp() {
     setLoading(true);
     try {
       const data = await api.signup(form);
-      signIn(data.token, data.user, { isAdmin: data.isAdmin });
-      navigate("/dashboard");
+      signIn(data.token, data.user, {
+        isAdmin: data.isAdmin,
+        isOwner: data.isOwner,
+        pinSet: data.pinSet,
+      });
+      // Straight to choosing a PIN — it is how they will get back in from now on.
+      navigate("/set-pin", { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {

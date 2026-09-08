@@ -17,6 +17,7 @@ const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
 const { pool } = require("../db");
+const { isOwnerEmail, OWNER_EMAIL } = require("../lib/owner");
 
 async function list() {
   const result = await pool.query(
@@ -39,6 +40,7 @@ async function list() {
 
   const admins = result.rows.filter((r) => r.is_admin).length;
   console.log(`\n${result.rows.length} account(s), ${admins} admin(s).`);
+  console.log(`Owner: ${OWNER_EMAIL}`);
 }
 
 async function setAdmin(email, makeAdmin) {
@@ -58,6 +60,15 @@ async function setAdmin(email, makeAdmin) {
 
   if (user.is_admin === makeAdmin) {
     console.log(`${user.email} is already ${makeAdmin ? "an admin" : "not an admin"}. Nothing to do.`);
+    return;
+  }
+
+  // The owner's access is not revocable here; the app grants it back on the
+  // next sign-in anyway, so removing it would only be confusing.
+  if (!makeAdmin && isOwnerEmail(target)) {
+    console.error(`${target} is the owner of this instance and is always an admin.`);
+    console.error("Change the OWNER_EMAIL variable if the owner should be someone else.");
+    process.exitCode = 1;
     return;
   }
 

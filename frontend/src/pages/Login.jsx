@@ -9,6 +9,7 @@ import {
   rememberFaceIdDevice,
   forgetFaceIdDevice,
 } from "../lib/faceId.js";
+import { getDeviceAccount } from "../lib/device.js";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -17,6 +18,9 @@ export default function Login() {
   // If this device has Face ID enrolled we already know whose account it is,
   // so the email starts filled in.
   const enrolledDevice = useMemo(() => getFaceIdDevice(), []);
+  // A device that already has a PIN can offer it here too, for anyone who
+  // reached the password card by way of the browser's back button.
+  const pinAvailable = useMemo(() => Boolean(getDeviceAccount()?.hasPin), []);
   const supportsWebAuthn = useMemo(() => browserSupportsWebAuthn(), []);
 
   const [form, setForm] = useState({
@@ -44,6 +48,8 @@ export default function Login() {
       signIn(data.token, data.user, {
         faceIdEnabled: data.faceIdEnabled,
         isAdmin: data.isAdmin,
+        isOwner: data.isOwner,
+        pinSet: data.pinSet,
       });
       navigate("/dashboard");
     } catch (err) {
@@ -68,7 +74,12 @@ export default function Login() {
         const authResponse = await startAuthentication({ optionsJSON: options });
         const data = await api.webauthnLoginVerify(userId, authResponse);
         rememberFaceIdDevice(data.user.email);
-        signIn(data.token, data.user, { faceIdEnabled: true, isAdmin: data.isAdmin });
+        signIn(data.token, data.user, {
+          faceIdEnabled: true,
+          isAdmin: data.isAdmin,
+          isOwner: data.isOwner,
+          pinSet: data.pinSet,
+        });
         navigate("/dashboard");
       } catch (err) {
         // The account no longer has a credential, so stop offering the button.
@@ -140,6 +151,12 @@ export default function Login() {
             {loading ? <span className="spinner" /> : "Sign in"}
           </button>
         </form>
+
+        {pinAvailable && (
+          <div className="auth-switch">
+            <Link to="/unlock">Use your PIN instead</Link>
+          </div>
+        )}
 
         <div className="auth-switch">
           New here? <Link to="/signup">Create an account</Link>

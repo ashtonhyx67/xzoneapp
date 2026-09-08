@@ -1,5 +1,7 @@
 const { Pool, types } = require("pg");
 
+const { OWNER_EMAIL } = require("./lib/owner");
+
 // A DATE has no time and no timezone, but node-pg turns it into a local-midnight
 // JS Date, which JSON.stringify then shifts to UTC — sending every birthday a
 // day early from any timezone ahead of UTC. Hand back the raw 'YYYY-MM-DD'.
@@ -100,6 +102,24 @@ async function initSchema() {
     UPDATE users SET is_admin = true
      WHERE id = (SELECT MIN(id) FROM users)
        AND NOT EXISTS (SELECT 1 FROM users WHERE is_admin);
+  `);
+
+  // The owner is always an admin, whenever that account happens to be created.
+  await pool.query(`UPDATE users SET is_admin = true WHERE lower(email) = $1 AND NOT is_admin;`, [
+    OWNER_EMAIL,
+  ]);
+
+  // ---------- PIN ----------
+  // A 4-digit PIN is the everyday way back in: the session ends when the app is
+  // closed, and the PIN screen replaces the sign-up card on the next launch.
+  // It is hashed like a password, and rate limited because 4 digits is only
+  // 10,000 combinations.
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS pin_hash TEXT,
+      ADD COLUMN IF NOT EXISTS pin_set_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS pin_attempts INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS pin_locked_until TIMESTAMPTZ;
   `);
 
   // ---------- People ----------

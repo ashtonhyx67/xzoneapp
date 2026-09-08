@@ -6,7 +6,7 @@ import { initials } from "../lib/photo.js";
 // The sidebar and page frame, shared by every signed-in page so the navigation
 // lives in exactly one place.
 export default function AppShell({ children }) {
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, isOwner, signOut } = useAuth();
   const navigate = useNavigate();
 
   function handleSignOut() {
@@ -26,20 +26,25 @@ export default function AppShell({ children }) {
             Dashboard
           </NavLink>
           {isAdmin && (
-            <NavLink to="/members" className={navClass}>
-              Members
-            </NavLink>
+            <>
+              <NavLink to="/members" className={navClass}>
+                Members
+              </NavLink>
+              <NavLink to="/database" className={navClass}>
+                Database
+              </NavLink>
+            </>
           )}
-          <NavLink to="/settings" className={navClass}>
-            Settings
-          </NavLink>
         </nav>
 
         <div className="sidebar-footer">
           <div className="user-chip">
             <div className="user-avatar">{initials(user?.name)}</div>
             <div className="user-identity">
-              <div className="user-name">{user?.name}</div>
+              <div className="user-name">
+                {user?.name}
+                {isOwner && <span className="owner-tag">Owner</span>}
+              </div>
               <div className="user-email">{user?.email}</div>
             </div>
           </div>
