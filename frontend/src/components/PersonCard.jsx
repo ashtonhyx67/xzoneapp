@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { photoSrc, initials } from "../lib/photo.js";
 import { ROLES, findRole, roleClass } from "../lib/roles.js";
 
-// Left panel: photo. Right: two field tables, then the three long-text rows —
-// the layout of the scorecard tab in the source spreadsheet.
+// One white card: the photo and who they are on the left, the two field tables
+// beside it, and the long-text rows running full width underneath so no corner
+// of the card is left empty.
 const PERSONAL = [
   ["contact", "Contact"],
   ["telegram", "Telegram"],
@@ -121,6 +122,29 @@ export default function PersonCard({
 
   return (
     <div className="person-card">
+      {canEdit && (
+        <div className="person-card-actions">
+          {editing ? (
+            <>
+              <button className="card-corner-btn" onClick={onCancel} disabled={saving}>
+                Cancel
+              </button>
+              <button
+                className="card-corner-btn card-corner-btn-save"
+                onClick={onSave}
+                disabled={saving}
+              >
+                {saving ? "Saving" : "Save"}
+              </button>
+            </>
+          ) : (
+            <button className="card-corner-btn" onClick={onEdit} aria-label="Edit this record">
+              Edit
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="person-side">
         <Photo person={person} />
 
@@ -132,29 +156,23 @@ export default function PersonCard({
           </div>
         </div>
 
-        {canEdit && (
-          <div className="person-side-actions">
-            {editing ? (
-              <>
-                <button className="btn btn-secondary" onClick={onCancel} disabled={saving}>
-                  Cancel
-                </button>
-                <button className="btn btn-primary" onClick={onSave} disabled={saving}>
-                  {saving ? "Saving…" : "Save"}
-                </button>
-              </>
-            ) : (
-              <button className="btn btn-secondary" onClick={onEdit}>
-                Edit
-              </button>
-            )}
+        {editing && (
+          <div className="card-field card-field-stacked">
+            <div className="card-field-label">Photo URL</div>
+            <div className="card-field-value">
+              <input
+                aria-label="Photo URL"
+                value={person.photo_url ?? ""}
+                onChange={(e) => onChange("photo_url", e.target.value)}
+              />
+            </div>
           </div>
         )}
       </div>
 
       <div className="person-main">
         {editing && (
-          <div className="card-table card-table-wide">
+          <div className="card-table">
             <div className="card-table-title">Name</div>
             <div className="card-field">
               <div className="card-field-label">Name</div>
@@ -163,16 +181,6 @@ export default function PersonCard({
                   aria-label="Name"
                   value={person.name}
                   onChange={(e) => onChange("name", e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="card-field">
-              <div className="card-field-label">Photo URL</div>
-              <div className="card-field-value">
-                <input
-                  aria-label="Photo URL"
-                  value={person.photo_url ?? ""}
-                  onChange={(e) => onChange("photo_url", e.target.value)}
                 />
               </div>
             </div>
@@ -195,26 +203,28 @@ export default function PersonCard({
             onChange={onChange}
           />
         </div>
+      </div>
 
-        <div className="card-notes">
-          {NOTES.map(([field, label]) => (
-            <div className="card-note" key={field}>
-              <div className="card-note-label">{label}</div>
-              <div className="card-note-value">
-                {editing ? (
-                  <textarea
-                    aria-label={label}
-                    value={person[field] ?? ""}
-                    rows={3}
-                    onChange={(e) => onChange(field, e.target.value)}
-                  />
-                ) : (
-                  person[field] || <span className="card-empty">—</span>
-                )}
-              </div>
+      {/* Full width under both columns, so the space beside the photo is used
+          rather than left blank. */}
+      <div className="card-notes">
+        {NOTES.map(([field, label]) => (
+          <div className="card-note" key={field}>
+            <div className="card-note-label">{label}</div>
+            <div className="card-note-value">
+              {editing ? (
+                <textarea
+                  aria-label={label}
+                  value={person[field] ?? ""}
+                  rows={3}
+                  onChange={(e) => onChange(field, e.target.value)}
+                />
+              ) : (
+                person[field] || <span className="card-empty">—</span>
+              )}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   );

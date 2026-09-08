@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
 import { ROLES, findRole, roleTint } from "../lib/roles.js";
 
@@ -6,39 +6,44 @@ import { ROLES, findRole, roleTint } from "../lib/roles.js";
 // of cell: a plain box, the standard-role dropdown, or a date picker. `readOnly`
 // marks a value the server derives — Age comes from Birthday.
 const COLUMNS = [
-  { field: "name", label: "Name", width: 190, sticky: true },
-  { field: "role", label: "Role", width: 120, type: "role" },
-  { field: "team", label: "Team", width: 80 },
-  { field: "contact", label: "Contact", width: 150 },
-  { field: "telegram", label: "Telegram", width: 140 },
-  { field: "instagram", label: "Instagram", width: 140 },
-  { field: "ministry", label: "Ministry", width: 140 },
-  { field: "birthday", label: "Birthday", width: 150, type: "date" },
-  { field: "age", label: "Age", width: 64, readOnly: true },
-  { field: "school", label: "School", width: 160 },
-  { field: "follow_up", label: "Followup", width: 130 },
-  { field: "came_church", label: "Came Church", width: 150 },
-  { field: "invited_by", label: "Invited By", width: 150 },
-  { field: "religion", label: "Religion", width: 130 },
-  { field: "general_information", label: "General Information", width: 260 },
-  { field: "updates", label: "Updates", width: 260 },
-  { field: "next_steps", label: "Next Steps", width: 260 },
-  { field: "photo_url", label: "Photo URL", width: 220 },
+  { field: "name", label: "Name", width: 150, sticky: true },
+  { field: "role", label: "Role", width: 84, type: "role" },
+  { field: "team", label: "Team", width: 52 },
+  { field: "contact", label: "Contact", width: 106 },
+  { field: "telegram", label: "Telegram", width: 100 },
+  { field: "instagram", label: "Instagram", width: 100 },
+  { field: "ministry", label: "Ministry", width: 100 },
+  { field: "birthday", label: "Birthday", width: 124, type: "date" },
+  { field: "age", label: "Age", width: 44, readOnly: true },
+  { field: "school", label: "School", width: 92 },
+  { field: "follow_up", label: "Followup", width: 96 },
+  { field: "came_church", label: "Came Church", width: 108 },
+  { field: "invited_by", label: "Invited By", width: 104 },
+  { field: "religion", label: "Religion", width: 92 },
+  { field: "general_information", label: "General Information", width: 190 },
+  { field: "updates", label: "Updates", width: 190 },
+  { field: "next_steps", label: "Next Steps", width: 190 },
+  { field: "photo_url", label: "Photo URL", width: 140 },
 ];
 
 const EDITABLE = COLUMNS.filter((c) => !c.readOnly).map((c) => c.field);
 
+// How long to wait after the last keystroke before writing. Removing a row
+// waits longer, so there is a moment to put it back.
+const SAVE_DELAY = 800;
+const DELETE_DELAY = 2500;
+
 let newRowCounter = 0;
 
 function toRow(person) {
-  const row = { _key: `id-${person.id}`, id: person.id, _new: false, _deleted: false };
+  const row = { _key: `id-${person.id}`, id: person.id, _deleted: false };
   for (const { field } of COLUMNS) row[field] = person[field] ?? "";
   return row;
 }
 
 function blankRow() {
   newRowCounter += 1;
-  const row = { _key: `new-${newRowCounter}`, id: null, _new: true, _deleted: false };
+  const row = { _key: `new-${newRowCounter}`, id: null, _deleted: false };
   for (const { field } of COLUMNS) row[field] = "";
   return row;
 }
@@ -48,28 +53,29 @@ function fingerprint(row) {
   return JSON.stringify(EDITABLE.map((f) => String(row[f] ?? "")));
 }
 
-function baselineOf(people) {
-  return Object.fromEntries(people.map((p) => [`id-${p.id}`, fingerprint(toRow(p))]));
+function baselineOf(rows) {
+  return Object.fromEntries(rows.map((row) => [row._key, fingerprint(row)]));
 }
 
 export default function PeopleSheet({ token, people, onSaved }) {
-  const [rows, setRows] = useState(() => people.map(toRow));
-  const [baseline, setBaseline] = useState(() => baselineOf(people));
-  const [query, setQuery] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const gridRef = useRef(null);
+  const initial = useMemo(() => people.map(toRow), [people]);
 
-  const pendingCount = useMemo(
-    () =>
-      rows.filter(
-        (row) =>
-          (row._deleted && !row._new) ||
-          (!row._deleted && (row._new || fingerprint(row) !== baseline[row._key]))
-      ).length,
-    [rows, baseline]
-  );
+  const [rows, setRows] = useState(initial);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("idle"); // idle | saving | error
+  const [error, setError] = useState("");
+
+  const gridRef = useRef(null);
+  const baseline = useRef(baselineOf(initial));
+  // The writer reads the rows through a ref, so it never has to be rebuilt when
+  // they change — a rebuilt writer would restart the timer on every keystroke.
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const timer = useRef(null);
+  const inFlight = useRef(false);
+  // After a rejected write, stop writing until something else changes, so a
+  // duplicate name cannot put the grid in a retry loop.
+  const blocked = useRef(false);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -79,11 +85,106 @@ export default function PeopleSheet({ token, people, onSaved }) {
     );
   }, [rows, query]);
 
-  const setCell = useCallback((key, field, value) => {
-    setRows((list) =>
-      list.map((row) => (row._key === key ? { ...row, [field]: value } : row))
+  // Rows the server has not seen in their current state. A new row is held back
+  // until it has a name, since the database will not take it without one.
+  const pending = useCallback((list) => {
+    const upserts = list.filter(
+      (row) =>
+        !row._deleted &&
+        fingerprint(row) !== baseline.current[row._key] &&
+        String(row.name ?? "").trim()
     );
+    const deletes = list.filter((row) => row._deleted && row.id);
+    return { upserts, deletes };
   }, []);
+
+  const flush = useCallback(async () => {
+    if (inFlight.current || blocked.current) return;
+
+    const { upserts, deletes } = pending(rowsRef.current);
+    if (upserts.length === 0 && deletes.length === 0) return;
+
+    // What is being written, remembered per row, so edits made while the
+    // request is in the air stay dirty and go in the next write.
+    const sent = Object.fromEntries(upserts.map((row) => [row._key, fingerprint(row)]));
+
+    inFlight.current = true;
+    setStatus("saving");
+
+    try {
+      const result = await api.bulkSavePeople(token, {
+        upserts: upserts.map((row) => {
+          const payload = { id: row.id };
+          for (const field of EDITABLE) payload[field] = row[field] ?? "";
+          return payload;
+        }),
+        deletes: deletes.map((row) => row.id),
+      });
+
+      const saved = new Map(result.people.map((p) => [p.name.trim().toLowerCase(), p]));
+      const removed = new Set(deletes.map((row) => row._key));
+
+      setRows((list) =>
+        list
+          .filter((row) => !removed.has(row._key))
+          .map((row) => {
+            // Only the server's own columns are taken back; everything else is
+            // left alone so it cannot overwrite what is being typed right now.
+            const match = saved.get(String(row.name ?? "").trim().toLowerCase());
+            if (!match) return row;
+            baseline.current[row._key] = sent[row._key] ?? baseline.current[row._key];
+            return { ...row, id: match.id, age: match.age };
+          })
+      );
+
+      for (const row of deletes) delete baseline.current[row._key];
+
+      setError("");
+      setStatus("idle");
+      onSaved?.(result.people);
+    } catch (err) {
+      blocked.current = true;
+      setError(err.message);
+      setStatus("error");
+    } finally {
+      inFlight.current = false;
+    }
+  }, [onSaved, pending, token]);
+
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+
+  // Every change schedules a write; the timer restarts on each keystroke, so a
+  // burst of typing is one request.
+  const schedule = useCallback((delay = SAVE_DELAY) => {
+    blocked.current = false;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      flushRef.current();
+    }, delay);
+  }, []);
+
+  // Leaving the page with a write still pending would lose it, so it goes out
+  // on the way out. Empty deps: this must run at unmount and nowhere else.
+  useEffect(() => {
+    return () => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+        flushRef.current();
+      }
+    };
+  }, []);
+
+  const setCell = useCallback(
+    (key, field, value) => {
+      setRows((list) =>
+        list.map((row) => (row._key === key ? { ...row, [field]: value } : row))
+      );
+      schedule();
+    },
+    [schedule]
+  );
 
   // Up, down, and Enter walk the column the way a spreadsheet does; Tab already
   // walks the row.
@@ -114,7 +215,6 @@ export default function PeopleSheet({ token, people, onSaved }) {
   );
 
   function addRow() {
-    setNotice("");
     setQuery("");
     const nextIndex = rows.length;
     setRows((list) => [...list, blankRow()]);
@@ -125,53 +225,11 @@ export default function PeopleSheet({ token, people, onSaved }) {
   function toggleDelete(key) {
     setRows((list) =>
       list
-        // A new row that was never saved can just disappear.
-        .filter((row) => !(row._key === key && row._new))
+        // A row that was never saved can just disappear.
+        .filter((row) => !(row._key === key && !row.id))
         .map((row) => (row._key === key ? { ...row, _deleted: !row._deleted } : row))
     );
-  }
-
-  function discard() {
-    setRows(people.map(toRow));
-    setError("");
-    setNotice("");
-  }
-
-  async function save() {
-    setSaving(true);
-    setError("");
-    setNotice("");
-
-    const upserts = rows
-      .filter((row) => !row._deleted && (row._new || fingerprint(row) !== baseline[row._key]))
-      .map((row) => {
-        const payload = { id: row._new ? null : row.id };
-        for (const field of EDITABLE) payload[field] = row[field] ?? "";
-        return payload;
-      });
-    const deletes = rows.filter((row) => row._deleted && !row._new).map((row) => row.id);
-
-    if (upserts.some((row) => !String(row.name).trim())) {
-      setSaving(false);
-      setError("Every row needs a name before it can be saved.");
-      return;
-    }
-
-    try {
-      const result = await api.bulkSavePeople(token, { upserts, deletes });
-      setRows(result.people.map(toRow));
-      setBaseline(baselineOf(result.people));
-      const parts = [];
-      if (result.created) parts.push(`${result.created} added`);
-      if (result.updated) parts.push(`${result.updated} updated`);
-      if (result.deleted) parts.push(`${result.deleted} removed`);
-      setNotice(parts.length ? `Saved. ${parts.join(", ")}.` : "Saved.");
-      onSaved?.(result.people);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+    schedule(DELETE_DELAY);
   }
 
   function renderCell(row, column, rowIndex, colIndex) {
@@ -182,7 +240,7 @@ export default function PeopleSheet({ token, people, onSaved }) {
     const shared = {
       "data-r": rowIndex,
       "data-c": colIndex,
-      disabled: row._deleted || saving,
+      disabled: row._deleted,
       "aria-label": `${column.label}, row ${rowIndex + 1}`,
       onKeyDown: (e) => onCellKeyDown(e, rowIndex, colIndex),
     };
@@ -225,41 +283,40 @@ export default function PeopleSheet({ token, people, onSaved }) {
   return (
     <div className="panel sheet-panel">
       <div className="sheet-toolbar">
-        <div className="sheet-heading">
-          <span className="sheet-title">People</span>
-          <span className="sheet-count">{rows.filter((r) => !r._deleted).length}</span>
-          {pendingCount > 0 && <span className="sheet-pending">{pendingCount} unsaved</span>}
-        </div>
-
         <div className="sheet-actions">
-          <input
-            className="sheet-search"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search"
-            placeholder="Search"
-          />
-          <button className="btn btn-secondary btn-inline" onClick={addRow} disabled={saving}>
+          <div className="sheet-search-wrap">
+            <svg className="sheet-search-icon" viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+              <line
+                x1="10.4"
+                y1="10.4"
+                x2="14"
+                y2="14"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </svg>
+            <input
+              className="sheet-search"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search"
+            />
+          </div>
+          <button className="btn btn-secondary btn-inline" onClick={addRow}>
             Add row
           </button>
-          {pendingCount > 0 && (
-            <button className="btn btn-secondary btn-inline" onClick={discard} disabled={saving}>
-              Discard
-            </button>
-          )}
-          <button
-            className="btn btn-primary btn-inline"
-            onClick={save}
-            disabled={saving || pendingCount === 0}
-          >
-            {saving ? "Saving" : "Save"}
-          </button>
+          <span
+            className={`sheet-status sheet-status-${status}`}
+            role="status"
+            aria-label={status === "saving" ? "Saving" : "Saved"}
+          />
         </div>
       </div>
 
       {error && <div className="error-banner panel-notice">{error}</div>}
-      {notice && <div className="success-banner panel-notice">{notice}</div>}
 
       <div className="sheet-scroll" ref={gridRef}>
         <table className="sheet">
@@ -283,12 +340,7 @@ export default function PeopleSheet({ token, people, onSaved }) {
           </thead>
           <tbody>
             {visible.map((row, rowIndex) => (
-              <tr
-                key={row._key}
-                className={`${row._deleted ? "sheet-row-deleted" : ""}${
-                  row._new ? " sheet-row-new" : ""
-                }`}
-              >
+              <tr key={row._key} className={row._deleted ? "sheet-row-deleted" : undefined}>
                 <td className="sheet-rownum">{rowIndex + 1}</td>
                 {COLUMNS.map((column, colIndex) => (
                   <td
@@ -303,7 +355,6 @@ export default function PeopleSheet({ token, people, onSaved }) {
                     type="button"
                     className="sheet-remove"
                     onClick={() => toggleDelete(row._key)}
-                    disabled={saving}
                     aria-label={row._deleted ? "Keep this row" : "Remove this row"}
                     title={row._deleted ? "Keep this row" : "Remove this row"}
                   >
