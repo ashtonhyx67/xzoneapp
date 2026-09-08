@@ -625,3 +625,297 @@ button {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- Roster ---------- */
+
+.roster-panel {
+  padding: 20px;
+}
+
+.roster-header {
+  margin-bottom: 16px;
+}
+
+.roster-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.roster-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.roster-title-input {
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  max-width: 220px;
+}
+
+.roster-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* The table is a grid so every row lines up without table markup. */
+.roster-table {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.roster-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 72px 92px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+}
+
+.roster-row > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roster-head {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-soft);
+}
+
+/* Blank-row separation from the spreadsheet, done with spacing. */
+.roster-group + .roster-group {
+  border-top: 8px solid var(--bg);
+}
+
+.roster-role {
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.roster-name {
+  font-weight: 500;
+}
+
+.roster-year,
+.roster-school {
+  color: var(--text-soft);
+}
+
+/* A tinted row is a leader; it carries the group's colour and reads bolder. */
+.roster-row[class*="roster-tint-"] .roster-role,
+.roster-row[class*="roster-tint-"] .roster-name,
+.roster-row[class*="roster-tint-"] .roster-year,
+.roster-row[class*="roster-tint-"] .roster-school {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.roster-tint-rose {
+  background: #fbdce0;
+}
+.roster-tint-cyan {
+  background: #d3edf7;
+}
+.roster-tint-yellow {
+  background: #fdf3b4;
+}
+.roster-tint-peach {
+  background: #fbe0c8;
+}
+.roster-tint-lavender {
+  background: #ded7ee;
+}
+.roster-tint-mint {
+  background: #d3efdf;
+}
+
+/* ---------- Roster: edit mode ---------- */
+
+.roster-row-edit,
+.roster-table-edit .roster-head {
+  grid-template-columns: 64px minmax(0, 1fr) 72px 92px auto;
+}
+
+.roster-row-edit {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* The action column header sits over the controls, not the inputs. */
+.roster-table-edit .roster-head {
+  padding-left: 16px;
+}
+
+.roster-row-edit input {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+}
+
+.roster-row-edit input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 128, 96, 0.12);
+}
+
+.roster-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.roster-tools select {
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  max-width: 92px;
+}
+
+.roster-tools-head {
+  text-align: right;
+}
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.icon-btn-danger:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.roster-group-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 12px 12px;
+  background: var(--bg);
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 4px 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  color: var(--accent-hover);
+}
+
+.link-btn-danger {
+  color: var(--danger);
+}
+
+.roster-add-group {
+  margin-top: 12px;
+}
+
+/* Phones: the four-column grid stops working, so edit rows become cards. */
+@media (max-width: 768px) {
+  .roster-row {
+    grid-template-columns: 52px minmax(0, 1fr) 56px 72px;
+    gap: 6px;
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .roster-header {
+    align-items: flex-start;
+  }
+
+  .roster-row-edit {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 12px 10px;
+  }
+
+  .roster-row-edit input {
+    font-size: 16px; /* no iOS zoom on focus */
+  }
+
+  .roster-tools {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .roster-tools select {
+    font-size: 16px;
+    max-width: none;
+    flex: 1;
+  }
+
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 15px;
+  }
+
+  /* In edit mode the inputs carry their own placeholders and the grid has a
+     different shape, so the shared header row would not line up. */
+  .roster-table-edit .roster-head {
+    display: none;
+  }
+
+  .roster-actions {
+    width: 100%;
+  }
+
+  .roster-actions .btn {
+    flex: 1;
+  }
+
+  .roster-title-input {
+    font-size: 16px;
+    max-width: none;
+  }
+}

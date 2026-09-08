@@ -83,6 +83,48 @@ async function initSchema() {
       ADD COLUMN IF NOT EXISTS transports JSONB;
   `);
 
+  // ---------- Roster ----------
+  // One roster per user. Groups are the visual blocks separated by blank rows
+  // in the source spreadsheet; rows are the people inside them.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS rosters (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL DEFAULT 'Roster',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS roster_groups (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      position INTEGER NOT NULL
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS roster_rows (
+      id SERIAL PRIMARY KEY,
+      group_id INTEGER NOT NULL REFERENCES roster_groups(id) ON DELETE CASCADE,
+      position INTEGER NOT NULL,
+      role TEXT NOT NULL DEFAULT '',
+      name TEXT NOT NULL DEFAULT '',
+      year TEXT NOT NULL DEFAULT '',
+      school TEXT NOT NULL DEFAULT '',
+      color TEXT NOT NULL DEFAULT ''
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS roster_groups_user_id_idx
+      ON roster_groups (user_id, position);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS roster_rows_group_id_idx
+      ON roster_rows (group_id, position);
+  `);
+
   // Temporary store for in-flight WebAuthn challenges.
   // A real production app might use Redis for this; a table is fine at this scale.
   await pool.query(`

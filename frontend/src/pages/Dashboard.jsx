@@ -4,6 +4,7 @@ import { startRegistration, browserSupportsWebAuthn } from "@simplewebauthn/brow
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { rememberFaceIdDevice } from "../lib/faceId.js";
+import Roster from "../components/Roster.jsx";
 
 function initials(name = "") {
   return name
@@ -112,6 +113,8 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
+
+        <Roster token={token} />
 
         {supportsWebAuthn && (
           <div className="panel">

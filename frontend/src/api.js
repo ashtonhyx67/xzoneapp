@@ -28,6 +28,9 @@ export const api = {
   me: (token, signal) => request("/auth/me", { token, signal }),
   dashboardSummary: (token, signal) => request("/dashboard/summary", { token, signal }),
 
+  getRoster: (token, signal) => request("/roster", { token, signal }),
+  saveRoster: (token, roster) => request("/roster", { method: "PUT", body: roster, token }),
+
   webauthnRegisterOptions: (token) =>
     request("/auth/webauthn/register-options", { token }),
   webauthnRegisterVerify: (token, response) =>
