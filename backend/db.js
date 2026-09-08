@@ -1,4 +1,9 @@
-const { Pool } = require("pg");
+const { Pool, types } = require("pg");
+
+// A DATE has no time and no timezone, but node-pg turns it into a local-midnight
+// JS Date, which JSON.stringify then shifts to UTC — sending every birthday a
+// day early from any timezone ahead of UTC. Hand back the raw 'YYYY-MM-DD'.
+types.setTypeParser(types.builtins.DATE, (value) => value);
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -83,6 +88,52 @@ async function initSchema() {
       ADD COLUMN IF NOT EXISTS transports JSONB;
   `);
 
+  // Access to the people database is restricted; ordinary accounts can sign in
+  // but see nothing until an admin promotes them.
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;
+  `);
+
+  // The first account to exist owns the instance, otherwise there would be no
+  // way to grant the very first admin.
+  await pool.query(`
+    UPDATE users SET is_admin = true
+     WHERE id = (SELECT MIN(id) FROM users)
+       AND NOT EXISTS (SELECT 1 FROM users WHERE is_admin);
+  `);
+
+  // ---------- People ----------
+  // One shared record per person. This is the source of truth; the roster is
+  // an arrangement of these people, not a second copy of them.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS people (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      photo_url TEXT NOT NULL DEFAULT '',
+      role TEXT NOT NULL DEFAULT '',
+      contact TEXT NOT NULL DEFAULT '',
+      telegram TEXT NOT NULL DEFAULT '',
+      instagram TEXT NOT NULL DEFAULT '',
+      ministry TEXT NOT NULL DEFAULT '',
+      birthday DATE,
+      follow_up TEXT NOT NULL DEFAULT '',
+      school TEXT NOT NULL DEFAULT '',
+      came_church TEXT NOT NULL DEFAULT '',
+      invited_by TEXT NOT NULL DEFAULT '',
+      religion TEXT NOT NULL DEFAULT '',
+      general_information TEXT NOT NULL DEFAULT '',
+      updates TEXT NOT NULL DEFAULT '',
+      next_steps TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  // Age is derived from birthday rather than stored, so it can never go stale.
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS people_name_key ON people (lower(name));
+  `);
+
   // ---------- Roster ----------
   // One roster per user. Groups are the visual blocks separated by blank rows
   // in the source spreadsheet; rows are the people inside them.
@@ -123,6 +174,17 @@ async function initSchema() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS roster_rows_group_id_idx
       ON roster_rows (group_id, position);
+  `);
+
+  // A roster row points at a person; the inline name/role/school columns stay
+  // as a fallback for rows that have not been linked to one yet.
+  await pool.query(`
+    ALTER TABLE roster_rows
+      ADD COLUMN IF NOT EXISTS person_id INTEGER REFERENCES people(id) ON DELETE SET NULL;
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS roster_rows_person_id_idx ON roster_rows (person_id);
   `);
 
   // Temporary store for in-flight WebAuthn challenges.

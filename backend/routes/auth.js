@@ -79,8 +79,12 @@ router.post(
     try {
       // Let the UNIQUE constraint decide. A SELECT-then-INSERT would let two
       // simultaneous signups for the same email both pass the check.
+      // The very first account owns the instance, otherwise there would be no
+      // way to grant the first admin.
       const result = await pool.query(
-        "INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING id, name, email",
+        `INSERT INTO users (name, email, password_hash, is_admin)
+         VALUES ($1, $2, $3, NOT EXISTS (SELECT 1 FROM users))
+         RETURNING id, name, email, is_admin`,
         [String(name).trim(), email, passwordHash]
       );
       user = result.rows[0];
@@ -91,7 +95,11 @@ router.post(
       throw err;
     }
 
-    res.json({ token: signToken(user.id), user: publicUser(user) });
+    res.json({
+      token: signToken(user.id),
+      user: publicUser(user),
+      isAdmin: user.is_admin,
+    });
   })
 );
 
@@ -106,7 +114,7 @@ router.post(
     }
 
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.password_hash,
+      `SELECT u.id, u.name, u.email, u.password_hash, u.is_admin,
               EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled
          FROM users u
         WHERE u.email = $1`,
@@ -122,6 +130,7 @@ router.post(
       token: signToken(user.id),
       user: publicUser(user),
       faceIdEnabled: user.face_id_enabled,
+      isAdmin: user.is_admin,
     });
   })
 );
@@ -133,7 +142,7 @@ router.get(
     // One round trip for the profile and whether Face ID is already enrolled,
     // so the dashboard never has to guess.
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email,
+      `SELECT u.id, u.name, u.email, u.is_admin,
               EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled
          FROM users u
         WHERE u.id = $1`,
@@ -142,7 +151,11 @@ router.get(
     const row = result.rows[0];
     if (!row) return res.status(404).json({ error: "User not found." });
 
-    res.json({ user: publicUser(row), faceIdEnabled: row.face_id_enabled });
+    res.json({
+      user: publicUser(row),
+      faceIdEnabled: row.face_id_enabled,
+      isAdmin: row.is_admin,
+    });
   })
 );
 

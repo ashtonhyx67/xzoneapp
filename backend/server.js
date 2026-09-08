@@ -6,6 +6,7 @@ const cors = require("cors");
 const { initSchemaWithRetry } = require("./db");
 const authRoutes = require("./routes/auth");
 const rosterRoutes = require("./routes/roster");
+const { router: peopleRoutes } = require("./routes/people");
 const { requireAuth } = require("./middleware/auth");
 
 if (!process.env.JWT_SECRET) {
@@ -40,6 +41,7 @@ app.use("/api", (req, res, next) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/roster", rosterRoutes);
+app.use("/api/people", peopleRoutes);
 
 // Example protected route for the dashboard to call.
 // Add real endpoints here as the app grows (e.g. /api/projects, /api/team).
