@@ -27,7 +27,7 @@ export default function Login() {
     setLoading(true);
     try {
       const data = await api.login(form);
-      signIn(data.token, data.user);
+      signIn(data.token, data.user, { faceIdEnabled: data.faceIdEnabled });
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
@@ -47,7 +47,7 @@ export default function Login() {
       const { options, userId } = await api.webauthnLoginOptions(form.email);
       const authResponse = await startAuthentication({ optionsJSON: options });
       const data = await api.webauthnLoginVerify(userId, authResponse);
-      signIn(data.token, data.user);
+      signIn(data.token, data.user, { faceIdEnabled: true });
       navigate("/dashboard");
     } catch (err) {
       setError(err.message || "Face ID sign-in was cancelled or failed.");
@@ -61,7 +61,6 @@ export default function Login() {
       <div className="auth-wordmark">Team App</div>
       <div className="auth-card">
         <h1 className="auth-title">Sign in</h1>
-        <p className="auth-subtitle">Welcome back. Use your password or Face ID.</p>
 
         {error && <div className="error-banner">{error}</div>}
 

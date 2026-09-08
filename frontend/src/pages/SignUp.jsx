@@ -34,7 +34,6 @@ export default function SignUp() {
       <div className="auth-wordmark">Team App</div>
       <div className="auth-card">
         <h1 className="auth-title">Create your account</h1>
-        <p className="auth-subtitle">Set up access for your team in a minute.</p>
 
         {error && <div className="error-banner">{error}</div>}
 

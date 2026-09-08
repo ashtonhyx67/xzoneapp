@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { startRegistration, browserSupportsWebAuthn } from "@simplewebauthn/browser";
 import { api } from "../api.js";
@@ -7,26 +7,44 @@ import { useAuth } from "../context/AuthContext.jsx";
 function initials(name = "") {
   return name
     .split(" ")
-    .map((p) => p[0])
+    .filter(Boolean)
+    .map((part) => part[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
 }
 
 export default function Dashboard() {
-  const { user, token, signOut } = useAuth();
+  const { user, token, faceIdEnabled, setFaceIdEnabled, signOut } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState([]);
-  const [faceIdEnabled, setFaceIdEnabled] = useState(false);
+  const [statsError, setStatsError] = useState("");
   const [enrolling, setEnrolling] = useState(false);
   const [notice, setNotice] = useState(null); // { type: 'success' | 'error', text }
-  const supportsWebAuthn = browserSupportsWebAuthn();
+
+  const supportsWebAuthn = useMemo(() => browserSupportsWebAuthn(), []);
+  const firstName = user?.name ? user.name.split(" ")[0] : "";
 
   useEffect(() => {
+    if (!token) return;
+
+    const controller = new AbortController();
+    let active = true;
+
     api
-      .dashboardSummary(token)
-      .then((data) => setStats(data.stats))
-      .catch(() => {});
+      .dashboardSummary(token, controller.signal)
+      .then((data) => {
+        if (active) setStats(data.stats);
+      })
+      .catch((err) => {
+        // A silent catch here left the page permanently blank with no reason.
+        if (active && err.name !== "AbortError") setStatsError(err.message);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [token]);
 
   function handleSignOut() {
@@ -77,61 +95,46 @@ export default function Dashboard() {
       </aside>
 
       <main className="main-content">
-        <h1 className="page-title">Welcome back{user?.name ? `, ${user.name.split(" ")[0]}` : ""}</h1>
-        <p className="page-subtitle">Here's what's happening with your team.</p>
+        <h1 className="page-title">Welcome back{firstName ? `, ${firstName}` : ""}</h1>
+
+        {statsError && <div className="error-banner">{statsError}</div>}
 
         <div className="stat-grid">
-          {stats.map((s) => (
-            <div className="stat-card" key={s.label}>
-              <div className="stat-label">{s.label}</div>
-              <div className="stat-value">{s.value}</div>
+          {stats.map((stat) => (
+            <div className="stat-card" key={stat.label}>
+              <div className="stat-label">{stat.label}</div>
+              <div className="stat-value">{stat.value}</div>
             </div>
           ))}
         </div>
 
         {supportsWebAuthn && (
           <div className="panel">
-            <div className="faceid-row">
-              <div>
-                <div className="panel-title">Face ID sign-in</div>
-                <p className="panel-body">
-                  Enable Face ID, Touch ID, or your device's biometric unlock so you can skip
-                  typing a password next time.
-                </p>
-              </div>
-              <div>
-                {faceIdEnabled ? (
-                  <span className="badge badge-on">Enabled</span>
-                ) : (
-                  <button
-                    className="btn btn-secondary"
-                    style={{ width: "auto", whiteSpace: "nowrap" }}
-                    onClick={handleEnableFaceId}
-                    disabled={enrolling}
-                  >
-                    {enrolling ? "Waiting for device…" : "Enable Face ID"}
-                  </button>
-                )}
-              </div>
+            <div className="panel-row">
+              <div className="panel-title">Face ID sign-in</div>
+              {faceIdEnabled ? (
+                <span className="badge badge-on">Enabled</span>
+              ) : (
+                <button
+                  className="btn btn-secondary btn-inline"
+                  onClick={handleEnableFaceId}
+                  disabled={enrolling}
+                >
+                  {enrolling ? "Waiting for device…" : "Enable Face ID"}
+                </button>
+              )}
             </div>
             {notice && (
               <div
-                className={notice.type === "success" ? "success-banner" : "error-banner"}
-                style={{ marginTop: 16, marginBottom: 0 }}
+                className={`panel-notice ${
+                  notice.type === "success" ? "success-banner" : "error-banner"
+                }`}
               >
                 {notice.text}
               </div>
             )}
           </div>
         )}
-
-        <div className="panel">
-          <div className="panel-title">This is your dashboard shell</div>
-          <p className="panel-body">
-            Add more sections here as the app grows — projects, tasks, activity, whatever your
-            50 members need. The sidebar, stat cards, and panel styles are ready to reuse.
-          </p>
-        </div>
       </main>
     </div>
   );

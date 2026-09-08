@@ -1,6 +1,6 @@
 const BASE = "/api";
 
-async function request(path, { method = "GET", body, token } = {}) {
+async function request(path, { method = "GET", body, token, signal } = {}) {
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: {
@@ -8,11 +8,16 @@ async function request(path, { method = "GET", body, token } = {}) {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
+    signal,
   });
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || "Something went wrong. Please try again.");
+    // Carry the status through so callers can tell "signed out" (401) apart
+    // from "server hiccup" (5xx) and react differently.
+    const error = new Error(data.error || "Something went wrong. Please try again.");
+    error.status = res.status;
+    throw error;
   }
   return data;
 }
@@ -20,8 +25,8 @@ async function request(path, { method = "GET", body, token } = {}) {
 export const api = {
   signup: (payload) => request("/auth/signup", { method: "POST", body: payload }),
   login: (payload) => request("/auth/login", { method: "POST", body: payload }),
-  me: (token) => request("/auth/me", { token }),
-  dashboardSummary: (token) => request("/dashboard/summary", { token }),
+  me: (token, signal) => request("/auth/me", { token, signal }),
+  dashboardSummary: (token, signal) => request("/dashboard/summary", { token, signal }),
 
   webauthnRegisterOptions: (token) =>
     request("/auth/webauthn/register-options", { token }),

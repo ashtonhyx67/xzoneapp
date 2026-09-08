@@ -77,14 +77,7 @@ button {
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  margin-bottom: 4px;
-}
-
-.auth-subtitle {
-  font-size: 14px;
-  color: var(--text-soft);
   margin-bottom: 24px;
-  line-height: 1.5;
 }
 
 .auth-switch {
@@ -94,8 +87,7 @@ button {
   text-align: center;
 }
 
-.auth-switch a,
-.link-button {
+.auth-switch a {
   color: var(--accent);
   text-decoration: none;
   font-weight: 500;
@@ -106,8 +98,7 @@ button {
   font-size: inherit;
 }
 
-.auth-switch a:hover,
-.link-button:hover {
+.auth-switch a:hover {
   color: var(--accent-hover);
 }
 
@@ -192,6 +183,13 @@ button {
 
 .btn-secondary:hover:not(:disabled) {
   border-color: var(--text);
+}
+
+/* Buttons are full-width by default; this is the one that sits inline. */
+.btn-inline {
+  width: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn-faceid {
@@ -342,12 +340,6 @@ button {
   letter-spacing: -0.01em;
 }
 
-.page-subtitle {
-  font-size: 14px;
-  color: var(--text-soft);
-  margin-top: 4px;
-}
-
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -385,20 +377,18 @@ button {
 .panel-title {
   font-size: 15px;
   font-weight: 600;
-  margin-bottom: 6px;
 }
 
-.panel-body {
-  font-size: 14px;
-  color: var(--text-soft);
-  line-height: 1.6;
-}
-
-.faceid-row {
+.panel-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+.panel-notice {
+  margin-top: 16px;
+  margin-bottom: 0;
 }
 
 .badge {
@@ -414,11 +404,6 @@ button {
 .badge-on {
   background: #e3f5ef;
   color: var(--accent-hover);
-}
-
-.badge-off {
-  background: var(--bg);
-  color: var(--text-soft);
 }
 
 .spinner {
