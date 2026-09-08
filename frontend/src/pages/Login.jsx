@@ -1,24 +1,37 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/browser";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import PasswordField from "../components/PasswordField.jsx";
+import {
+  getFaceIdDevice,
+  rememberFaceIdDevice,
+  forgetFaceIdDevice,
+} from "../lib/faceId.js";
 
 export default function Login() {
   const navigate = useNavigate();
   const { signIn } = useAuth();
-  const [form, setForm] = useState({ email: "", password: "" });
+
+  // If this device has Face ID enrolled we already know whose account it is,
+  // so the email starts filled in.
+  const enrolledDevice = useMemo(() => getFaceIdDevice(), []);
+  const supportsWebAuthn = useMemo(() => browserSupportsWebAuthn(), []);
+
+  const [form, setForm] = useState({
+    email: enrolledDevice?.email || "",
+    password: "",
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [faceIdLoading, setFaceIdLoading] = useState(false);
-  const [supportsWebAuthn, setSupportsWebAuthn] = useState(false);
-
-  useEffect(() => {
-    setSupportsWebAuthn(browserSupportsWebAuthn());
-  }, []);
+  const [faceIdAvailable, setFaceIdAvailable] = useState(
+    Boolean(supportsWebAuthn && enrolledDevice)
+  );
 
   function update(field) {
-    return (e) => setForm({ ...form, [field]: e.target.value });
+    return (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
   }
 
   async function handlePasswordSubmit(e) {
@@ -27,6 +40,7 @@ export default function Login() {
     setLoading(true);
     try {
       const data = await api.login(form);
+      if (data.faceIdEnabled) rememberFaceIdDevice(data.user.email);
       signIn(data.token, data.user, { faceIdEnabled: data.faceIdEnabled });
       navigate("/dashboard");
     } catch (err) {
@@ -36,25 +50,49 @@ export default function Login() {
     }
   }
 
-  async function handleFaceId() {
-    setError("");
-    if (!form.email) {
-      setError("Enter your email first, then tap Sign in with Face ID.");
-      return;
-    }
-    setFaceIdLoading(true);
-    try {
-      const { options, userId } = await api.webauthnLoginOptions(form.email);
-      const authResponse = await startAuthentication({ optionsJSON: options });
-      const data = await api.webauthnLoginVerify(userId, authResponse);
-      signIn(data.token, data.user, { faceIdEnabled: true });
-      navigate("/dashboard");
-    } catch (err) {
-      setError(err.message || "Face ID sign-in was cancelled or failed.");
-    } finally {
-      setFaceIdLoading(false);
-    }
-  }
+  // `silent` is the prompt we raise on our own initiative when the page opens:
+  // if the user waves it away, that's not an error worth shouting about.
+  const runFaceId = useCallback(
+    async (email, { silent = false } = {}) => {
+      if (!email) {
+        setError("Enter your email first, then tap Sign in with Face ID.");
+        return;
+      }
+      setError("");
+      setFaceIdLoading(true);
+      try {
+        const { options, userId } = await api.webauthnLoginOptions(email);
+        const authResponse = await startAuthentication({ optionsJSON: options });
+        const data = await api.webauthnLoginVerify(userId, authResponse);
+        rememberFaceIdDevice(data.user.email);
+        signIn(data.token, data.user, { faceIdEnabled: true });
+        navigate("/dashboard");
+      } catch (err) {
+        // The account no longer has a credential, so stop offering the button.
+        if (err.status === 404) {
+          forgetFaceIdDevice();
+          setFaceIdAvailable(false);
+        }
+        if (!silent) {
+          setError(err.message || "Face ID sign-in was cancelled or failed.");
+        }
+      } finally {
+        setFaceIdLoading(false);
+      }
+    },
+    [navigate, signIn]
+  );
+
+  // Offer Face ID straight away on a device that has it enrolled, so returning
+  // after a sign-out is one glance rather than a typed password. Runs once, and
+  // falls back to the form without complaint if it's dismissed.
+  const autoPrompted = useRef(false);
+  useEffect(() => {
+    if (autoPrompted.current) return;
+    if (!supportsWebAuthn || !enrolledDevice?.email) return;
+    autoPrompted.current = true;
+    runFaceId(enrolledDevice.email, { silent: true });
+  }, [supportsWebAuthn, enrolledDevice, runFaceId]);
 
   return (
     <div className="auth-shell">
@@ -63,6 +101,20 @@ export default function Login() {
         <h1 className="auth-title">Sign in</h1>
 
         {error && <div className="error-banner">{error}</div>}
+
+        {faceIdAvailable && (
+          <>
+            <button
+              type="button"
+              className="btn btn-faceid"
+              onClick={() => runFaceId(form.email)}
+              disabled={faceIdLoading}
+            >
+              {faceIdLoading ? "Verifying…" : "Sign in with Face ID"}
+            </button>
+            <div className="divider">OR</div>
+          </>
+        )}
 
         <form onSubmit={handlePasswordSubmit}>
           <div className="field">
@@ -76,35 +128,15 @@ export default function Login() {
               required
             />
           </div>
-          <div className="field">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              value={form.password}
-              onChange={update("password")}
-              required
-            />
-          </div>
+          <PasswordField
+            value={form.password}
+            onChange={update("password")}
+            autoComplete="current-password"
+          />
           <button className="btn btn-primary" type="submit" disabled={loading}>
             {loading ? <span className="spinner" /> : "Sign in"}
           </button>
         </form>
-
-        {supportsWebAuthn && (
-          <>
-            <div className="divider">OR</div>
-            <button
-              type="button"
-              className="btn btn-faceid"
-              onClick={handleFaceId}
-              disabled={faceIdLoading}
-            >
-              {faceIdLoading ? "Verifying…" : "Sign in with Face ID"}
-            </button>
-          </>
-        )}
 
         <div className="auth-switch">
           New here? <Link to="/signup">Create an account</Link>

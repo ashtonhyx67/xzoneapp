@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { startRegistration, browserSupportsWebAuthn } from "@simplewebauthn/browser";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { rememberFaceIdDevice } from "../lib/faceId.js";
 
 function initials(name = "") {
   return name
@@ -59,6 +60,8 @@ export default function Dashboard() {
       const options = await api.webauthnRegisterOptions(token);
       const regResponse = await startRegistration({ optionsJSON: options });
       await api.webauthnRegisterVerify(token, regResponse);
+      // Lets the sign-in page offer Face ID next time this device is used.
+      if (user?.email) rememberFaceIdDevice(user.email);
       setFaceIdEnabled(true);
       setNotice({ type: "success", text: "Face ID is now enabled for this device." });
     } catch (err) {
@@ -76,14 +79,16 @@ export default function Dashboard() {
       <aside className="sidebar">
         <div className="sidebar-wordmark">Team App</div>
 
-        <div className="nav-item active">Dashboard</div>
-        <div className="nav-item">Members</div>
-        <div className="nav-item">Settings</div>
+        <nav className="sidebar-nav">
+          <div className="nav-item active">Dashboard</div>
+          <div className="nav-item">Members</div>
+          <div className="nav-item">Settings</div>
+        </nav>
 
         <div className="sidebar-footer">
           <div className="user-chip">
             <div className="user-avatar">{initials(user?.name)}</div>
-            <div>
+            <div className="user-identity">
               <div className="user-name">{user?.name}</div>
               <div className="user-email">{user?.email}</div>
             </div>

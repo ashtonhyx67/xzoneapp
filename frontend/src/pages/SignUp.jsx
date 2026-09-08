@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import PasswordField from "../components/PasswordField.jsx";
+
+const MIN_PASSWORD_LENGTH = 8;
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -11,12 +14,20 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
 
   function update(field) {
-    return (e) => setForm({ ...form, [field]: e.target.value });
+    return (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+
+    // Checked here as well as on the server, so the message reads the same as
+    // every other error on this card instead of a browser tooltip.
+    if (form.password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      return;
+    }
+
     setLoading(true);
     try {
       const data = await api.signup(form);
@@ -37,7 +48,7 @@ export default function SignUp() {
 
         {error && <div className="error-banner">{error}</div>}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="field">
             <label htmlFor="name">Full name</label>
             <input
@@ -60,18 +71,12 @@ export default function SignUp() {
               required
             />
           </div>
-          <div className="field">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              value={form.password}
-              onChange={update("password")}
-              minLength={8}
-              required
-            />
-          </div>
+          <PasswordField
+            value={form.password}
+            onChange={update("password")}
+            autoComplete="new-password"
+            minLength={MIN_PASSWORD_LENGTH}
+          />
           <button className="btn btn-primary" type="submit" disabled={loading}>
             {loading ? <span className="spinner" /> : "Create account"}
           </button>
