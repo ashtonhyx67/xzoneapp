@@ -28,6 +28,12 @@ export const api = {
   me: (token, signal) => request("/auth/me", { token, signal }),
   dashboardSummary: (token, signal) => request("/dashboard/summary", { token, signal }),
 
+  getPeople: (token, signal) => request("/people", { token, signal }),
+  createPerson: (token, person) => request("/people", { method: "POST", body: person, token }),
+  updatePerson: (token, id, person) =>
+    request(`/people/${id}`, { method: "PUT", body: person, token }),
+  deletePerson: (token, id) => request(`/people/${id}`, { method: "DELETE", token }),
+
   getRoster: (token, signal) => request("/roster", { token, signal }),
   saveRoster: (token, roster) => request("/roster", { method: "PUT", body: roster, token }),
 

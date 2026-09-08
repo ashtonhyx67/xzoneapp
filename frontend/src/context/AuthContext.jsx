@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem("token"));
   const [user, setUser] = useState(null);
   const [faceIdEnabled, setFaceIdEnabled] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(() => Boolean(localStorage.getItem("token")));
 
   const signOut = useCallback(() => {
@@ -21,6 +22,7 @@ export function AuthProvider({ children }) {
     setToken(null);
     setUser(null);
     setFaceIdEnabled(false);
+    setIsAdmin(false);
   }, []);
 
   // Only restore the session on a cold start. Signing in already has the user,
@@ -40,6 +42,7 @@ export function AuthProvider({ children }) {
         if (!active) return;
         setUser(data.user);
         setFaceIdEnabled(Boolean(data.faceIdEnabled));
+        setIsAdmin(Boolean(data.isAdmin));
       })
       .catch((err) => {
         if (!active || err.name === "AbortError") return;
@@ -62,11 +65,12 @@ export function AuthProvider({ children }) {
     setToken(newToken);
     setUser(newUser);
     setFaceIdEnabled(Boolean(options.faceIdEnabled));
+    setIsAdmin(Boolean(options.isAdmin));
   }, []);
 
   const value = useMemo(
-    () => ({ token, user, faceIdEnabled, setFaceIdEnabled, loading, signIn, signOut }),
-    [token, user, faceIdEnabled, loading, signIn, signOut]
+    () => ({ token, user, faceIdEnabled, setFaceIdEnabled, isAdmin, loading, signIn, signOut }),
+    [token, user, faceIdEnabled, isAdmin, loading, signIn, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

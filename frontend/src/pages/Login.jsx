@@ -41,7 +41,10 @@ export default function Login() {
     try {
       const data = await api.login(form);
       if (data.faceIdEnabled) rememberFaceIdDevice(data.user.email);
-      signIn(data.token, data.user, { faceIdEnabled: data.faceIdEnabled });
+      signIn(data.token, data.user, {
+        faceIdEnabled: data.faceIdEnabled,
+        isAdmin: data.isAdmin,
+      });
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
@@ -65,7 +68,7 @@ export default function Login() {
         const authResponse = await startAuthentication({ optionsJSON: options });
         const data = await api.webauthnLoginVerify(userId, authResponse);
         rememberFaceIdDevice(data.user.email);
-        signIn(data.token, data.user, { faceIdEnabled: true });
+        signIn(data.token, data.user, { faceIdEnabled: true, isAdmin: data.isAdmin });
         navigate("/dashboard");
       } catch (err) {
         // The account no longer has a credential, so stop offering the button.

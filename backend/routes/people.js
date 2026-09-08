@@ -12,6 +12,7 @@ const FIELDS = [
   "name",
   "photo_url",
   "role",
+  "team",
   "contact",
   "telegram",
   "instagram",

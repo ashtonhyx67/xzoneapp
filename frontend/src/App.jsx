@@ -4,6 +4,7 @@ import { useAuth } from "./context/AuthContext.jsx";
 import SignUp from "./pages/SignUp.jsx";
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import Members from "./pages/Members.jsx";
 
 function ProtectedRoute({ children }) {
   const { token, loading } = useAuth();
@@ -22,6 +23,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/members"
+        element={
+          <ProtectedRoute>
+            <Members />
           </ProtectedRoute>
         }
       />

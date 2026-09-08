@@ -9,6 +9,7 @@
   --accent-hover: #004c3f;
   --danger: #d72c0d;
   --danger-bg: #fdeceb;
+  --card-head: #f6cccc;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -296,8 +297,14 @@ button {
   font-size: 14px;
   font-weight: 500;
   color: var(--text-soft);
+  text-decoration: none;
   cursor: pointer;
   margin-bottom: 2px;
+}
+
+.nav-item:hover {
+  background: var(--bg);
+  color: var(--text);
 }
 
 .nav-item.active {
@@ -917,5 +924,222 @@ button {
   .roster-title-input {
     font-size: 16px;
     max-width: none;
+  }
+}
+
+/* ---------- Person scorecard ---------- */
+
+.person-card {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+  margin-top: 20px;
+}
+
+.person-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.person-photo {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.person-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.person-photo-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--text-soft);
+  font-size: 44px;
+  font-weight: 600;
+}
+
+.person-picker {
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.person-side-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.person-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.card-tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.card-table {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.card-table-title {
+  background: var(--card-head);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.card-field {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  align-items: stretch;
+  border-bottom: 1px dashed var(--border);
+}
+
+.card-field:last-child {
+  border-bottom: none;
+}
+
+.card-field-label {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border-right: 1px solid var(--border);
+}
+
+.card-field-value {
+  padding: 8px 12px;
+  font-size: 13px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.card-empty {
+  color: var(--border-strong);
+}
+
+.card-field-value input {
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+}
+
+.card-field-value input:focus,
+.card-note-value textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 128, 96, 0.12);
+}
+
+.card-notes {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.card-note {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.card-note:last-child {
+  border-bottom: none;
+}
+
+.card-note-label {
+  background: var(--card-head);
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  border-right: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+}
+
+.card-note-value {
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.card-note-value textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 7px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  resize: vertical;
+}
+
+@media (max-width: 768px) {
+  .person-card {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .person-side {
+    max-width: 260px;
+  }
+
+  .card-field {
+    grid-template-columns: 104px minmax(0, 1fr);
+  }
+
+  .card-note {
+    grid-template-columns: 1fr;
+  }
+
+  .card-note-label {
+    border-right: none;
+    border-bottom: 1px solid var(--border-strong);
+  }
+
+  .person-picker,
+  .card-field-value input,
+  .card-note-value textarea {
+    font-size: 16px; /* no iOS zoom on focus */
   }
 }

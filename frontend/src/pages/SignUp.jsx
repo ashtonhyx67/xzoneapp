@@ -31,7 +31,7 @@ export default function SignUp() {
     setLoading(true);
     try {
       const data = await api.signup(form);
-      signIn(data.token, data.user);
+      signIn(data.token, data.user, { isAdmin: data.isAdmin });
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);

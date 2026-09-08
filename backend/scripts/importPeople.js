@@ -26,6 +26,8 @@ const HEADER_MAP = {
   xiiianame: "name",
   photo: "photo_url",
   role: "role",
+  status: "role",
+  team: "team",
   contact: "contact",
   telegram: "telegram",
   instagram: "instagram",
@@ -199,7 +201,7 @@ async function main() {
   }
 
   const fields = [
-    "name", "photo_url", "role", "contact", "telegram", "instagram", "ministry",
+    "name", "photo_url", "role", "team", "contact", "telegram", "instagram", "ministry",
     "birthday", "follow_up", "school", "came_church", "invited_by", "religion",
     "general_information", "updates", "next_steps",
   ];

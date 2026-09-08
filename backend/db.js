@@ -129,6 +129,11 @@ async function initSchema() {
     );
   `);
 
+  // The scorecard tracks which team a person belongs to (e.g. "A" in XIII A).
+  await pool.query(`
+    ALTER TABLE people ADD COLUMN IF NOT EXISTS team TEXT NOT NULL DEFAULT '';
+  `);
+
   // Age is derived from birthday rather than stored, so it can never go stale.
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS people_name_key ON people (lower(name));
