@@ -76,7 +76,7 @@ export default function SetPin() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-wordmark">Team App</div>
+      <div className="auth-wordmark">X Zone App</div>
       <div className="auth-card auth-card-pin">
         <h1 className="auth-title">
           {step === "choose" ? "Create a PIN" : "Confirm your PIN"}

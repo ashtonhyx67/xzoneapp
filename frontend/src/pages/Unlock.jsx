@@ -33,7 +33,8 @@ export default function Unlock() {
         const data = await api.pinLogin(account.email, entered);
         signIn(data.token, data.user, {
           faceIdEnabled: data.faceIdEnabled,
-          isAdmin: data.isAdmin,
+          permissions: data.permissions,
+          group: data.group,
           isOwner: data.isOwner,
           pinSet: true,
         });
@@ -67,7 +68,7 @@ export default function Unlock() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-wordmark">Team App</div>
+      <div className="auth-wordmark">X Zone App</div>
       <div className="auth-card auth-card-pin">
         <h1 className="auth-title">
           {firstName ? `Welcome back, ${firstName}` : "Welcome back"}

@@ -125,7 +125,7 @@ export default function PinSettings() {
       </div>
 
       {!open && (
-        <div className="reminder-empty">
+        <div className="list-empty">
           {pinSet
             ? "Closing the app signs you out; your PIN gets you back in."
             : "Set a 4-digit PIN so you can get back in without typing your password."}
@@ -137,7 +137,7 @@ export default function PinSettings() {
 
       {open && (
         <div className="pin-inline">
-          <div className="reminder-empty">{prompts[step]}</div>
+          <div className="list-empty">{prompts[step]}</div>
           <PinPad value={entry} onChange={handleChange} disabled={busy} />
         </div>
       )}

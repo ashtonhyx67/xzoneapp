@@ -9,8 +9,9 @@
 // Run against your Railway database:
 //   DATABASE_URL="<public URL from Railway>" node scripts/setAdmin.js --list
 //
-// Admins can read and edit the people database. Everyone else can sign in but
-// sees nothing, so this is the gate on personal contact details and notes.
+// Accounts are normally managed in the app itself, on the Admin tab. This is
+// the way in when nobody has access yet: it puts an account in the admin group,
+// which can read and edit everything and manage other accounts.
 
 const path = require("path");
 
@@ -86,7 +87,13 @@ async function setAdmin(email, makeAdmin) {
     }
   }
 
-  await pool.query("UPDATE users SET is_admin = $1 WHERE id = $2", [makeAdmin, user.id]);
+  // Groups are the real access control now; the flag is kept in step for
+  // anything still reading it.
+  await pool.query("UPDATE users SET is_admin = $1, group_key = $2 WHERE id = $3", [
+    makeAdmin,
+    makeAdmin ? "admin" : "member",
+    user.id,
+  ]);
   console.log(
     `${user.email} (${user.name}) is ${makeAdmin ? "now an admin" : "no longer an admin"}.`
   );

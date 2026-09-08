@@ -1,7 +1,8 @@
 const express = require("express");
 
 const { pool } = require("../db");
-const { requireAuth } = require("../middleware/auth");
+const { requireAuth, loadAccess } = require("../middleware/auth");
+const { PERMISSIONS } = require("../lib/groups");
 
 const router = express.Router();
 
@@ -54,12 +55,12 @@ router.get(
   "/summary",
   requireAuth,
   route(async (req, res) => {
-    const access = await pool.query("SELECT is_admin FROM users WHERE id = $1", [req.userId]);
+    const access = await loadAccess(req.userId);
 
     // The reminders are built from personal records, so they follow the same
-    // restriction as the people database itself.
-    if (!access.rows[0]?.is_admin) {
-      return res.json({ isAdmin: false, stats: [], birthdays: [], followUps: [] });
+    // permission as the directory itself.
+    if (!access?.permissions.includes(PERMISSIONS.VIEW_DIRECTORY)) {
+      return res.json({ canView: false, stats: [], birthdays: [], followUps: [] });
     }
 
     const result = await pool.query(
@@ -78,6 +79,8 @@ router.get(
           birthday: p.birthday,
           daysAway,
           turning: turningAge(p.birthday, daysAway, today),
+          role: p.role,
+          team: p.team,
         };
       })
       .filter((p) => p.daysAway <= BIRTHDAY_WINDOW_DAYS)
@@ -90,13 +93,14 @@ router.get(
         name: p.name,
         status: p.follow_up || "Not set",
         role: p.role,
+        team: p.team,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
     const missingBirthday = people.filter((p) => !p.birthday).length;
 
     res.json({
-      isAdmin: true,
+      canView: true,
       stats: [
         { label: "People", value: people.length },
         { label: "Birthdays in 30 days", value: birthdays.length },

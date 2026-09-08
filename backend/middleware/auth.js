@@ -1,6 +1,8 @@
 const jwt = require("jsonwebtoken");
 
 const { pool } = require("../db");
+const { isOwnerEmail } = require("../lib/owner");
+const { getGroup, permissionsFor, DEFAULT_GROUP } = require("../lib/groups");
 
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || "";
@@ -19,18 +21,44 @@ function requireAuth(req, res, next) {
   }
 }
 
-// Admin status is read from the database, never from the token, so revoking
-// someone's access takes effect immediately instead of when their token expires.
-async function requireAdmin(req, res, next) {
-  try {
-    const result = await pool.query("SELECT is_admin FROM users WHERE id = $1", [req.userId]);
-    if (!result.rows[0]?.is_admin) {
-      return res.status(403).json({ error: "You do not have access to this." });
-    }
-    next();
-  } catch (err) {
-    next(err);
-  }
+// Access is read from the database on every request, never from the token, so
+// moving someone between groups takes effect immediately rather than whenever
+// their token happens to expire.
+async function loadAccess(userId) {
+  const result = await pool.query(
+    "SELECT id, name, email, group_key FROM users WHERE id = $1",
+    [userId]
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+
+  // The owner's group comes from their email, so it survives any edit.
+  const groupKey = isOwnerEmail(row.email) ? "owner" : row.group_key || DEFAULT_GROUP;
+
+  return {
+    user: row,
+    groupKey,
+    group: getGroup(groupKey),
+    permissions: permissionsFor(groupKey),
+    isOwner: isOwnerEmail(row.email),
+  };
 }
 
-module.exports = { requireAuth, requireAdmin };
+// Guards a route with a named permission from lib/groups.js.
+function requirePermission(permission) {
+  return async function check(req, res, next) {
+    try {
+      const access = await loadAccess(req.userId);
+      if (!access) return res.status(401).json({ error: "Not signed in." });
+      if (!access.permissions.includes(permission)) {
+        return res.status(403).json({ error: "You do not have access to this." });
+      }
+      req.access = access;
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
+module.exports = { requireAuth, loadAccess, requirePermission };

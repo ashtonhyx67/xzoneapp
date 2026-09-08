@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { photoSrc, initials } from "../lib/photo.js";
+import { ROLES, findRole, roleClass } from "../lib/roles.js";
 
 // Left panel: photo. Right: two field tables, then the three long-text rows —
 // the layout of the scorecard tab in the source spreadsheet.
@@ -71,13 +72,31 @@ function FieldTable({ title, fields, person, editing, onChange }) {
         <div className="card-field" key={field}>
           <div className="card-field-label">{label}</div>
           <div className="card-field-value">
-            {editing && !READ_ONLY.has(field) ? (
+            {editing && field === "role" ? (
+              <select
+                aria-label={label}
+                value={person.role ?? ""}
+                onChange={(e) => onChange("role", e.target.value)}
+              >
+                <option value=""></option>
+                {ROLES.map((role) => (
+                  <option key={role.value} value={role.value}>
+                    {role.label}
+                  </option>
+                ))}
+                {person.role && !findRole(person.role) && (
+                  <option value={person.role}>{person.role}</option>
+                )}
+              </select>
+            ) : editing && !READ_ONLY.has(field) ? (
               <input
                 aria-label={label}
+                type={field === "birthday" ? "date" : "text"}
                 value={person[field] ?? ""}
-                placeholder={field === "birthday" ? "YYYY-MM-DD" : ""}
                 onChange={(e) => onChange(field, e.target.value)}
               />
+            ) : field === "role" && person.role ? (
+              <span className={roleClass(person.role)}>{person.role}</span>
             ) : (
               display(person, field) || <span className="card-empty">—</span>
             )}
@@ -90,8 +109,6 @@ function FieldTable({ title, fields, person, editing, onChange }) {
 
 export default function PersonCard({
   person,
-  people,
-  onSelect,
   editing,
   onChange,
   canEdit,
@@ -107,19 +124,13 @@ export default function PersonCard({
       <div className="person-side">
         <Photo person={person} />
 
-        <select
-          className="person-picker"
-          value={person.id}
-          onChange={(e) => onSelect(Number(e.target.value))}
-          disabled={editing}
-          aria-label="Select a person"
-        >
-          {people.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+        <div className="person-heading">
+          <div className="person-name">{person.name}</div>
+          <div className="person-tags">
+            {person.role && <span className={roleClass(person.role)}>{person.role}</span>}
+            {person.team && <span className="team-pill">Team {person.team}</span>}
+          </div>
+        </div>
 
         {canEdit && (
           <div className="person-side-actions">
@@ -161,7 +172,6 @@ export default function PersonCard({
                 <input
                   aria-label="Photo URL"
                   value={person.photo_url ?? ""}
-                  placeholder="Google Drive link"
                   onChange={(e) => onChange("photo_url", e.target.value)}
                 />
               </div>

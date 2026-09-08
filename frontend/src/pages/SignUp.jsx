@@ -32,7 +32,8 @@ export default function SignUp() {
     try {
       const data = await api.signup(form);
       signIn(data.token, data.user, {
-        isAdmin: data.isAdmin,
+        permissions: data.permissions,
+        group: data.group,
         isOwner: data.isOwner,
         pinSet: data.pinSet,
       });
@@ -47,7 +48,7 @@ export default function SignUp() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-wordmark">Team App</div>
+      <div className="auth-wordmark">X Zone App</div>
       <div className="auth-card">
         <h1 className="auth-title">Create your account</h1>
 

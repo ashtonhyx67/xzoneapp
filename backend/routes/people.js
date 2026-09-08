@@ -1,8 +1,8 @@
 const express = require("express");
 
 const { pool } = require("../db");
-const { requireAuth, requireAdmin } = require("../middleware/auth");
-const { readPeopleCsv, importPeople } = require("../lib/peopleCsv");
+const { requireAuth, requirePermission } = require("../middleware/auth");
+const { PERMISSIONS } = require("../lib/groups");
 
 const router = express.Router();
 
@@ -58,10 +58,16 @@ const SELECT_PERSON = `
     FROM people p
 `;
 
-router.use(requireAuth, requireAdmin);
+router.use(requireAuth);
+
+// Reading the directory and changing it are separate permissions, so a group
+// can be given the member list without being handed the edit grid.
+const canView = requirePermission(PERMISSIONS.VIEW_DIRECTORY);
+const canEdit = requirePermission(PERMISSIONS.EDIT_DATABASE);
 
 router.get(
   "/",
+  canView,
   route(async (req, res) => {
     const result = await pool.query(`${SELECT_PERSON} ORDER BY lower(p.name)`);
     res.json({ people: result.rows });
@@ -70,6 +76,7 @@ router.get(
 
 router.post(
   "/",
+  canEdit,
   route(async (req, res) => {
     const values = normalize(req.body);
     if (!values.name) {
@@ -104,6 +111,7 @@ router.post(
 // transaction means a single bad cell can't leave half the grid saved.
 router.put(
   "/bulk",
+  canEdit,
   route(async (req, res) => {
     const upserts = Array.isArray(req.body?.upserts) ? req.body.upserts : [];
     const deletes = Array.isArray(req.body?.deletes) ? req.body.deletes : [];
@@ -120,12 +128,16 @@ router.put(
     const client = await pool.connect();
     let created = 0;
     let updated = 0;
+    let deleted = 0;
 
     try {
       await client.query("BEGIN");
 
       if (ids.length > 0) {
-        await client.query("DELETE FROM people WHERE id = ANY($1::int[])", [ids]);
+        // Count what actually went, not what was asked for: a row someone else
+        // already removed should not be reported as removed twice.
+        const removal = await client.query("DELETE FROM people WHERE id = ANY($1::int[])", [ids]);
+        deleted = removal.rowCount;
       }
 
       for (const row of upserts) {
@@ -178,12 +190,13 @@ router.put(
     // Hand back the saved table so the grid shows server truth (new ids,
     // recomputed ages) rather than what the browser hoped it wrote.
     const result = await pool.query(`${SELECT_PERSON} ORDER BY lower(p.name)`);
-    res.json({ created, updated, deleted: ids.length, people: result.rows });
+    res.json({ created, updated, deleted, people: result.rows });
   })
 );
 
 router.put(
   "/:id",
+  canEdit,
   route(async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ error: "Unknown person." });
@@ -217,34 +230,9 @@ router.put(
   })
 );
 
-// Bulk import straight from a spreadsheet export, so loading the roster does
-// not require a terminal.
-router.post(
-  "/import",
-  route(async (req, res) => {
-    const csv = String(req.body?.csv ?? "");
-    if (!csv.trim()) {
-      return res.status(400).json({ error: "That file looked empty." });
-    }
-
-    const parsed = readPeopleCsv(csv);
-    if (parsed.error) {
-      return res.status(400).json({ error: parsed.error });
-    }
-
-    const { created, updated } = await importPeople(pool, parsed.people);
-    res.json({
-      created,
-      updated,
-      total: parsed.people.length,
-      ignored: parsed.ignored,
-      warnings: parsed.warnings,
-    });
-  })
-);
-
 router.delete(
   "/:id",
+  canEdit,
   route(async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ error: "Unknown person." });

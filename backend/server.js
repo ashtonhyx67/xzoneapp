@@ -8,6 +8,7 @@ const authRoutes = require("./routes/auth");
 const rosterRoutes = require("./routes/roster");
 const { router: peopleRoutes } = require("./routes/people");
 const dashboardRoutes = require("./routes/dashboard");
+const adminRoutes = require("./routes/admin");
 
 if (!process.env.JWT_SECRET) {
   console.error(
@@ -22,7 +23,7 @@ const PORT = process.env.PORT || 4000;
 let dbReady = false;
 
 app.use(cors());
-// A pasted spreadsheet export is larger than the 100kb default.
+// Saving the whole database grid in one request is larger than the 100kb default.
 app.use(express.json({ limit: "4mb" }));
 
 // Railway pings this; it must answer even while the database is still coming up.
@@ -43,6 +44,7 @@ app.use("/api", (req, res, next) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/roster", rosterRoutes);
 app.use("/api/people", peopleRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use("/api/dashboard", dashboardRoutes);
 

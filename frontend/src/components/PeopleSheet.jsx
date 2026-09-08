@@ -1,17 +1,19 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
+import { ROLES, findRole, roleTint } from "../lib/roles.js";
 
-// The columns of the source spreadsheet, in its order. `readOnly` marks values
-// the server derives — Age comes from Birthday and can't be typed over.
+// The columns of the people table, in spreadsheet order. `type` picks the kind
+// of cell: a plain box, the standard-role dropdown, or a date picker. `readOnly`
+// marks a value the server derives — Age comes from Birthday.
 const COLUMNS = [
-  { field: "name", label: "Name", width: 190 },
-  { field: "role", label: "Status", width: 130 },
+  { field: "name", label: "Name", width: 190, sticky: true },
+  { field: "role", label: "Role", width: 120, type: "role" },
   { field: "team", label: "Team", width: 80 },
   { field: "contact", label: "Contact", width: 150 },
   { field: "telegram", label: "Telegram", width: 140 },
   { field: "instagram", label: "Instagram", width: 140 },
   { field: "ministry", label: "Ministry", width: 140 },
-  { field: "birthday", label: "Birthday", width: 130, placeholder: "YYYY-MM-DD" },
+  { field: "birthday", label: "Birthday", width: 150, type: "date" },
   { field: "age", label: "Age", width: 64, readOnly: true },
   { field: "school", label: "School", width: 160 },
   { field: "follow_up", label: "Followup", width: 130 },
@@ -41,38 +43,33 @@ function blankRow() {
   return row;
 }
 
-// What actually gets compared for "has this changed?" — the editable cells only.
 function fingerprint(row) {
   // JSON keeps the field boundaries, so "ab" + "" cannot look like "a" + "b".
   return JSON.stringify(EDITABLE.map((f) => String(row[f] ?? "")));
 }
 
-function csvCell(value) {
-  const text = String(value ?? "");
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+function baselineOf(people) {
+  return Object.fromEntries(people.map((p) => [`id-${p.id}`, fingerprint(toRow(p))]));
 }
 
 export default function PeopleSheet({ token, people, onSaved }) {
   const [rows, setRows] = useState(() => people.map(toRow));
-  const [baseline, setBaseline] = useState(() =>
-    Object.fromEntries(people.map((p) => [`id-${p.id}`, fingerprint(toRow(p))]))
-  );
+  const [baseline, setBaseline] = useState(() => baselineOf(people));
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const gridRef = useRef(null);
 
-  const changed = useMemo(
+  const pendingCount = useMemo(
     () =>
       rows.filter(
         (row) =>
           (row._deleted && !row._new) ||
           (!row._deleted && (row._new || fingerprint(row) !== baseline[row._key]))
-      ),
+      ).length,
     [rows, baseline]
   );
-
-  const pendingCount = changed.length;
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -88,9 +85,41 @@ export default function PeopleSheet({ token, people, onSaved }) {
     );
   }, []);
 
+  // Up, down, and Enter walk the column the way a spreadsheet does; Tab already
+  // walks the row.
+  const focusCell = useCallback((rowIndex, colIndex) => {
+    const cell = gridRef.current?.querySelector(
+      `[data-r="${rowIndex}"][data-c="${colIndex}"]`
+    );
+    if (cell) {
+      cell.focus();
+      if (cell.select) cell.select();
+    }
+  }, []);
+
+  const onCellKeyDown = useCallback(
+    (event, rowIndex, colIndex) => {
+      const isSelect = event.target.tagName === "SELECT";
+      if (event.key === "Enter" || (event.key === "ArrowDown" && !isSelect)) {
+        event.preventDefault();
+        focusCell(rowIndex + 1, colIndex);
+      } else if (event.key === "ArrowUp" && !isSelect) {
+        event.preventDefault();
+        focusCell(rowIndex - 1, colIndex);
+      } else if (event.key === "Escape") {
+        event.target.blur();
+      }
+    },
+    [focusCell]
+  );
+
   function addRow() {
     setNotice("");
+    setQuery("");
+    const nextIndex = rows.length;
     setRows((list) => [...list, blankRow()]);
+    // Land in the new row's Name box, ready to type.
+    requestAnimationFrame(() => focusCell(nextIndex, 0));
   }
 
   function toggleDelete(key) {
@@ -131,14 +160,12 @@ export default function PeopleSheet({ token, people, onSaved }) {
     try {
       const result = await api.bulkSavePeople(token, { upserts, deletes });
       setRows(result.people.map(toRow));
-      setBaseline(
-        Object.fromEntries(result.people.map((p) => [`id-${p.id}`, fingerprint(toRow(p))]))
-      );
+      setBaseline(baselineOf(result.people));
       const parts = [];
       if (result.created) parts.push(`${result.created} added`);
       if (result.updated) parts.push(`${result.updated} updated`);
       if (result.deleted) parts.push(`${result.deleted} removed`);
-      setNotice(parts.length ? `Saved — ${parts.join(", ")}.` : "Saved.");
+      setNotice(parts.length ? `Saved. ${parts.join(", ")}.` : "Saved.");
       onSaved?.(result.people);
     } catch (err) {
       setError(err.message);
@@ -147,47 +174,74 @@ export default function PeopleSheet({ token, people, onSaved }) {
     }
   }
 
-  // Export takes what is on screen, so a filtered view exports just that.
-  function exportCsv() {
-    const header = COLUMNS.map((c) => csvCell(c.label)).join(",");
-    const body = visible
-      .filter((row) => !row._deleted)
-      .map((row) => COLUMNS.map((c) => csvCell(row[c.field])).join(","));
-    const csv = [header, ...body].join("\r\n");
+  function renderCell(row, column, rowIndex, colIndex) {
+    if (column.readOnly) {
+      return <span className="sheet-readonly">{row[column.field] ?? ""}</span>;
+    }
 
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `people-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const shared = {
+      "data-r": rowIndex,
+      "data-c": colIndex,
+      disabled: row._deleted || saving,
+      "aria-label": `${column.label}, row ${rowIndex + 1}`,
+      onKeyDown: (e) => onCellKeyDown(e, rowIndex, colIndex),
+    };
+
+    if (column.type === "role") {
+      const value = row.role ?? "";
+      const tint = roleTint(value);
+      // A role that isn't on the standard list is kept and shown, so nothing is
+      // silently rewritten just because the list has moved on.
+      const custom = value && !findRole(value);
+      return (
+        <select
+          {...shared}
+          className={`sheet-input sheet-select${tint ? ` tint-${tint}` : ""}`}
+          value={value}
+          onChange={(e) => setCell(row._key, "role", e.target.value)}
+        >
+          <option value=""></option>
+          {ROLES.map((role) => (
+            <option key={role.value} value={role.value}>
+              {role.label}
+            </option>
+          ))}
+          {custom && <option value={value}>{value}</option>}
+        </select>
+      );
+    }
+
+    return (
+      <input
+        {...shared}
+        type={column.type === "date" ? "date" : "text"}
+        className="sheet-input"
+        value={row[column.field] ?? ""}
+        onChange={(e) => setCell(row._key, column.field, e.target.value)}
+      />
+    );
   }
 
   return (
     <div className="panel sheet-panel">
-      <div className="panel-row sheet-toolbar">
-        <div className="panel-title">
-          Database
-          <span className="sheet-count">
-            {rows.filter((r) => !r._deleted).length} people
-            {pendingCount > 0 && ` · ${pendingCount} unsaved`}
-          </span>
+      <div className="sheet-toolbar">
+        <div className="sheet-heading">
+          <span className="sheet-title">People</span>
+          <span className="sheet-count">{rows.filter((r) => !r._deleted).length}</span>
+          {pendingCount > 0 && <span className="sheet-pending">{pendingCount} unsaved</span>}
         </div>
 
         <div className="sheet-actions">
           <input
             className="sheet-search"
             type="search"
-            placeholder="Search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search the database"
+            aria-label="Search"
+            placeholder="Search"
           />
           <button className="btn btn-secondary btn-inline" onClick={addRow} disabled={saving}>
             Add row
-          </button>
-          <button className="btn btn-secondary btn-inline" onClick={exportCsv} disabled={saving}>
-            Export CSV
           </button>
           {pendingCount > 0 && (
             <button className="btn btn-secondary btn-inline" onClick={discard} disabled={saving}>
@@ -199,7 +253,7 @@ export default function PeopleSheet({ token, people, onSaved }) {
             onClick={save}
             disabled={saving || pendingCount === 0}
           >
-            {saving ? "Saving…" : `Save${pendingCount ? ` (${pendingCount})` : ""}`}
+            {saving ? "Saving" : "Save"}
           </button>
         </div>
       </div>
@@ -207,7 +261,7 @@ export default function PeopleSheet({ token, people, onSaved }) {
       {error && <div className="error-banner panel-notice">{error}</div>}
       {notice && <div className="success-banner panel-notice">{notice}</div>}
 
-      <div className="sheet-scroll">
+      <div className="sheet-scroll" ref={gridRef}>
         <table className="sheet">
           <thead>
             <tr>
@@ -215,38 +269,33 @@ export default function PeopleSheet({ token, people, onSaved }) {
                 #
               </th>
               {COLUMNS.map((column) => (
-                <th key={column.field} scope="col" style={{ minWidth: column.width }}>
+                <th
+                  key={column.field}
+                  scope="col"
+                  className={column.sticky ? "sheet-sticky-col" : undefined}
+                  style={{ minWidth: column.width }}
+                >
                   {column.label}
                 </th>
               ))}
-              <th className="sheet-rowaction" scope="col">
-                Row
-              </th>
+              <th className="sheet-rowaction" scope="col" />
             </tr>
           </thead>
           <tbody>
-            {visible.map((row, index) => (
+            {visible.map((row, rowIndex) => (
               <tr
                 key={row._key}
                 className={`${row._deleted ? "sheet-row-deleted" : ""}${
                   row._new ? " sheet-row-new" : ""
                 }`}
               >
-                <td className="sheet-rownum">{index + 1}</td>
-                {COLUMNS.map((column) => (
-                  <td key={column.field}>
-                    {column.readOnly ? (
-                      <span className="sheet-readonly">{row[column.field] ?? ""}</span>
-                    ) : (
-                      <input
-                        className="sheet-input"
-                        value={row[column.field] ?? ""}
-                        placeholder={column.placeholder || ""}
-                        disabled={row._deleted || saving}
-                        aria-label={`${column.label}, row ${index + 1}`}
-                        onChange={(e) => setCell(row._key, column.field, e.target.value)}
-                      />
-                    )}
+                <td className="sheet-rownum">{rowIndex + 1}</td>
+                {COLUMNS.map((column, colIndex) => (
+                  <td
+                    key={column.field}
+                    className={column.sticky ? "sheet-sticky-col" : undefined}
+                  >
+                    {renderCell(row, column, rowIndex, colIndex)}
                   </td>
                 ))}
                 <td className="sheet-rowaction">
@@ -255,9 +304,10 @@ export default function PeopleSheet({ token, people, onSaved }) {
                     className="sheet-remove"
                     onClick={() => toggleDelete(row._key)}
                     disabled={saving}
+                    aria-label={row._deleted ? "Keep this row" : "Remove this row"}
                     title={row._deleted ? "Keep this row" : "Remove this row"}
                   >
-                    {row._deleted ? "Undo" : "Remove"}
+                    {row._deleted ? "↺" : "×"}
                   </button>
                 </td>
               </tr>
@@ -265,17 +315,8 @@ export default function PeopleSheet({ token, people, onSaved }) {
           </tbody>
         </table>
 
-        {visible.length === 0 && (
-          <div className="reminder-empty sheet-empty">
-            {query ? `Nothing matches "${query}".` : "No one in the database yet."}
-          </div>
-        )}
+        {visible.length === 0 && <div className="sheet-empty">Nothing here</div>}
       </div>
-
-      <p className="sheet-hint">
-        Edit any cell, then Save. Removed rows stay struck through until you save, so
-        Undo puts one back.
-      </p>
     </div>
   );
 }

@@ -33,7 +33,6 @@ export const api = {
   updatePerson: (token, id, person) =>
     request(`/people/${id}`, { method: "PUT", body: person, token }),
   deletePerson: (token, id) => request(`/people/${id}`, { method: "DELETE", token }),
-  importPeople: (token, csv) => request("/people/import", { method: "POST", body: { csv }, token }),
 
   setPin: (token, pin, currentPin) =>
     request("/auth/pin", { method: "POST", body: { pin, currentPin }, token }),
@@ -45,6 +44,13 @@ export const api = {
 
   getRoster: (token, signal) => request("/roster", { token, signal }),
   saveRoster: (token, roster) => request("/roster", { method: "PUT", body: roster, token }),
+
+  getAccounts: (token, signal) => request("/admin/accounts", { token, signal }),
+  createAccount: (token, account) =>
+    request("/admin/accounts", { method: "POST", body: account, token }),
+  setAccountGroup: (token, id, group) =>
+    request(`/admin/accounts/${id}`, { method: "PATCH", body: { group }, token }),
+  deleteAccount: (token, id) => request(`/admin/accounts/${id}`, { method: "DELETE", token }),
 
   webauthnRegisterOptions: (token) =>
     request("/auth/webauthn/register-options", { token }),

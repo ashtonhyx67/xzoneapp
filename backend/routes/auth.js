@@ -11,13 +11,14 @@ const {
 const { pool } = require("../db");
 const { requireAuth } = require("../middleware/auth");
 const { isOwnerEmail } = require("../lib/owner");
+const { getGroup, permissionsFor, DEFAULT_GROUP } = require("../lib/groups");
 
 const router = express.Router();
 
 // RP_ID must be the bare domain (no protocol/port), e.g. "myapp.up.railway.app".
 // ORIGIN must be the full origin, e.g. "https://myapp.up.railway.app".
 // Both default to localhost for local development.
-const RP_NAME = "Team App";
+const RP_NAME = "X Zone App";
 const RP_ID = process.env.RP_ID || "localhost";
 const ORIGIN = process.env.ORIGIN || "http://localhost:5173";
 
@@ -77,15 +78,21 @@ function minutesUntil(when) {
 }
 
 // Everything the client needs to decide what to show after a successful
-// sign-in, whichever way the user got here.
+// sign-in, whichever way the user got here. Access travels as a list of named
+// permissions, so the app never has to reason about group names.
 function sessionPayload(row) {
+  const owner = isOwnerEmail(row.email);
+  const groupKey = owner ? "owner" : row.group_key || DEFAULT_GROUP;
+  const group = getGroup(groupKey);
+
   return {
     token: signToken(row.id),
     user: publicUser(row),
     faceIdEnabled: Boolean(row.face_id_enabled),
-    isAdmin: Boolean(row.is_admin),
-    isOwner: isOwnerEmail(row.email),
-    pinSet: Boolean(row.pin_set ?? row.pin_hash),
+    isOwner: owner,
+    pinSet: Boolean(row.pin_hash),
+    group: { key: group.key, label: group.label },
+    permissions: permissionsFor(groupKey),
   };
 }
 
@@ -113,10 +120,20 @@ router.post(
       // The very first account owns the instance, otherwise there would be no
       // way to grant the first admin.
       const result = await pool.query(
-        `INSERT INTO users (name, email, password_hash, is_admin)
-         VALUES ($1, $2, $3, $4 OR NOT EXISTS (SELECT 1 FROM users))
-         RETURNING id, name, email, is_admin, pin_hash`,
-        [String(name).trim(), email, passwordHash, isOwnerEmail(email)]
+        `INSERT INTO users (name, email, password_hash, is_admin, group_key)
+         VALUES ($1, $2, $3, $4 OR NOT EXISTS (SELECT 1 FROM users),
+                 CASE WHEN $4 OR NOT EXISTS (SELECT 1 FROM users) THEN $5 ELSE $6 END)
+         RETURNING id, name, email, group_key, pin_hash`,
+        [
+          String(name).trim(),
+          email,
+          passwordHash,
+          isOwnerEmail(email),
+          // The owner, and the very first account on a fresh install, need full
+          // access or there would be nobody to grant it.
+          isOwnerEmail(email) ? "owner" : "admin",
+          DEFAULT_GROUP,
+        ]
       );
       user = result.rows[0];
     } catch (err) {
@@ -141,7 +158,7 @@ router.post(
     }
 
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.password_hash, u.is_admin, u.pin_hash,
+      `SELECT u.id, u.name, u.email, u.password_hash, u.group_key, u.pin_hash,
               EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled
          FROM users u
         WHERE u.email = $1`,
@@ -151,13 +168,6 @@ router.post(
 
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ error: "Incorrect email or password." });
-    }
-
-    // The owner keeps admin access even if the row was created before the
-    // owner email was configured, or if it was revoked by hand.
-    if (isOwnerEmail(user.email) && !user.is_admin) {
-      await pool.query("UPDATE users SET is_admin = true WHERE id = $1", [user.id]);
-      user.is_admin = true;
     }
 
     res.json(sessionPayload(user));
@@ -171,7 +181,7 @@ router.get(
     // One round trip for the profile and whether Face ID is already enrolled,
     // so the dashboard never has to guess.
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.is_admin, u.pin_hash,
+      `SELECT u.id, u.name, u.email, u.group_key, u.pin_hash,
               EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled
          FROM users u
         WHERE u.id = $1`,
@@ -327,7 +337,7 @@ router.post(
 
     const credResult = await pool.query(
       `SELECT c.id, c.credential_id, c.public_key, c.counter,
-              u.id AS user_id, u.name, u.email, u.is_admin, u.pin_hash
+              u.id AS user_id, u.name, u.email, u.group_key, u.pin_hash
          FROM webauthn_credentials c
          JOIN users u ON u.id = c.user_id
         WHERE c.credential_id = $1 AND c.user_id = $2`,
@@ -367,7 +377,7 @@ router.post(
         id: saved.user_id,
         name: saved.name,
         email: saved.email,
-        is_admin: saved.is_admin,
+        group_key: saved.group_key,
         pin_hash: saved.pin_hash,
         face_id_enabled: true,
       })
@@ -443,7 +453,7 @@ router.post(
     }
 
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.is_admin, u.pin_hash, u.pin_attempts, u.pin_locked_until,
+      `SELECT u.id, u.name, u.email, u.group_key, u.pin_hash, u.pin_attempts, u.pin_locked_until,
               EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled
          FROM users u
         WHERE u.email = $1`,
@@ -496,11 +506,6 @@ router.post(
       "UPDATE users SET pin_attempts = 0, pin_locked_until = NULL WHERE id = $1",
       [user.id]
     );
-
-    if (isOwnerEmail(user.email) && !user.is_admin) {
-      await pool.query("UPDATE users SET is_admin = true WHERE id = $1", [user.id]);
-      user.is_admin = true;
-    }
 
     res.json(sessionPayload(user));
   })

@@ -9,6 +9,7 @@ import SetPin from "./pages/SetPin.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Members from "./pages/Members.jsx";
 import Database from "./pages/Database.jsx";
+import Admin from "./pages/Admin.jsx";
 
 // A signed-out visitor whose device already knows them goes to the PIN screen,
 // not to the sign-up card.
@@ -69,6 +70,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Database />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <Admin />
           </ProtectedRoute>
         }
       />

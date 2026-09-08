@@ -1,24 +1,35 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { PERMISSIONS } from "../lib/permissions.js";
 import AppShell from "../components/AppShell.jsx";
 import PersonCard from "../components/PersonCard.jsx";
-import ImportPeople from "../components/ImportPeople.jsx";
+import MemberRow from "../components/MemberRow.jsx";
 import Roster from "../components/Roster.jsx";
 
+// The member list and the scorecard side by side: pick anyone on the left, read
+// or edit their record on the right. Both are the same database rows the
+// Database tab edits in bulk.
 export default function Members() {
-  const { token, isAdmin } = useAuth();
+  const { token, can } = useAuth();
+  const canView = can(PERMISSIONS.VIEW_DIRECTORY);
+  const canEdit = can(PERMISSIONS.EDIT_DATABASE);
+
+  const [searchParams, setSearchParams] = useSearchParams();
   const [people, setPeople] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [draft, setDraft] = useState(null);
+  const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const [reloadKey, setReloadKey] = useState(0);
+  // A link from the dashboard names the person to open.
+  const requestedId = Number(searchParams.get("person")) || null;
 
   useEffect(() => {
-    if (!token || !isAdmin) {
+    if (!token || !canView) {
       setLoading(false);
       return;
     }
@@ -31,10 +42,10 @@ export default function Members() {
       .then((data) => {
         if (!active) return;
         setPeople(data.people);
-        // Keep the current selection if that person still exists.
-        setSelectedId((current) =>
-          data.people.some((p) => p.id === current) ? current : data.people[0]?.id ?? null
-        );
+        setSelectedId((current) => {
+          const wanted = requestedId ?? current;
+          return data.people.some((p) => p.id === wanted) ? wanted : data.people[0]?.id ?? null;
+        });
       })
       .catch((err) => {
         if (active && err.name !== "AbortError") setError(err.message);
@@ -47,7 +58,7 @@ export default function Members() {
       active = false;
       controller.abort();
     };
-  }, [token, isAdmin, reloadKey]);
+  }, [token, canView, requestedId]);
 
   const selected = useMemo(
     () => people.find((p) => p.id === selectedId) || null,
@@ -55,6 +66,25 @@ export default function Members() {
   );
 
   const shown = draft ?? selected;
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return people;
+    return people.filter((p) =>
+      [p.name, p.role, p.team, p.school, p.ministry]
+        .map((v) => String(v ?? "").toLowerCase())
+        .some((v) => v.includes(q))
+    );
+  }, [people, query]);
+
+  function select(id) {
+    setSelectedId(id);
+    setDraft(null);
+    setError("");
+    // Keep the address bar honest, so a reload or a shared link reopens the
+    // same person.
+    setSearchParams(id ? { person: String(id) } : {}, { replace: true });
+  }
 
   async function save() {
     setSaving(true);
@@ -71,10 +101,12 @@ export default function Members() {
     }
   }
 
-  if (!isAdmin) {
+  if (!canView) {
     return (
       <AppShell>
-        <h1 className="page-title">Members</h1>
+        <header className="page-head">
+          <h1 className="page-title">Members</h1>
+        </header>
         <div className="panel">
           <div className="panel-title">You do not have access to this.</div>
         </div>
@@ -84,11 +116,12 @@ export default function Members() {
 
   return (
     <AppShell>
-      <h1 className="page-title">Members</h1>
+      <header className="page-head">
+        <h1 className="page-title">Members</h1>
+        <span className="page-count">{people.length}</span>
+      </header>
 
       {error && <div className="error-banner">{error}</div>}
-
-      <Roster token={token} />
 
       {loading ? (
         <div className="panel">
@@ -97,32 +130,53 @@ export default function Members() {
       ) : people.length === 0 ? (
         <div className="panel">
           <div className="panel-title">No one in the database yet.</div>
-          <div className="reminder-empty">
-            Import your spreadsheet below to fill this in.
-          </div>
         </div>
       ) : (
-        <PersonCard
-          person={shown}
-          people={people}
-          onSelect={(id) => {
-            setSelectedId(id);
-            setDraft(null);
-          }}
-          editing={Boolean(draft)}
-          canEdit={isAdmin}
-          onEdit={() => setDraft({ ...selected })}
-          onCancel={() => {
-            setDraft(null);
-            setError("");
-          }}
-          onChange={(field, value) => setDraft((d) => ({ ...d, [field]: value }))}
-          onSave={save}
-          saving={saving}
-        />
+        <div className="members-layout">
+          <aside className="panel member-list-panel">
+            <input
+              className="sheet-search member-search"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search"
+              aria-label="Search members"
+            />
+            <div className="member-list">
+              {visible.map((person) => (
+                <MemberRow
+                  key={person.id}
+                  person={person}
+                  detail={[person.team && `Team ${person.team}`, person.school]
+                    .filter(Boolean)
+                    .join(" · ")}
+                  onClick={() => select(person.id)}
+                  active={person.id === selectedId}
+                />
+              ))}
+              {visible.length === 0 && <div className="list-empty">Nothing here</div>}
+            </div>
+          </aside>
+
+          <div className="member-detail-pane">
+            <PersonCard
+              person={shown}
+              editing={Boolean(draft)}
+              canEdit={canEdit}
+              onEdit={() => setDraft({ ...selected })}
+              onCancel={() => {
+                setDraft(null);
+                setError("");
+              }}
+              onChange={(field, value) => setDraft((d) => ({ ...d, [field]: value }))}
+              onSave={save}
+              saving={saving}
+            />
+          </div>
+        </div>
       )}
 
-      <ImportPeople token={token} onImported={() => setReloadKey((n) => n + 1)} />
+      {canEdit && <Roster token={token} />}
     </AppShell>
   );
 }

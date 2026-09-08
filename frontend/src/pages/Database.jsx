@@ -1,21 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { PERMISSIONS } from "../lib/permissions.js";
 import AppShell from "../components/AppShell.jsx";
 import PeopleSheet from "../components/PeopleSheet.jsx";
-import ImportPeople from "../components/ImportPeople.jsx";
 
 // The whole people table as an editable grid — the spreadsheet the data used to
 // live in, except it is the database, so an edit here is the real record.
 export default function Database() {
-  const { token, isAdmin } = useAuth();
+  const { token, can } = useAuth();
+  const canEdit = can(PERMISSIONS.EDIT_DATABASE);
   const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    if (!token || !isAdmin) {
+    if (!token || !canEdit) {
       setLoading(false);
       return;
     }
@@ -40,12 +40,14 @@ export default function Database() {
       active = false;
       controller.abort();
     };
-  }, [token, isAdmin, reloadKey]);
+  }, [token, canEdit]);
 
-  if (!isAdmin) {
+  if (!canEdit) {
     return (
       <AppShell>
-        <h1 className="page-title">Database</h1>
+        <header className="page-head">
+          <h1 className="page-title">Database</h1>
+        </header>
         <div className="panel">
           <div className="panel-title">You do not have access to this.</div>
         </div>
@@ -55,7 +57,10 @@ export default function Database() {
 
   return (
     <AppShell>
-      <h1 className="page-title">Database</h1>
+      <header className="page-head">
+        <h1 className="page-title">Database</h1>
+        <span className="page-count">{people.length}</span>
+      </header>
 
       {error && <div className="error-banner">{error}</div>}
 
@@ -64,17 +69,8 @@ export default function Database() {
           <div className="panel-title">Loading…</div>
         </div>
       ) : (
-        // Remounting after an import throws away the grid's drafts along with
-        // the stale rows they were based on.
-        <PeopleSheet
-          key={reloadKey}
-          token={token}
-          people={people}
-          onSaved={(saved) => setPeople(saved)}
-        />
+        <PeopleSheet token={token} people={people} onSaved={(saved) => setPeople(saved)} />
       )}
-
-      <ImportPeople token={token} onImported={() => setReloadKey((n) => n + 1)} />
     </AppShell>
   );
 }

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 //
-// Command-line version of the import. The app has an upload button on the
-// Members page that does the same thing — this exists for bulk or scripted use.
+// Loads a spreadsheet export into the people table. The app itself has no
+// import button — the database is edited in the grid on the Database page —
+// so this is how a bulk or first-time load gets done.
 //
 //   1. In Google Sheets: File > Download > Comma-separated values (.csv)
 //      with the Data tab selected.

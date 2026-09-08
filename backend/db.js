@@ -1,6 +1,7 @@
 const { Pool, types } = require("pg");
 
 const { OWNER_EMAIL } = require("./lib/owner");
+const { DEFAULT_GROUP } = require("./lib/groups");
 
 // A DATE has no time and no timezone, but node-pg turns it into a local-midnight
 // JS Date, which JSON.stringify then shifts to UTC — sending every birthday a
@@ -108,6 +109,23 @@ async function initSchema() {
   await pool.query(`UPDATE users SET is_admin = true WHERE lower(email) = $1 AND NOT is_admin;`, [
     OWNER_EMAIL,
   ]);
+
+  // ---------- Groups ----------
+  // Access is decided by which group an account is in; lib/groups.js says what
+  // each group can do. is_admin stays in step with it so nothing that still
+  // reads the old flag breaks.
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS group_key TEXT NOT NULL DEFAULT '${DEFAULT_GROUP}';
+  `);
+
+  // Existing accounts keep the access they already had: admins become the admin
+  // group, everyone else lands in the default group.
+  await pool.query(`
+    UPDATE users SET group_key = 'admin'
+     WHERE is_admin AND group_key = '${DEFAULT_GROUP}';
+  `);
+
+  await pool.query(`UPDATE users SET group_key = 'owner' WHERE lower(email) = $1;`, [OWNER_EMAIL]);
 
   // ---------- PIN ----------
   // A 4-digit PIN is the everyday way back in: the session ends when the app is

@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Team App",
-  "short_name": "Team App",
+  "name": "X Zone App",
+  "short_name": "X Zone App",
   "description": "Roster and member records.",
   "start_url": "/",
   "scope": "/",

@@ -228,21 +228,6 @@ button {
   flex-shrink: 0;
 }
 
-.btn-faceid {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: var(--surface);
-  color: var(--text);
-  border-color: var(--border-strong);
-}
-
-.btn-faceid:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
 .error-banner {
   background: var(--danger-bg);
   color: var(--danger);
@@ -388,11 +373,36 @@ button {
   max-width: 1040px;
 }
 
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
 .page-title {
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: 34px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.025em;
   overflow-wrap: anywhere;
+}
+
+.page-count {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+/* The header owns the top of the page, so the first block under it sits closer
+   to the right edge of the row rather than being pushed down twice. */
+.page-head .btn-inline {
+  margin-left: auto;
 }
 
 .stat-grid {
@@ -969,20 +979,6 @@ button {
   font-weight: 600;
 }
 
-.person-picker {
-  width: 100%;
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  text-align: center;
-  padding: 10px 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-}
-
 .person-side-actions {
   display: flex;
   gap: 8px;
@@ -1194,81 +1190,359 @@ button {
   }
 }
 
-/* ---------- Spreadsheet import ---------- */
+/* ---------- Role and group colours ---------- */
 
-.import-panel {
-  margin-top: 20px;
+/* One pastel set, shared by role pills, group pills, and the role cell in the
+   database grid. frontend/src/lib/roles.js decides which role wears which. */
+.tint-rose {
+  background: #fbdce0;
+}
+.tint-peach {
+  background: #fbe0c8;
+}
+.tint-cyan {
+  background: #d3edf7;
+}
+.tint-yellow {
+  background: #fdf3b4;
+}
+.tint-lavender {
+  background: #ded7ee;
+}
+.tint-mint {
+  background: #d3efdf;
+}
+.tint-sky {
+  background: #d9e5fb;
+}
+.tint-sand {
+  background: #f0e7d3;
+}
+.tint-clay {
+  background: #f6dcd2;
+}
+.tint-none {
+  background: var(--bg);
+  border: 1px solid var(--border);
 }
 
-.import-steps {
-  margin: 12px 0 0;
-  padding-left: 20px;
-  font-size: 13px;
-  line-height: 1.7;
+.role-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #33413c;
+  white-space: nowrap;
+}
+
+.team-pill {
+  display: inline-flex;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.group-pill {
+  display: inline-flex;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #eef1f0;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.group-pill-owner {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.you-tag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 600;
   color: var(--text-soft);
 }
 
-.import-detail {
-  margin-top: 4px;
-  font-weight: 400;
-  opacity: 0.85;
+.user-group {
+  margin: 10px 0 12px;
 }
 
-/* ---------- Dashboard reminders ---------- */
+/* ---------- Sections and member lists ---------- */
 
-.reminder-list {
-  list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
+.section {
+  margin-top: 32px;
 }
 
-.reminder-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto;
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border);
+}
+
+.section-title {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.section-count {
+  min-width: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.section-action {
+  margin-left: auto;
+}
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.member-row {
+  display: flex;
   align-items: center;
   gap: 12px;
-  padding: 9px 0;
-  border-top: 1px solid var(--border);
-  font-size: 13px;
+  width: 100%;
+  padding: 12px 12px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.12s ease;
 }
 
-.reminder-name {
+.member-row:last-child {
+  border-bottom: none;
+}
+
+.member-row:hover {
+  background: var(--surface);
+}
+
+.member-row.active {
+  background: #e9f4f0;
+}
+
+.member-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--card-head);
+  color: #6b3f3f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.member-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.member-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.member-name {
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.reminder-detail {
+.member-detail {
+  font-size: 12px;
   color: var(--text-soft);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.reminder-empty {
-  margin-top: 10px;
+.list-empty {
+  padding: 18px 12px;
   font-size: 13px;
   color: var(--text-soft);
 }
 
-@media (max-width: 480px) {
-  .reminder-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: 2px;
+/* ---------- Members: list beside the scorecard ---------- */
+
+.members-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 20px;
+  align-items: start;
+}
+
+.member-list-panel {
+  margin-top: 0;
+  padding: 12px;
+  max-height: 70vh;
+  overflow-y: auto;
+  position: sticky;
+  top: 20px;
+}
+
+.member-search {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.member-detail-pane {
+  min-width: 0;
+}
+
+.person-heading {
+  margin-top: 14px;
+  text-align: center;
+}
+
+.person-name {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.person-tags {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+@media (max-width: 860px) {
+  .members-layout {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  /* The secondary line sits under the name rather than squeezing beside it. */
-  .reminder-detail {
-    grid-column: 1;
-    grid-row: 2;
-    font-size: 12px;
+  .member-list-panel {
+    position: static;
+    max-height: 320px;
   }
+}
 
-  .reminder-row .badge {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-  }
+/* ---------- Accounts ---------- */
+
+.account-list {
+  margin-top: 4px;
+}
+
+.account-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.account-row:last-child {
+  border-bottom: none;
+}
+
+.account-signin {
+  display: flex;
+  gap: 6px;
+}
+
+.account-group {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.account-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.account-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.account-form .btn {
+  width: auto;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #b32409;
+}
+
+.group-legend {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.group-legend-text {
+  font-size: 12px;
+  color: var(--text-soft);
 }
 
 /* ---------- PIN ---------- */
@@ -1379,34 +1653,48 @@ button {
   gap: 8px;
 }
 
-.owner-tag {
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  vertical-align: middle;
-}
-
-/* ---------- Database sheet ---------- */
+/* ---------- Database grid ---------- */
 
 .sheet-panel {
-  margin-top: 4px;
+  padding: 16px;
 }
 
 .sheet-toolbar {
-  flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sheet-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheet-title {
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .sheet-count {
-  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
   font-size: 12px;
-  font-weight: 400;
+  font-weight: 600;
   color: var(--text-soft);
+}
+
+.sheet-pending {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fdf3b4;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b5a12;
 }
 
 .sheet-actions {
@@ -1419,7 +1707,7 @@ button {
 .sheet-search {
   height: 32px;
   padding: 0 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
   font-family: inherit;
@@ -1435,9 +1723,8 @@ button {
 /* The grid scrolls inside the panel; the page itself never scrolls sideways. */
 .sheet-scroll {
   margin-top: 14px;
-  overflow-x: auto;
-  overflow-y: auto;
-  max-height: 65vh;
+  overflow: auto;
+  max-height: 68vh;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   -webkit-overflow-scrolling: touch;
@@ -1455,16 +1742,16 @@ button {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: var(--bg);
+  background: #e8f1ee;
   text-align: left;
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--text-soft);
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  border-right: 1px solid var(--border);
+  color: #3c5951;
+  padding: 10px;
+  border-bottom: 2px solid var(--accent);
+  border-right: 1px solid #d3e2dd;
   white-space: nowrap;
 }
 
@@ -1475,6 +1762,19 @@ button {
   background: var(--surface);
 }
 
+/* Zebra striping makes a wide row easy to follow across the screen. */
+.sheet tbody tr:nth-child(even) td {
+  background: #fafbfb;
+}
+
+.sheet tbody tr:hover td {
+  background: #f2f8f6;
+}
+
+.sheet tbody tr:focus-within td {
+  background: #e9f4f0;
+}
+
 .sheet tr:last-child td {
   border-bottom: none;
 }
@@ -1483,7 +1783,7 @@ button {
   width: 100%;
   border: none;
   background: transparent;
-  padding: 7px 10px;
+  padding: 8px 10px;
   font-family: inherit;
   font-size: 13px;
   color: inherit;
@@ -1499,9 +1799,29 @@ button {
   color: var(--text-soft);
 }
 
+/* The role cell wears its role's colour, so a column of them reads at a glance. */
+.sheet-select {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 5px 8px;
+  width: calc(100% - 16px);
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #33413c;
+  cursor: pointer;
+}
+
+.sheet-select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .sheet-readonly {
   display: block;
-  padding: 7px 10px;
+  padding: 8px 10px;
   color: var(--text-soft);
 }
 
@@ -1509,11 +1829,11 @@ button {
   position: sticky;
   left: 0;
   z-index: 1;
-  width: 44px;
-  min-width: 44px;
-  padding: 7px 8px;
+  width: 42px;
+  min-width: 42px;
+  padding: 8px;
   text-align: right;
-  background: var(--bg);
+  background: #eef2f1;
   color: var(--text-soft);
   font-variant-numeric: tabular-nums;
 }
@@ -1522,9 +1842,21 @@ button {
   z-index: 3;
 }
 
+/* Names stay visible while the rest of the row scrolls sideways. */
+.sheet-sticky-col {
+  position: sticky;
+  left: 42px;
+  z-index: 1;
+  box-shadow: 1px 0 0 var(--border);
+}
+
+.sheet th.sheet-sticky-col {
+  z-index: 3;
+}
+
 .sheet-rowaction {
-  width: 84px;
-  min-width: 84px;
+  width: 46px;
+  min-width: 46px;
   text-align: center;
 }
 
@@ -1532,7 +1864,8 @@ button {
   border: none;
   background: transparent;
   color: var(--text-soft);
-  font-size: 12px;
+  font-size: 16px;
+  line-height: 1;
   padding: 6px 8px;
   cursor: pointer;
   border-radius: var(--radius-sm);
@@ -1543,8 +1876,9 @@ button {
   color: var(--danger);
 }
 
-.sheet-row-new td {
-  background: #f2faf7;
+.sheet-row-new td,
+.sheet-row-new.sheet-row-new td {
+  background: #eaf7f1;
 }
 
 .sheet-row-deleted td {
@@ -1554,12 +1888,8 @@ button {
 }
 
 .sheet-empty {
-  padding: 20px 12px;
+  padding: 22px 12px;
   text-align: center;
-}
-
-.sheet-hint {
-  margin-top: 10px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-soft);
 }

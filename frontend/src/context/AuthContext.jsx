@@ -34,7 +34,8 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(readToken);
   const [user, setUser] = useState(null);
   const [faceIdEnabled, setFaceIdEnabled] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [permissions, setPermissions] = useState([]);
+  const [group, setGroup] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
   const [pinSet, setPinSetState] = useState(false);
   const [loading, setLoading] = useState(() => Boolean(readToken()));
@@ -48,7 +49,8 @@ export function AuthProvider({ children }) {
     setToken(null);
     setUser(null);
     setFaceIdEnabled(false);
-    setIsAdmin(false);
+    setPermissions([]);
+    setGroup(null);
     setIsOwner(false);
     setPinSetState(false);
   }, []);
@@ -77,7 +79,8 @@ export function AuthProvider({ children }) {
         if (!active) return;
         setUser(data.user);
         setFaceIdEnabled(Boolean(data.faceIdEnabled));
-        setIsAdmin(Boolean(data.isAdmin));
+        setPermissions(data.permissions || []);
+        setGroup(data.group || null);
         setIsOwner(Boolean(data.isOwner));
         setPinSetState(Boolean(data.pinSet));
         rememberDeviceAccount({
@@ -114,7 +117,8 @@ export function AuthProvider({ children }) {
     setToken(newToken);
     setUser(newUser);
     setFaceIdEnabled(Boolean(options.faceIdEnabled));
-    setIsAdmin(Boolean(options.isAdmin));
+    setPermissions(options.permissions || []);
+    setGroup(options.group || null);
     setIsOwner(Boolean(options.isOwner));
     setPinSetState(Boolean(options.pinSet));
     rememberDeviceAccount({
@@ -124,13 +128,22 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
+  // What a group is allowed to do is decided on the server and travels as a
+  // list of names, so the app asks "can I?" instead of "which group am I?".
+  const can = useCallback(
+    (permission) => permissions.includes(permission),
+    [permissions]
+  );
+
   const value = useMemo(
     () => ({
       token,
       user,
       faceIdEnabled,
       setFaceIdEnabled,
-      isAdmin,
+      permissions,
+      can,
+      group,
       isOwner,
       pinSet,
       setPinSet,
@@ -139,7 +152,20 @@ export function AuthProvider({ children }) {
       signOut,
       deviceAccount: getDeviceAccount(),
     }),
-    [token, user, faceIdEnabled, isAdmin, isOwner, pinSet, setPinSet, loading, signIn, signOut]
+    [
+      token,
+      user,
+      faceIdEnabled,
+      permissions,
+      can,
+      group,
+      isOwner,
+      pinSet,
+      setPinSet,
+      loading,
+      signIn,
+      signOut,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
