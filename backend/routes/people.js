@@ -2,6 +2,7 @@ const express = require("express");
 
 const { pool } = require("../db");
 const { requireAuth, requireAdmin } = require("../middleware/auth");
+const { readPeopleCsv, importPeople } = require("../lib/peopleCsv");
 
 const router = express.Router();
 
@@ -131,6 +132,32 @@ router.put(
       }
       throw err;
     }
+  })
+);
+
+// Bulk import straight from a spreadsheet export, so loading the roster does
+// not require a terminal.
+router.post(
+  "/import",
+  route(async (req, res) => {
+    const csv = String(req.body?.csv ?? "");
+    if (!csv.trim()) {
+      return res.status(400).json({ error: "That file looked empty." });
+    }
+
+    const parsed = readPeopleCsv(csv);
+    if (parsed.error) {
+      return res.status(400).json({ error: parsed.error });
+    }
+
+    const { created, updated } = await importPeople(pool, parsed.people);
+    res.json({
+      created,
+      updated,
+      total: parsed.people.length,
+      ignored: parsed.ignored,
+      warnings: parsed.warnings,
+    });
   })
 );
 

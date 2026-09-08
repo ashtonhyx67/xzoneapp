@@ -7,7 +7,7 @@ const { initSchemaWithRetry } = require("./db");
 const authRoutes = require("./routes/auth");
 const rosterRoutes = require("./routes/roster");
 const { router: peopleRoutes } = require("./routes/people");
-const { requireAuth } = require("./middleware/auth");
+const dashboardRoutes = require("./routes/dashboard");
 
 if (!process.env.JWT_SECRET) {
   console.error(
@@ -22,7 +22,8 @@ const PORT = process.env.PORT || 4000;
 let dbReady = false;
 
 app.use(cors());
-app.use(express.json());
+// A pasted spreadsheet export is larger than the 100kb default.
+app.use(express.json({ limit: "4mb" }));
 
 // Railway pings this; it must answer even while the database is still coming up.
 app.get("/api/health", (req, res) => {
@@ -43,18 +44,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/roster", rosterRoutes);
 app.use("/api/people", peopleRoutes);
 
-// Example protected route for the dashboard to call.
-// Add real endpoints here as the app grows (e.g. /api/projects, /api/team).
-app.get("/api/dashboard/summary", requireAuth, async (req, res) => {
-  res.json({
-    message: "This data came from a protected backend route.",
-    stats: [
-      { label: "Members", value: 50 },
-      { label: "Active today", value: 0 },
-      { label: "Open items", value: 0 },
-    ],
-  });
-});
+app.use("/api/dashboard", dashboardRoutes);
 
 // An unknown API route must not fall through to the SPA, or the frontend gets
 // index.html where it expected JSON and reports a confusing parse error.

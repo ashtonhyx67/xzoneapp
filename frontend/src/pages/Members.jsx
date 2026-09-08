@@ -3,6 +3,8 @@ import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import AppShell from "../components/AppShell.jsx";
 import PersonCard from "../components/PersonCard.jsx";
+import ImportPeople from "../components/ImportPeople.jsx";
+import Roster from "../components/Roster.jsx";
 
 export default function Members() {
   const { token, isAdmin } = useAuth();
@@ -12,6 +14,8 @@ export default function Members() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!token || !isAdmin) {
@@ -27,7 +31,10 @@ export default function Members() {
       .then((data) => {
         if (!active) return;
         setPeople(data.people);
-        setSelectedId((current) => current ?? data.people[0]?.id ?? null);
+        // Keep the current selection if that person still exists.
+        setSelectedId((current) =>
+          data.people.some((p) => p.id === current) ? current : data.people[0]?.id ?? null
+        );
       })
       .catch((err) => {
         if (active && err.name !== "AbortError") setError(err.message);
@@ -40,7 +47,7 @@ export default function Members() {
       active = false;
       controller.abort();
     };
-  }, [token, isAdmin]);
+  }, [token, isAdmin, reloadKey]);
 
   const selected = useMemo(
     () => people.find((p) => p.id === selectedId) || null,
@@ -81,6 +88,8 @@ export default function Members() {
 
       {error && <div className="error-banner">{error}</div>}
 
+      <Roster token={token} />
+
       {loading ? (
         <div className="panel">
           <div className="panel-title">Loading…</div>
@@ -88,6 +97,9 @@ export default function Members() {
       ) : people.length === 0 ? (
         <div className="panel">
           <div className="panel-title">No one in the database yet.</div>
+          <div className="reminder-empty">
+            Import your spreadsheet below to fill this in.
+          </div>
         </div>
       ) : (
         <PersonCard
@@ -109,6 +121,8 @@ export default function Members() {
           saving={saving}
         />
       )}
+
+      <ImportPeople token={token} onImported={() => setReloadKey((n) => n + 1)} />
     </AppShell>
   );
 }

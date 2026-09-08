@@ -1193,3 +1193,80 @@ button {
     user-select: none;
   }
 }
+
+/* ---------- Spreadsheet import ---------- */
+
+.import-panel {
+  margin-top: 20px;
+}
+
+.import-steps {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-soft);
+}
+
+.import-detail {
+  margin-top: 4px;
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+/* ---------- Dashboard reminders ---------- */
+
+.reminder-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.reminder-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.reminder-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reminder-detail {
+  color: var(--text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reminder-empty {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+@media (max-width: 480px) {
+  .reminder-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 2px;
+  }
+
+  /* The secondary line sits under the name rather than squeezing beside it. */
+  .reminder-detail {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 12px;
+  }
+
+  .reminder-row .badge {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}

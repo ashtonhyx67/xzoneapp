@@ -33,6 +33,7 @@ export const api = {
   updatePerson: (token, id, person) =>
     request(`/people/${id}`, { method: "PUT", body: person, token }),
   deletePerson: (token, id) => request(`/people/${id}`, { method: "DELETE", token }),
+  importPeople: (token, csv) => request("/people/import", { method: "POST", body: { csv }, token }),
 
   getRoster: (token, signal) => request("/roster", { token, signal }),
   saveRoster: (token, roster) => request("/roster", { method: "PUT", body: roster, token }),
