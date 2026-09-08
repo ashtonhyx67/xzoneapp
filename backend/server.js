@@ -73,8 +73,33 @@ app.use("/api", (err, req, res, next) => {
 // In production, serve the built React app from the same service.
 if (process.env.NODE_ENV === "production") {
   const frontendDist = path.join(__dirname, "..", "frontend", "dist");
-  app.use(express.static(frontendDist));
+  const assetsDir = `${path.sep}assets${path.sep}`;
+
+  app.use(
+    express.static(frontendDist, {
+      // index.html is served by the fallback below so it always gets the
+      // no-cache header, even at "/".
+      index: false,
+      setHeaders(res, filePath) {
+        if (filePath.includes(assetsDir)) {
+          // Vite fingerprints these filenames, so a given URL's contents can
+          // never change and it is safe to cache them forever.
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else {
+          // The manifest and icons must be allowed to change.
+          res.setHeader("Cache-Control", "no-cache");
+        }
+      },
+    })
+  );
+
+  // "no-cache" means store it but revalidate every time. That is what makes a
+  // home-screen app pick up a new deploy: the HTML is re-checked on each
+  // launch (a cheap 304 when nothing changed), and because it names the
+  // fingerprinted asset files, fresh HTML pulls in the new JS and CSS.
+  // Without this an installed iOS web app can keep serving an old build.
   app.get("*", (req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.join(frontendDist, "index.html"));
   });
 }
