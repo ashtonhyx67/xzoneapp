@@ -33,17 +33,33 @@ const MAX_SHORT = 200;
 const MAX_LONG = 4000;
 const LONG_FIELDS = new Set(["general_information", "updates", "next_steps", "photo_url"]);
 
+function clean(field, raw) {
+  if (field === "birthday") {
+    // An empty date must become NULL, not the string "".
+    const value = String(raw ?? "").trim();
+    return value === "" ? null : value;
+  }
+  const limit = LONG_FIELDS.has(field) ? MAX_LONG : MAX_SHORT;
+  return String(raw ?? "").slice(0, limit).trim();
+}
+
+// Creating a row: every column gets a value, missing ones default to empty.
 function normalize(body) {
   const values = {};
+  for (const field of FIELDS) values[field] = clean(field, body[field]);
+  return values;
+}
+
+// Updating a row: only the columns the request actually carried. A field the
+// caller never mentioned is left exactly as it is in the database rather than
+// being overwritten with "", so a partial payload can never erase data someone
+// entered.
+function normalizeUpdate(body) {
+  const values = {};
   for (const field of FIELDS) {
-    if (field === "birthday") {
-      // An empty date must become NULL, not the string "".
-      const raw = String(body.birthday ?? "").trim();
-      values.birthday = raw === "" ? null : raw;
-      continue;
+    if (Object.prototype.hasOwnProperty.call(body ?? {}, field)) {
+      values[field] = clean(field, body[field]);
     }
-    const limit = LONG_FIELDS.has(field) ? MAX_LONG : MAX_SHORT;
-    values[field] = String(body[field] ?? "").slice(0, limit).trim();
   }
   return values;
 }
@@ -123,7 +139,6 @@ router.put(
     const ids = deletes.map(Number).filter(Number.isInteger);
     const columns = FIELDS.join(", ");
     const placeholders = FIELDS.map((_, i) => `$${i + 1}`).join(", ");
-    const assignments = FIELDS.map((f, i) => `${f} = $${i + 1}`).join(", ");
 
     const client = await pool.connect();
     let created = 0;
@@ -141,30 +156,42 @@ router.put(
       }
 
       for (const row of upserts) {
-        const values = normalize(row);
-        if (!values.name) {
-          throw Object.assign(new Error("Every row needs a name."), { httpStatus: 400 });
-        }
-        const params = FIELDS.map((f) => values[f]);
+        const isNew = row.id === null || row.id === undefined || row.id === "";
 
-        if (row.id === null || row.id === undefined || row.id === "") {
+        if (isNew) {
+          const values = normalize(row);
+          if (!values.name) {
+            throw Object.assign(new Error("Every row needs a name."), { httpStatus: 400 });
+          }
           await client.query(
             `INSERT INTO people (${columns}) VALUES (${placeholders})`,
-            params
+            FIELDS.map((f) => values[f])
           );
           created += 1;
-        } else {
-          const id = Number(row.id);
-          if (!Number.isInteger(id)) {
-            throw Object.assign(new Error("A row had an unrecognized id."), { httpStatus: 400 });
-          }
-          const result = await client.query(
-            `UPDATE people SET ${assignments}, updated_at = now()
-              WHERE id = $${FIELDS.length + 1}`,
-            [...params, id]
-          );
-          updated += result.rowCount;
+          continue;
         }
+
+        const id = Number(row.id);
+        if (!Number.isInteger(id)) {
+          throw Object.assign(new Error("A row had an unrecognized id."), { httpStatus: 400 });
+        }
+
+        // Only the columns this row actually carried, so a grid that sends a
+        // subset cannot wipe the columns it left out.
+        const values = normalizeUpdate(row);
+        const changed = Object.keys(values);
+        if (changed.includes("name") && !values.name) {
+          throw Object.assign(new Error("Every row needs a name."), { httpStatus: 400 });
+        }
+        if (changed.length === 0) continue;
+
+        const rowAssignments = changed.map((f, i) => `${f} = $${i + 1}`).join(", ");
+        const result = await client.query(
+          `UPDATE people SET ${rowAssignments}, updated_at = now()
+            WHERE id = $${changed.length + 1}`,
+          [...changed.map((f) => values[f]), id]
+        );
+        updated += result.rowCount;
       }
 
       await client.query("COMMIT");
@@ -201,18 +228,24 @@ router.put(
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ error: "Unknown person." });
 
-    const values = normalize(req.body);
-    if (!values.name) {
+    const values = normalizeUpdate(req.body);
+    const changed = Object.keys(values);
+    if (changed.includes("name") && !values.name) {
       return res.status(400).json({ error: "A name is required." });
     }
+    if (changed.length === 0) {
+      const current = await pool.query(`${SELECT_PERSON} WHERE p.id = $1`, [id]);
+      if (!current.rows[0]) return res.status(404).json({ error: "Person not found." });
+      return res.json({ person: current.rows[0] });
+    }
 
-    const assignments = FIELDS.map((f, i) => `${f} = $${i + 1}`).join(", ");
+    const assignments = changed.map((f, i) => `${f} = $${i + 1}`).join(", ");
 
     try {
       const updated = await pool.query(
         `UPDATE people SET ${assignments}, updated_at = now()
-          WHERE id = $${FIELDS.length + 1} RETURNING id`,
-        [...FIELDS.map((f) => values[f]), id]
+          WHERE id = $${changed.length + 1} RETURNING id`,
+        [...changed.map((f) => values[f]), id]
       );
       if (!updated.rows[0]) return res.status(404).json({ error: "Person not found." });
 

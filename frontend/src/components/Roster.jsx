@@ -31,7 +31,26 @@ function countPeople(groups) {
   );
 }
 
-export default function Roster({ token }) {
+const key = (name) => String(name ?? "").trim().toLowerCase();
+
+// Role and School belong to the person, not to the structure, so the structure
+// only stores who is where and reads the rest back out of the database. Editing
+// someone's school on their record moves it here too, and there is one place to
+// fix it rather than two. Year has no column on the person, so it stays typed
+// in here.
+function fromDatabase(row, people) {
+  const person = people.get(key(row.name));
+  if (!person) return { ...row, linked: false };
+  return {
+    ...row,
+    role: person.role || row.role,
+    school: person.school || row.school,
+    personId: person.id,
+    linked: true,
+  };
+}
+
+export default function Roster({ token, people = [] }) {
   const [roster, setRoster] = useState(null);
   const [draft, setDraft] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -60,6 +79,11 @@ export default function Roster({ token }) {
 
   const shown = editing ? draft : roster;
   const total = useMemo(() => (shown ? countPeople(shown.groups) : 0), [shown]);
+
+  const byName = useMemo(
+    () => new Map(people.map((person) => [key(person.name), person])),
+    [people]
+  );
 
   function startEditing() {
     // Deep clone so Cancel can genuinely discard everything.
@@ -159,6 +183,21 @@ export default function Roster({ token }) {
 
       {error && <div className="error-banner panel-notice">{error}</div>}
 
+      {editing && (
+        <>
+          <p className="roster-hint">
+            Type a name from the database and its Role and School fill themselves in.
+            Arrange who sits under whom here; change their details on their record.
+          </p>
+          {/* Native autocomplete, so the browser does the filtering. */}
+          <datalist id="roster-people">
+            {people.map((person) => (
+              <option key={person.id} value={person.name} />
+            ))}
+          </datalist>
+        </>
+      )}
+
       <div className={`roster-table${editing ? " roster-table-edit" : ""}`}>
         <div className="roster-row roster-head">
           <span>Role</span>
@@ -170,33 +209,48 @@ export default function Roster({ token }) {
 
         {shown.groups.map((group, groupIndex) => (
           <div className="roster-group" key={group.id ?? groupIndex}>
-            {group.rows.map((row, rowIndex) =>
-              editing ? (
+            {group.rows.map((raw, rowIndex) => {
+              const row = fromDatabase(raw, byName);
+              return editing ? (
                 <div className="roster-row roster-row-edit" key={rowIndex}>
-                  <input
-                    aria-label="Role"
-                    placeholder="Role"
-                    value={row.role}
-                    onChange={(e) => updateRow(groupIndex, rowIndex, "role", e.target.value)}
-                  />
+                  {row.linked ? (
+                    <span className="roster-linked" title="From this person's record">
+                      {row.role}
+                    </span>
+                  ) : (
+                    <input
+                      aria-label="Role"
+                      placeholder="Role"
+                      value={raw.role}
+                      onChange={(e) => updateRow(groupIndex, rowIndex, "role", e.target.value)}
+                    />
+                  )}
                   <input
                     aria-label="Name"
                     placeholder="Name"
-                    value={row.name}
+                    list="roster-people"
+                    className={row.linked ? "roster-name-linked" : undefined}
+                    value={raw.name}
                     onChange={(e) => updateRow(groupIndex, rowIndex, "name", e.target.value)}
                   />
                   <input
                     aria-label="Year"
                     placeholder="Year"
-                    value={row.year}
+                    value={raw.year}
                     onChange={(e) => updateRow(groupIndex, rowIndex, "year", e.target.value)}
                   />
-                  <input
-                    aria-label="School"
-                    placeholder="School"
-                    value={row.school}
-                    onChange={(e) => updateRow(groupIndex, rowIndex, "school", e.target.value)}
-                  />
+                  {row.linked ? (
+                    <span className="roster-linked" title="From this person's record">
+                      {row.school}
+                    </span>
+                  ) : (
+                    <input
+                      aria-label="School"
+                      placeholder="School"
+                      value={raw.school}
+                      onChange={(e) => updateRow(groupIndex, rowIndex, "school", e.target.value)}
+                    />
+                  )}
                   <div className="roster-tools">
                     <select
                       aria-label="Highlight colour"
@@ -265,8 +319,8 @@ export default function Roster({ token }) {
                   <span className="roster-year">{row.year}</span>
                   <span className="roster-school">{row.school}</span>
                 </div>
-              )
-            )}
+              );
+            })}
 
             {editing && (
               <div className="roster-group-tools">

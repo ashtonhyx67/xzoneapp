@@ -11,7 +11,7 @@ const row = (role, name, year, school, color = "") => ({
 });
 
 const TEMPLATE = {
-  title: "XIII A",
+  title: "XIIIA Structure",
   groups: [
     {
       rows: [

@@ -176,7 +176,7 @@ export default function Members() {
         </div>
       )}
 
-      {canEdit && <Roster token={token} />}
+      {canEdit && <Roster token={token} people={people} />}
     </AppShell>
   );
 }

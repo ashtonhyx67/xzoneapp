@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
@@ -17,6 +16,65 @@ function whenLabel(daysAway) {
   if (daysAway === 0) return "Today";
   if (daysAway === 1) return "Tomorrow";
   return `${daysAway} days`;
+}
+
+const DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+// ISO week number: weeks run Monday-Sunday, and week 1 is the one holding the
+// first Thursday of the year. Doing it by hand keeps the app dependency-free.
+function isoWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  // Shift to the Thursday of this week, then count weeks from Jan 1.
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+}
+
+// The top of the dashboard. Attendance and SA are recorded every week, so the
+// week and the day are the first thing the page says.
+function WeekBanner({ firstName }) {
+  // Tick over at midnight rather than only when the tab is reopened.
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    const timer = setTimeout(() => setNow(new Date()), midnight - now + 1000);
+    return () => clearTimeout(timer);
+  }, [now]);
+
+  const week = isoWeek(now);
+  const dayName = DAYS[now.getDay()];
+  const dateLine = `${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+
+  return (
+    <section className="week-banner">
+      <div className="week-banner-main">
+        <div className="week-eyebrow">Week</div>
+        <div className="week-number">{week}</div>
+      </div>
+
+      <div className="week-banner-side">
+        <div className="week-day">{dayName}</div>
+        <div className="week-date">{dateLine}</div>
+        <div className="week-greeting">
+          Welcome back{firstName ? `, ${firstName}` : ""}
+        </div>
+        <div className="week-tags">
+          <span className="week-tag">Attendance</span>
+          <span className="week-tag">SA</span>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 // A heading with the people it is about listed underneath, rather than a table
@@ -83,14 +141,7 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <header className="page-head">
-        <h1 className="page-title">Welcome back{firstName ? `, ${firstName}` : ""}</h1>
-        {canView && (
-          <Link className="btn btn-secondary btn-inline" to="/members">
-            All members
-          </Link>
-        )}
-      </header>
+      <WeekBanner firstName={firstName} />
 
       {summaryError && <div className="error-banner">{summaryError}</div>}
 
@@ -100,15 +151,6 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          <div className="stat-grid">
-            {(summary?.stats ?? []).map((stat) => (
-              <div className="stat-card" key={stat.label}>
-                <div className="stat-label">{stat.label}</div>
-                <div className="stat-value">{stat.value}</div>
-              </div>
-            ))}
-          </div>
-
           <MemberSection
             title="Birthdays"
             count={birthdays.length}

@@ -53,6 +53,37 @@ function fingerprint(row) {
   return JSON.stringify(EDITABLE.map((f) => String(row[f] ?? "")));
 }
 
+// Excel and Google Sheets put a tab between columns and a newline between rows,
+// so a copied block arrives as delimited text. Text copied off a screen instead
+// tends to be column-aligned with runs of spaces, so those work too. A single
+// space is left alone: it is far likelier to be inside a name than between two
+// columns.
+function parseClipboardGrid(text) {
+  const lines = text
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .filter((line) => line.trim() !== "");
+
+  const byTab = text.includes("\t");
+  return lines.map((line) =>
+    (byTab ? line.split("\t") : line.trim().split(/ {2,}/)).map((cell) => cell.trim())
+  );
+}
+
+// The date box only accepts YYYY-MM-DD, but a spreadsheet hands over whatever
+// it was displaying. Day-first, the way the source sheet wrote them.
+function coerceDate(value) {
+  const text = String(value).trim();
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(text)) {
+    const [year, month, day] = text.split("-");
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  const parts = text.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+  if (!parts) return "";
+  const [, day, month, year] = parts;
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+}
+
 function baselineOf(rows) {
   return Object.fromEntries(rows.map((row) => [row._key, fingerprint(row)]));
 }
@@ -186,6 +217,53 @@ export default function PeopleSheet({ token, people, onSaved }) {
     [schedule]
   );
 
+  // Pasting a block from a spreadsheet fills across and down from the cell it
+  // lands on, the way a spreadsheet does, adding rows at the bottom if the
+  // paste is taller than what is there. A plain one-cell paste is left to the
+  // browser.
+  const onCellPaste = useCallback(
+    (event, rowIndex, colIndex) => {
+      const text = event.clipboardData?.getData("text/plain") ?? "";
+      const grid = parseClipboardGrid(text);
+      if (grid.length === 0) return;
+      if (grid.length === 1 && grid[0].length <= 1) return;
+
+      event.preventDefault();
+
+      const targets = visible.slice(rowIndex, rowIndex + grid.length).map((row) => row._key);
+      const appended = Array.from({ length: Math.max(grid.length - targets.length, 0) }, () =>
+        blankRow()
+      );
+
+      const patch = new Map();
+      grid.forEach((cells, r) => {
+        const key = targets[r] ?? appended[r - targets.length]._key;
+        const values = {};
+        cells.forEach((cell, c) => {
+          const column = COLUMNS[colIndex + c];
+          // Past the last column, or on Age — which the server derives from
+          // Birthday. Its slot is still consumed so a sheet that has an Age
+          // column stays lined up with this one.
+          if (!column || column.readOnly) return;
+          values[column.field] = column.type === "date" ? coerceDate(cell) : cell;
+        });
+        patch.set(key, values);
+      });
+
+      setRows((list) =>
+        [...list, ...appended].map((row) =>
+          patch.has(row._key) ? { ...row, ...patch.get(row._key) } : row
+        )
+      );
+
+      // New rows would land outside a filtered view, so drop the filter rather
+      // than leave the paste looking like it did nothing.
+      if (appended.length > 0) setQuery("");
+      schedule();
+    },
+    [schedule, visible]
+  );
+
   // Up, down, and Enter walk the column the way a spreadsheet does; Tab already
   // walks the row.
   const focusCell = useCallback((rowIndex, colIndex) => {
@@ -243,6 +321,7 @@ export default function PeopleSheet({ token, people, onSaved }) {
       disabled: row._deleted,
       "aria-label": `${column.label}, row ${rowIndex + 1}`,
       onKeyDown: (e) => onCellKeyDown(e, rowIndex, colIndex),
+      onPaste: (e) => onCellPaste(e, rowIndex, colIndex),
     };
 
     if (column.type === "role") {

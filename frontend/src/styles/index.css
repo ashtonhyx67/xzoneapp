@@ -1337,6 +1337,158 @@ button {
   margin: 10px 0 12px;
 }
 
+/* A value the structure reads off the person's record rather than storing its
+   own copy of. Shown as text so it reads as settled, not as a blank to fill. */
+.roster-linked {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-soft);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.roster-name-linked {
+  font-weight: 600;
+}
+
+.roster-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-soft);
+}
+
+/* ---------- Dashboard week banner ---------- */
+
+/* Attendance and SA are weekly, so the week owns the top of the dashboard.
+   Big number on the left, the day it currently is on the right. */
+.week-banner {
+  display: flex;
+  align-items: stretch;
+  gap: 28px;
+  margin-bottom: 8px;
+  padding: 26px 30px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--accent-hover) 0%, var(--accent) 100%);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(0, 76, 63, 0.18);
+}
+
+.week-banner-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-right: 28px;
+  border-right: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.week-eyebrow {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Deliberately oversized: it is the one number the page exists to show. */
+.week-number {
+  font-size: 76px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.week-banner-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.week-day {
+  font-size: 32px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.week-date {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.week-greeting {
+  margin-top: 6px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.72);
+  overflow-wrap: anywhere;
+}
+
+.week-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.week-tag {
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .week-banner {
+    gap: 16px;
+    padding: 20px 22px;
+  }
+
+  .week-banner-main {
+    padding-right: 18px;
+  }
+
+  .week-number {
+    font-size: 56px;
+  }
+
+  .week-day {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .week-banner {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .week-banner-main {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 10px;
+    padding-right: 0;
+    padding-bottom: 14px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+  }
+
+  .week-number {
+    font-size: 46px;
+  }
+}
+
 /* ---------- Sections and member lists ---------- */
 
 .section {

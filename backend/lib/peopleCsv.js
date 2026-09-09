@@ -200,8 +200,15 @@ async function importPeople(pool, people) {
     await client.query("BEGIN");
 
     const placeholders = FIELDS.map((_, i) => `$${i + 1}`).join(", ");
+    // A blank cell in the import means "the sheet doesn't say", not "erase it".
+    // Keep whatever is already on the record unless the file supplies a value,
+    // so re-importing an old export can't undo edits made in the app since.
     const assignments = FIELDS.filter((f) => f !== "name")
-      .map((f) => `${f} = EXCLUDED.${f}`)
+      .map((f) =>
+        f === "birthday"
+          ? `${f} = COALESCE(EXCLUDED.${f}, people.${f})`
+          : `${f} = COALESCE(NULLIF(EXCLUDED.${f}, ''), people.${f})`
+      )
       .join(", ");
 
     for (const person of people) {
