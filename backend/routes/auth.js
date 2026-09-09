@@ -22,6 +22,21 @@ const RP_NAME = "X Zone App";
 const RP_ID = process.env.RP_ID || "localhost";
 const ORIGIN = process.env.ORIGIN || "http://localhost:5173";
 
+// WebAuthn ties a credential to one domain. If RP_ID does not match the domain
+// the page is actually on, the browser refuses in ways that read as the feature
+// being broken rather than misconfigured — so say which it is.
+function rpMismatch(req) {
+  const host = String(req.headers.host || "").split(":")[0];
+  if (!host || host === RP_ID) return null;
+  // A subdomain of RP_ID is fine; anything else is not.
+  if (host.endsWith(`.${RP_ID}`)) return null;
+
+  return (
+    `Face ID is set up for "${RP_ID}" but this page is on "${host}". ` +
+    `Set RP_ID to "${host}" and ORIGIN to "https://${host}" in the server's variables.`
+  );
+}
+
 // A challenge is single-use and short-lived; anything older is not accepted.
 const CHALLENGE_TTL = "5 minutes";
 
@@ -204,6 +219,9 @@ router.get(
   "/webauthn/register-options",
   requireAuth,
   route(async (req, res) => {
+    const mismatch = rpMismatch(req);
+    if (mismatch) return res.status(500).json({ error: mismatch });
+
     const userResult = await pool.query("SELECT id, name, email FROM users WHERE id = $1", [
       req.userId,
     ]);
@@ -227,6 +245,10 @@ router.get(
         userVerification: "required",
         residentKey: "preferred",
       },
+      // Asks the browser for the authenticator built into this device. Without
+      // it Chrome is free to lead with "use a phone" and offer a QR code or a
+      // third-party passkey provider, which is not what Face ID here means.
+      hints: ["client-device"],
       // Stops the same device being enrolled twice.
       excludeCredentials: existing.rows.map((c) => ({
         id: c.credential_id,

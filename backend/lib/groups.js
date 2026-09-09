@@ -20,43 +20,32 @@ const PERMISSIONS = {
 
 const ALL = Object.values(PERMISSIONS);
 
+// Being in the app is the whole of the permission model. There is no tier to
+// promote someone into: an account exists because someone was given it, and
+// that is the decision — so everyone who can sign in can do everything.
+//
+// The permissions above are kept rather than deleted. Every protected route
+// asks for one by name, so leaving them in place means the gate is still there
+// to close if this ever needs tiers again; today every group holds all of them.
 const GROUPS = [
   {
     key: "owner",
     label: "Owner",
-    description: "Runs the app. Every permission, and cannot be removed.",
+    description: "Runs the app. Cannot be removed.",
     permissions: ALL,
-  },
-  {
-    key: "admin",
-    label: "Admin",
-    description: "Manages accounts and the whole database.",
-    permissions: ALL,
-  },
-  {
-    key: "leader",
-    label: "Leader",
-    description: "Reads and edits the member database.",
-    permissions: [PERMISSIONS.VIEW_DIRECTORY, PERMISSIONS.EDIT_DATABASE],
   },
   {
     key: "member",
     label: "Member",
-    description: "Reads the member directory.",
-    permissions: [PERMISSIONS.VIEW_DIRECTORY],
-  },
-  {
-    key: "pending",
-    label: "No access",
-    description: "Can sign in, but sees nothing until they are put in a group.",
-    permissions: [],
+    description: "Everyone else with an account.",
+    permissions: ALL,
   },
 ];
 
 const BY_KEY = new Map(GROUPS.map((group) => [group.key, group]));
 
-// A new account starts here; someone with manageAccounts moves it up.
-const DEFAULT_GROUP = "pending";
+// Where a new account lands, which is also where it stays.
+const DEFAULT_GROUP = "member";
 
 // The owner's group is decided by their email, so it is never handed out.
 const ASSIGNABLE_GROUPS = GROUPS.filter((group) => group.key !== "owner");
@@ -65,8 +54,10 @@ function getGroup(key) {
   return BY_KEY.get(String(key || "").trim()) || BY_KEY.get(DEFAULT_GROUP);
 }
 
-function permissionsFor(key) {
-  return getGroup(key).permissions;
+// Everyone gets everything, whatever their row happens to say — an account
+// left on a group key from before this changed is not locked out by it.
+function permissionsFor() {
+  return ALL;
 }
 
 function can(key, permission) {

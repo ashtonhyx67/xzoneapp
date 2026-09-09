@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { CGS } from "../lib/teams.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -11,7 +11,6 @@ export default function AccountsPanel() {
   const { token, user } = useAuth();
 
   const [accounts, setAccounts] = useState([]);
-  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -30,7 +29,6 @@ export default function AccountsPanel() {
       .then((data) => {
         if (!active) return;
         setAccounts(data.accounts);
-        setGroups(data.groups);
       })
       .catch((err) => {
         if (active && err.name !== "AbortError") setError(err.message);
@@ -44,24 +42,6 @@ export default function AccountsPanel() {
       controller.abort();
     };
   }, [token]);
-
-  const assignable = useMemo(() => groups.filter((g) => g.assignable), [groups]);
-  const labelFor = (key) => groups.find((g) => g.key === key)?.label || key;
-
-  async function changeGroup(account, group) {
-    setBusyId(account.id);
-    setError("");
-    setNotice("");
-    try {
-      const { account: saved } = await api.setAccountGroup(token, account.id, group);
-      setAccounts((list) => list.map((a) => (a.id === saved.id ? saved : a)));
-      setNotice(`${saved.name} is now ${labelFor(saved.group)}.`);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusyId(null);
-    }
-  }
 
   // Teams are not access — they say whose members someone works on — so unlike
   // a group, an admin may change their own.
@@ -127,7 +107,7 @@ export default function AccountsPanel() {
       setAccounts((list) => [...list, account]);
       setForm({ name: "", email: "", password: "", group: "member" });
       setAdding(false);
-      setNotice(`${account.name} can now sign in as ${labelFor(account.group)}.`);
+      setNotice(`${account.name} can now sign in.`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -185,16 +165,6 @@ export default function AccountsPanel() {
               required
             />
           </div>
-          <div className="field">
-            <label htmlFor="account-group">Group</label>
-            <select id="account-group" value={form.group} onChange={update("group")}>
-              {assignable.map((group) => (
-                <option key={group.key} value={group.key}>
-                  {group.label}
-                </option>
-              ))}
-            </select>
-          </div>
           <button className="btn btn-primary" type="submit" disabled={busyId === "new"}>
             {busyId === "new" ? "Creating" : "Create account"}
           </button>
@@ -222,23 +192,9 @@ export default function AccountsPanel() {
                 {account.faceIdEnabled && <span className="badge badge-off">Face ID</span>}
               </span>
 
-              {account.isOwner ? (
-                <span className="group-pill group-pill-owner">Owner</span>
-              ) : (
-                <select
-                  className="account-group"
-                  value={account.group}
-                  onChange={(e) => changeGroup(account, e.target.value)}
-                  disabled={busyId === account.id || account.id === user?.id}
-                  aria-label={`Group for ${account.name}`}
-                >
-                  {assignable.map((group) => (
-                    <option key={group.key} value={group.key}>
-                      {group.label}
-                    </option>
-                  ))}
-                </select>
-              )}
+              {/* There is no tier to choose. Having an account is the access,
+                  so the only thing to say is who owns the app. */}
+              {account.isOwner && <span className="group-pill group-pill-owner">Owner</span>}
 
               {/* Which teams this account works on, laid out by CG. An admin
                   already reaches the whole zone, so there is nothing to
@@ -314,16 +270,11 @@ export default function AccountsPanel() {
         </div>
       )}
 
-      <div className="group-legend">
-        {groups.map((group) => (
-          <div className="group-legend-row" key={group.key}>
-            <span className={`group-pill${group.key === "owner" ? " group-pill-owner" : ""}`}>
-              {group.label}
-            </span>
-            <span className="group-legend-text">{group.description}</span>
-          </div>
-        ))}
-      </div>
+      <p className="panel-note">
+        Anyone with an account can use the whole app. Teams decide whose members
+        someone works on, not what they are allowed to do.
+      </p>
+
     </section>
   );
 }

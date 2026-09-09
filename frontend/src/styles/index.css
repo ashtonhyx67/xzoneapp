@@ -1337,6 +1337,13 @@ button {
   }
 }
 
+.panel-note {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-soft);
+}
+
 /* Shown for the moment a page's own chunk is being fetched. */
 .page-loading {
   padding: 40px 24px;
@@ -2492,9 +2499,9 @@ button {
   margin-bottom: 8px;
   padding: 26px 30px;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 55%, #6366f1 100%);
+  background: linear-gradient(135deg, #0b3b6f 0%, #1668b8 55%, #3ba0e6 100%);
   color: #fff;
-  box-shadow: 0 6px 18px rgba(30, 27, 75, 0.22);
+  box-shadow: 0 6px 18px rgba(11, 59, 111, 0.24);
 }
 
 .week-banner-main {
@@ -2831,6 +2838,68 @@ button {
 
 .account-form .btn {
   width: auto;
+}
+
+
+/* An account row is six things side by side on a laptop. On a phone that is
+   four too many, so it becomes a small block: who they are, then their teams,
+   then the action — each on its own line, aligned to the left edge. */
+@media (max-width: 700px) {
+  .account-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "avatar identity"
+      "signin signin"
+      "teams teams"
+      "actions actions";
+    gap: 8px 10px;
+    align-items: center;
+    padding: 14px 0;
+  }
+
+  .account-row .member-avatar {
+    grid-area: avatar;
+  }
+
+  .account-row .member-identity {
+    grid-area: identity;
+    min-width: 0;
+  }
+
+  .account-row .member-name,
+  .account-row .member-detail {
+    overflow-wrap: anywhere;
+  }
+
+  .account-signin {
+    grid-area: signin;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .account-teams {
+    grid-area: teams;
+  }
+
+  .account-actions {
+    grid-area: actions;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* The account form is a column of full-width fields rather than a row that
+     wraps into fragments. */
+  .account-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .account-panel .btn {
+    margin-left: 0;
+    width: 100%;
+  }
 }
 
 .btn-danger {

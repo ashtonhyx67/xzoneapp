@@ -182,6 +182,14 @@ async function initSchema() {
 
   await pool.query(`UPDATE users SET group_key = 'owner' WHERE lower(email) = $1;`, [OWNER_EMAIL]);
 
+  // Access tiers are gone: being in the app is the permission. Anyone left on
+  // one of the old keys becomes a member, so nobody is stranded on a group that
+  // no longer means anything.
+  await pool.query(`
+    UPDATE users SET group_key = 'member', is_admin = true
+     WHERE group_key NOT IN ('owner', 'member');
+  `);
+
   // ---------- PIN ----------
   // A 4-digit PIN is the everyday way back in: the session ends when the app is
   // closed, and the PIN screen replaces the sign-up card on the next launch.
