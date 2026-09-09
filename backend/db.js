@@ -478,16 +478,26 @@ async function initSchema() {
       ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT '';
   `);
 
-  // Carried over from when a person had exactly one status, and from before
-  // that when attendance was a grid of ticks. Both are guarded on `statuses`
-  // being empty, so neither can overwrite a set recorded since.
+  // Carried over from when a person had exactly one status. `status` only
+  // exists on a database that ran that version — a new one goes straight to
+  // `statuses` — so the back-fill is guarded on the column being there. Without
+  // the guard this raises "column status does not exist" and takes the whole
+  // boot down. Also guarded on `statuses` being empty, so it cannot overwrite a
+  // set recorded since.
   await pool.query(`
-    UPDATE attendance_people
-       SET statuses = CASE WHEN status = 'OVERSEAS' THEN 'REPLAY'
-                           WHEN status IN ('SERVING', 'GROUNDS') THEN ''
-                           ELSE status
-                      END
-     WHERE statuses = '' AND status <> '';
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_name = 'attendance_people' AND column_name = 'status')
+      THEN
+        UPDATE attendance_people
+           SET statuses = CASE WHEN status = 'OVERSEAS' THEN 'REPLAY'
+                               WHEN status IN ('SERVING', 'GROUNDS') THEN ''
+                               ELSE status
+                          END
+         WHERE statuses = '' AND status <> '';
+      END IF;
+    END $$;
   `);
 
   // Extra statuses, added by hand and applying to every register — a week is
