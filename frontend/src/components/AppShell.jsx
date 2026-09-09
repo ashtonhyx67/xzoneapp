@@ -24,31 +24,43 @@ export default function AppShell({ children }) {
         <div className="sidebar-wordmark">X Zone</div>
 
         <nav className="sidebar-nav">
-          <NavLink to="/dashboard" className={navClass}>
-            Dashboard
+          {/* Home is its own thing — the page you come back to — so on a phone
+              it sits apart from the working pages rather than in the row with
+              them. Each link carries an emoji, drained of colour by CSS: the
+              shapes are what makes a bottom bar readable at a glance, and a row
+              of full-colour emoji would be louder than the page it sits under. */}
+          <NavLink to="/dashboard" className={({ isActive }) => `${navClass({ isActive })} nav-home`}>
+            <span className="nav-icon" aria-hidden="true">🏠</span>
+            <span className="nav-label">Dashboard</span>
           </NavLink>
+
           {can(PERMISSIONS.VIEW_DIRECTORY) && (
             <NavLink to="/members" className={navClass}>
-              Members
+              <span className="nav-icon" aria-hidden="true">👤</span>
+              <span className="nav-label">Members</span>
             </NavLink>
           )}
           {can(PERMISSIONS.VIEW_DIRECTORY) && (
             <NavLink to="/attendance" className={navClass}>
-              Attendance
+              <span className="nav-icon" aria-hidden="true">✅</span>
+              <span className="nav-label">Attendance</span>
             </NavLink>
           )}
           {can(PERMISSIONS.VIEW_DIRECTORY) && (
             <NavLink to="/seating" className={navClass}>
-              Seating
+              <span className="nav-icon" aria-hidden="true">🪑</span>
+              <span className="nav-label">Seating</span>
             </NavLink>
           )}
           {can(PERMISSIONS.EDIT_DATABASE) && (
             <NavLink to="/database" className={navClass}>
-              Database
+              <span className="nav-icon" aria-hidden="true">🗂️</span>
+              <span className="nav-label">Database</span>
             </NavLink>
           )}
           <NavLink to="/admin" className={navClass}>
-            Admin
+            <span className="nav-icon" aria-hidden="true">⚙️</span>
+            <span className="nav-label">Admin</span>
           </NavLink>
         </nav>
 
