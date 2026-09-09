@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { initials } from "../lib/photo.js";
 import { PERMISSIONS } from "../lib/permissions.js";
+import UpdatePrompt from "./UpdatePrompt.jsx";
 
 // The sidebar and page frame, shared by every signed-in page so the navigation
 // lives in exactly one place. Which links appear is decided by permissions, not
@@ -84,6 +85,10 @@ export default function AppShell({ children }) {
       </aside>
 
       <main className="main-content">{children}</main>
+
+      {/* Sits above everything, on every signed-in page, because a stale app is
+          stale wherever you happen to be standing in it. */}
+      <UpdatePrompt />
     </div>
   );
 }

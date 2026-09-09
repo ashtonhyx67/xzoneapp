@@ -6,6 +6,7 @@ import AppShell from "../components/AppShell.jsx";
 import PinSettings from "../components/PinSettings.jsx";
 import FaceIdSettings from "../components/FaceIdSettings.jsx";
 import AccountsPanel from "../components/AccountsPanel.jsx";
+import AppVersion from "../components/AppVersion.jsx";
 
 // Everything about signing in lives here — your own PIN and Face ID, and, for
 // anyone who can manage accounts, everyone else's access.
@@ -47,6 +48,13 @@ export default function Admin() {
 
         <PinSettings />
         <FaceIdSettings />
+      </section>
+
+      <section className="section">
+        <div className="section-head">
+          <h2 className="section-title">Version</h2>
+        </div>
+        <AppVersion />
       </section>
 
       {can(PERMISSIONS.MANAGE_ACCOUNTS) && <AccountsPanel />}

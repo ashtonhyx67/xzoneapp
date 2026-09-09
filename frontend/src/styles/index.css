@@ -2911,6 +2911,74 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+/* Sits above the page, and above the floating navbar on a phone, because it is
+   worth interrupting for — the app is running code that has been replaced. */
+.update-prompt {
+  position: fixed;
+  z-index: 30;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 16px;
+  border-radius: 999px;
+  background: var(--text);
+  color: #fff;
+  box-shadow: 0 8px 28px rgba(26, 26, 26, 0.28);
+  animation: update-rise 0.22s ease-out;
+}
+
+/* On a phone it sits above the navbar rather than on top of it. */
+@media (max-width: 768px) {
+  .update-prompt {
+    bottom: calc(74px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Wide screens: a card in the corner, not a bar across the whole width. */
+@media (min-width: 769px) {
+  .update-prompt {
+    left: auto;
+    right: 20px;
+    bottom: 20px;
+    max-width: 340px;
+  }
+}
+
+@keyframes update-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.update-prompt-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.update-prompt-later {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.update-prompt-later:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
 /* Who is signed in, and the way out — the pair the sidebar used to carry. */
 .account-panel {
   display: flex;
