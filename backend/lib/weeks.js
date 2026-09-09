@@ -6,12 +6,32 @@
 // Thursday of the year. It is also what the dashboard banner shows, so the
 // number a leader sees there is the number their records are filed under.
 
+// The zone the app lives in. A server runs on UTC, which for eight months of
+// the year disagrees with Singapore about what day it is between midnight and
+// 8am — long enough to decide a register belongs to last week. Both ends work
+// in this zone so they always name the same week.
+const ZONE = "Asia/Singapore";
+
+// The calendar date in Singapore, whatever the machine's own clock is set to.
+function localParts(date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const get = (type) => Number(parts.find((part) => part.type === type).value);
+  return { year: get("year"), month: get("month"), day: get("day") };
+}
+
 // The ISO year and week a date falls in. They are returned together because at
 // the turn of the year they disagree with the calendar year — 31 Dec 2026 is
 // week 53 of ISO year 2026, but 1 Jan 2027 is week 53 of 2026 too, and filing
 // those under different years would split one week into two.
 function isoWeek(date = new Date()) {
-  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const { year, month, day } = localParts(date);
+  const d = new Date(Date.UTC(year, month - 1, day));
   // Shift to the Thursday of this week, then count weeks from 1 January.
   d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
@@ -65,4 +85,4 @@ function stepWeek({ year, week }, delta) {
   return { year: nextYear, week: nextWeek };
 }
 
-module.exports = { isoWeek, weeksInYear, resolveWeek, stepWeek };
+module.exports = { ZONE, isoWeek, weeksInYear, resolveWeek, stepWeek };

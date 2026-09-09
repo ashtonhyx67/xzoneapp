@@ -13,7 +13,7 @@ function weekRange({ year, week }) {
   sunday.setUTCDate(monday.getUTCDate() + 6);
 
   const format = (date) =>
-    date.toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
+    date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 
   return `${format(monday)} – ${format(sunday)}`;
 }

@@ -181,10 +181,11 @@ async function readWeek(team, year, week, allowed) {
     category: row.person_id
       ? categoryOf({ role: row.person_role })
       : categoryOf({ role: row.own_category }),
-    // One of the team's own, as the database has it right now. Those are kept
-    // in step automatically, so they are not removed by hand — someone who did
-    // not come is left unmarked, which is what absent means.
-    fromTeam: row.person_team === team,
+    // Linked to a database record — this team's, or someone deployed in from
+    // another. Those are kept in step automatically, so they are not removed by
+    // hand: someone who did not come is left unmarked, which is what absent
+    // means. Only a name typed in for the week can be taken off again.
+    fromTeam: Boolean(row.person_id),
   }));
 
   return { team, year, week, people, counts: tally(people, allowed) };
@@ -384,6 +385,11 @@ router.put(
 
     const allowed = await allowedStatuses();
     await writeWeek(team, year, week, people, allowed);
+
+    // A save replaces the register with what the sender had, so anyone added to
+    // the team since they loaded it would be written straight back out. Putting
+    // them back here means a register can never end up short of the team.
+    if (isCurrentOrLater(year, week)) await syncMembers(team, year, week);
 
     res.json({
       ...(await readWeek(team, year, week, allowed)),

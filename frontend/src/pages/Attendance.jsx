@@ -13,6 +13,73 @@ const SAVE_DELAY = 700;
 let counter = 0;
 const newKey = () => `new-${(counter += 1)}`;
 
+// One person's line. Memoised because a register can run to forty people and a
+// tap changes exactly one of them — without this, every row and every mark on
+// the page re-rendered on each tap, which is what made marking feel sticky.
+// Toggling replaces only the person it touched, so every other row keeps its
+// identity and React skips it.
+const RegisterRow = React.memo(function RegisterRow({
+  person,
+  statuses,
+  canEdit,
+  onToggle,
+  onRename,
+  onRemove,
+}) {
+  const here = isPresent(person.statuses, statuses);
+
+  return (
+    <div className={`register-row${here ? " register-row-present" : ""}`}>
+      {canEdit && !person.fromTeam ? (
+        <input
+          className="register-name"
+          list="attendance-names"
+          value={person.name}
+          placeholder="Name"
+          aria-label="Name"
+          onChange={(e) => onRename(person.key, e.target.value)}
+        />
+      ) : (
+        // Someone with a record: their name belongs to it, so it is changed
+        // there rather than here.
+        <span className="register-name-text">{person.name}</span>
+      )}
+
+      {/* Toggles rather than a dropdown: someone can be at more than one thing
+          in a week, and a tap is quicker than opening a list on a phone. */}
+      <span className="register-marks">
+        {statuses.map((s) => (
+          <button
+            type="button"
+            key={s.key}
+            className={`mark${person.statuses.includes(s.key) ? " mark-on" : ""}`}
+            disabled={!canEdit}
+            aria-pressed={person.statuses.includes(s.key)}
+            title={s.label + (s.counts ? "" : " (not counted)")}
+            aria-label={`${s.label} for ${person.name || "this person"}`}
+            onClick={() => onToggle(person.key, s.key)}
+          >
+            {s.emoji || s.label.slice(0, 2)}
+          </button>
+        ))}
+      </span>
+
+      {/* Only a name added by hand can be taken off. Anyone with a record is
+          always listed; not coming is what an empty row of marks means. */}
+      {canEdit && !person.fromTeam && (
+        <button
+          className="sheet-remove"
+          onClick={() => onRemove(person.key)}
+          aria-label={`Remove ${person.name || "this row"}`}
+          title="Remove from this week"
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+});
+
 // One week's register for one team, laid out the way the sheet is written:
 // people grouped by their role, a count on each group, and the total across the
 // top. A person can carry more than one status, so the statuses are toggles.
@@ -126,9 +193,26 @@ export default function Attendance() {
           category: row.category,
         })),
       });
-      // Counts come back derived, so they can never drift from the register.
-      setRecord(saved);
-      setStatuses(saved.statuses ?? BUILTIN_STATUSES);
+      // Anyone the server put back — added to the team since this page was
+      // loaded — is taken on. Merged rather than replacing the list wholesale,
+      // so a mark made while the save was in the air is not overwritten by a
+      // response that predates it. When there is nobody new the same array is
+      // returned, so React has no re-render to do and marking stays smooth.
+      setPeople((list) => {
+        const known = new Set(list.map((row) => row.personId).filter(Boolean));
+        const added = (saved.people ?? [])
+          .filter((person) => person.personId && !known.has(person.personId))
+          .map((person) => ({
+            key: `p-${person.id}`,
+            personId: person.personId,
+            name: person.name,
+            statuses: person.statuses ?? [],
+            category: person.category,
+            fromTeam: person.fromTeam,
+          }));
+        return added.length ? [...list, ...added] : list;
+      });
+
       setStatus("idle");
       setError("");
     } catch (err) {
@@ -174,7 +258,7 @@ export default function Attendance() {
     [schedule]
   );
 
-  function setName(key, name) {
+  const setName = useCallback((key, name) => {
     const match = directory.find(
       (person) => person.name.trim().toLowerCase() === name.trim().toLowerCase()
     );
@@ -188,11 +272,12 @@ export default function Attendance() {
       personId: match?.id ?? null,
       ...(match ? { category: categoryOf(match.role) } : {}),
     });
-  }
+  }, [directory, update]);
 
   // A person can be at more than one thing in a week, so a status is toggled
-  // rather than chosen.
-  function toggleStatus(personKey, statusKey) {
+  // rather than chosen. Wrapped so its identity is stable: a row below is
+  // memoised, and a callback rebuilt every render would defeat that.
+  const toggleStatus = useCallback((personKey, statusKey) => {
     // The order marks are offered in, so a row always reads the same way.
     const order = statuses.map((s) => s.key);
     const rank = (key) => {
@@ -213,7 +298,15 @@ export default function Attendance() {
       })
     );
     schedule();
-  }
+  }, [statuses, schedule]);
+
+  const removePerson = useCallback(
+    (personKey) => {
+      setPeople((list) => list.filter((row) => row.key !== personKey));
+      schedule();
+    },
+    [schedule]
+  );
 
   async function addStatus(event) {
     event.preventDefault();
@@ -459,68 +552,15 @@ export default function Attendance() {
                 {group.people.length > 0 && (
                   <div className="register-rows">
                     {group.people.map((person) => (
-                      <div
-                        className={`register-row${
-                          isPresent(person.statuses, statuses) ? " register-row-present" : ""
-                        }`}
+                      <RegisterRow
                         key={person.key}
-                      >
-                        {canEdit && !person.fromTeam ? (
-                          <input
-                            className="register-name"
-                            list="attendance-names"
-                            value={person.name}
-                            placeholder="Name"
-                            aria-label="Name"
-                            onChange={(e) => setName(person.key, e.target.value)}
-                          />
-                        ) : (
-                          // One of the team's own: the name belongs to their
-                          // record, so it is changed there, not here.
-                          <span className="register-name-text">{person.name}</span>
-                        )}
-
-                        {/* Toggles rather than a dropdown: someone can be at
-                            more than one thing in a week, and a tap is quicker
-                            than opening a list on a phone. */}
-                        <span className="register-marks">
-                          {statuses.map((s) => (
-                            <button
-                              type="button"
-                              key={s.key}
-                              className={`mark${
-                                person.statuses.includes(s.key) ? " mark-on" : ""
-                              }`}
-                              disabled={!canEdit}
-                              aria-pressed={person.statuses.includes(s.key)}
-                              title={s.label + (s.counts ? "" : " (not counted)")}
-                              aria-label={`${s.label} for ${person.name || "this person"}`}
-                              onClick={() => toggleStatus(person.key, s.key)}
-                            >
-                              {s.emoji || s.label.slice(0, 2)}
-                            </button>
-                          ))}
-                        </span>
-
-                        {/* Only a name added by hand can be taken off. A member
-                            of the team is always listed; not coming is what an
-                            empty row of marks means. */}
-                        {canEdit && !person.fromTeam && (
-                          <button
-                            className="sheet-remove"
-                            onClick={() => {
-                              setPeople((list) =>
-                                list.filter((row) => row.key !== person.key)
-                              );
-                              schedule();
-                            }}
-                            aria-label={`Remove ${person.name || "this row"}`}
-                            title="Remove from this week"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
+                        person={person}
+                        statuses={statuses}
+                        canEdit={canEdit}
+                        onToggle={toggleStatus}
+                        onRename={setName}
+                        onRemove={removePerson}
+                      />
                     ))}
                   </div>
                 )}
