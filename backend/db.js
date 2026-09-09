@@ -505,6 +505,17 @@ async function initSchema() {
        AND s.week_id = p.week_id;
   `);
 
+  // Serving and Good Grounds are no longer marked, and someone overseas is
+  // marked Service Replay like anyone else watching it — so the retired
+  // statuses are folded in rather than left as values nothing can display.
+  await pool.query(`
+    UPDATE attendance_people SET status = 'REPLAY' WHERE status = 'OVERSEAS';
+  `);
+
+  await pool.query(`
+    UPDATE attendance_people SET status = '' WHERE status IN ('SERVING', 'GROUNDS');
+  `);
+
   // ---------- Seating arrangement ----------
   // Done by hand, once a week, by one leader per CG — so it is keyed on the CG
   // rather than the team, and it is an arrangement of names rather than a

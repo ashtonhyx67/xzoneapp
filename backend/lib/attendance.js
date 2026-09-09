@@ -4,20 +4,16 @@
 // the sheet has always been written, and it is why the totals are a count of
 // people rather than a count of attendances.
 
-// The statuses, in the order they appear in the legend. `counts` decides
-// whether someone wearing it is in the Total Attendance line: being at a
-// service counts, and so does serving or being at Good Grounds, because the
-// person was there. Hangout and Overseas are records of where someone was
-// instead, so they do not.
+// The statuses, in the order they appear in the legend. Everything here except
+// Hangout is a service, so `counts` is simply whether the person was at one —
+// Serving and Good Grounds are not marked at all, and someone overseas watches
+// the replay, so they are marked Service Replay like anyone else who did.
 const STATUSES = [
   { key: "S1", emoji: "1⃣", label: "Service 1", counts: true },
   { key: "S2", emoji: "2⃣", label: "Service 2", counts: true },
   { key: "S3", emoji: "3⃣", label: "Service 3", counts: true },
   { key: "REPLAY", emoji: "💻", label: "Service Replay", counts: true },
-  { key: "SERVING", emoji: "🌸", label: "Serving", counts: true },
-  { key: "GROUNDS", emoji: "🌺", label: "Good Grounds", counts: true },
   { key: "HANGOUT", emoji: "🍁", label: "Hangout", counts: false },
-  { key: "OVERSEAS", emoji: "✈️", label: "Overseas", counts: false },
 ];
 
 const STATUS_BY_KEY = new Map(STATUSES.map((status) => [status.key, status]));
