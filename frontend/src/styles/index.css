@@ -1337,6 +1337,62 @@ button {
   }
 }
 
+/* Offering the home screen. Sits inside the card that has just confirmed the
+   PIN, so it reads as the next step rather than an advert. */
+.install-card {
+  display: flex;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  text-align: left;
+}
+
+.install-icon {
+  font-size: 26px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.install-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.install-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.install-text {
+  margin: 4px 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-soft);
+}
+
+.install-btn {
+  width: 100%;
+}
+
+.install-steps {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.install-steps strong {
+  font-weight: 700;
+}
+
+.install-glyph {
+  font-size: 14px;
+}
+
 .panel-note {
   margin: 10px 0 0;
   font-size: 13px;

@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import PinPad, { PIN_LENGTH } from "../components/PinPad.jsx";
+import InstallPrompt from "../components/InstallPrompt.jsx";
+import { canInstall } from "../lib/install.js";
 
 // Shown once, right after an account is created (and to anyone who signed up
 // before PINs existed). Two passes: choose, then confirm.
@@ -10,7 +12,7 @@ export default function SetPin() {
   const navigate = useNavigate();
   const { token, setPinSet } = useAuth();
 
-  const [step, setStep] = useState("choose"); // choose | confirm
+  const [step, setStep] = useState("choose"); // choose | confirm | done
   const [first, setFirst] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -23,6 +25,16 @@ export default function SetPin() {
       try {
         await api.setPin(token, confirmed);
         setPinSet(true);
+
+        // The PIN is the moment the app becomes worth keeping: there is now a
+        // quick way back in. So this is where adding it to the home screen is
+        // offered — but only where there is something to offer, rather than a
+        // screen that says nothing on a desktop or an app already installed.
+        if (canInstall()) {
+          setStep("done");
+          return;
+        }
+
         navigate("/dashboard", { replace: true });
       } catch (err) {
         setError(err.message);
@@ -72,6 +84,32 @@ export default function SetPin() {
       /* storage unavailable; the prompt simply reappears */
     }
     navigate("/dashboard", { replace: true });
+  }
+
+  if (step === "done") {
+    return (
+      <div className="auth-shell">
+        <div className="auth-wordmark">X Zone App</div>
+        <div className="auth-card">
+          <h1 className="auth-title">You're all set</h1>
+          <p className="auth-subtitle">
+            Your PIN is saved. One last thing worth doing.
+          </p>
+
+          <InstallPrompt onDone={() => navigate("/dashboard", { replace: true })} />
+
+          <div className="auth-switch">
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => navigate("/dashboard", { replace: true })}
+            >
+              Maybe later
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -7,6 +7,7 @@ import PinSettings from "../components/PinSettings.jsx";
 import FaceIdSettings from "../components/FaceIdSettings.jsx";
 import AccountsPanel from "../components/AccountsPanel.jsx";
 import AppVersion from "../components/AppVersion.jsx";
+import InstallPrompt from "../components/InstallPrompt.jsx";
 
 // Everything about signing in lives here — your own PIN and Face ID, and, for
 // anyone who can manage accounts, everyone else's access.
@@ -48,6 +49,10 @@ export default function Admin() {
 
         <PinSettings />
         <FaceIdSettings />
+
+        {/* Renders nothing once the app is installed, or where it cannot be —
+            so this is only here for whoever said "maybe later". */}
+        <InstallPrompt />
       </section>
 
       <section className="section">
