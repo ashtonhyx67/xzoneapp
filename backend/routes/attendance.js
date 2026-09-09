@@ -10,9 +10,30 @@ const router = express.Router();
 
 const route = (handler) => (req, res, next) => handler(req, res, next).catch(next);
 
-// The sessions every week starts with. A week that has more going on gets extra
-// ones added by hand, which is why this is only a starting point.
-const DEFAULT_SESSIONS = ["Service 1", "Service 2", "Service 3", "Service Replay"];
+// The four sessions every week has, always, in this order. They are fixed
+// rather than seeded: a week is compared against other weeks, so a team that
+// deleted or renamed a column would make its numbers meaningless next to
+// everyone else's. Extra one-off events are added after these.
+const FIXED_SESSIONS = ["Service 1", "Service 2", "Service 3", "Service Replay"];
+
+const isFixed = (label) => FIXED_SESSIONS.includes(label);
+
+// The session list a save is actually allowed to produce: the four fixed ones
+// first, then whatever extras the client sent, deduplicated. Returned with a
+// map from the positions the client used to the positions they land on, so the
+// ticks follow their columns even if the client sent them in another order.
+function reconcileSessions(incoming) {
+  const labels = incoming.map((label) => clean(label));
+
+  const extras = [];
+  for (const label of labels) {
+    if (!label || isFixed(label) || extras.includes(label)) continue;
+    extras.push(label);
+  }
+
+  const final = [...FIXED_SESSIONS, ...extras];
+  return { sessions: final, remap: labels.map((label) => final.indexOf(label)) };
+}
 
 const MAX_SESSIONS = 20;
 const MAX_PEOPLE = 300;
@@ -141,7 +162,7 @@ async function seedWeek(team, year, week) {
     team,
     year,
     week,
-    DEFAULT_SESSIONS,
+    FIXED_SESSIONS,
     members.rows.map((person) => ({ personId: person.id, name: person.name, present: [] }))
   );
 }
@@ -191,10 +212,11 @@ router.put(
     if (!sessions || !people) {
       return res.status(400).json({ error: "Attendance needs a list of sessions and people." });
     }
-    if (sessions.length === 0) {
-      return res.status(400).json({ error: "A week needs at least one session." });
-    }
-    if (sessions.length > MAX_SESSIONS) {
+    // The four fixed sessions are put back whatever the client sent, and the
+    // ticks are moved to wherever their column ended up.
+    const { sessions: finalSessions, remap } = reconcileSessions(sessions);
+
+    if (finalSessions.length > MAX_SESSIONS) {
       return res.status(400).json({ error: `At most ${MAX_SESSIONS} sessions in a week.` });
     }
     if (people.length > MAX_PEOPLE) {
@@ -204,7 +226,14 @@ router.put(
       return res.status(400).json({ error: "Every row needs a name." });
     }
 
-    await writeWeek(team, year, week, sessions, people);
+    const moved = people.map((person) => ({
+      ...person,
+      present: (Array.isArray(person.present) ? person.present : [])
+        .map((position) => remap[Number(position)])
+        .filter((position) => position !== undefined && position >= 0),
+    }));
+
+    await writeWeek(team, year, week, finalSessions, moved);
     res.json({ ...(await readWeek(team, year, week)), canEdit: true });
   })
 );

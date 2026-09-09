@@ -9,6 +9,12 @@ import WeekPicker from "../components/WeekPicker.jsx";
 
 const SAVE_DELAY = 700;
 
+// The four every week has, always. They cannot be renamed or removed, because a
+// week is read next to other weeks and a team with its own columns would not
+// compare. The server puts them back regardless, so this is the same rule stated
+// where people can see it. Anything else is a one-off event for that week.
+const FIXED_SESSIONS = ["Service 1", "Service 2", "Service 3", "Service Replay"];
+
 let newRowCounter = 0;
 const newKey = () => `new-${(newRowCounter += 1)}`;
 
@@ -64,7 +70,27 @@ export default function Attendance() {
       .then((data) => {
         if (!active) return;
         setRecord(data);
-        setSessions(data.sessions.map((s) => ({ key: `s-${s.id}`, label: s.label })));
+
+        // Fixed four first, then whatever else the week has. A week recorded
+        // before this rule may be missing one or hold them in another order,
+        // so the display order is rebuilt rather than trusted.
+        const ordered = [
+          ...FIXED_SESSIONS.map((label) => ({
+            label,
+            fixed: true,
+            id: data.sessions.find((s) => s.label === label)?.id ?? null,
+          })),
+          ...data.sessions
+            .filter((s) => !FIXED_SESSIONS.includes(s.label))
+            .map((s) => ({ label: s.label, fixed: false, id: s.id })),
+        ];
+
+        setSessions(ordered.map((s, i) => ({ key: `s-${i}-${s.label}`, ...s })));
+
+        const positionOf = new Map(
+          ordered.map((s, index) => [s.id, index]).filter(([id]) => id !== null)
+        );
+
         setPeople(
           data.people.map((p) => ({
             key: `p-${p.id}`,
@@ -72,9 +98,7 @@ export default function Attendance() {
             name: p.name,
             // Ids off the wire become positions, which is what a save speaks.
             present: new Set(
-              p.present
-                .map((id) => data.sessions.findIndex((s) => s.id === id))
-                .filter((index) => index >= 0)
+              p.present.map((id) => positionOf.get(id)).filter((i) => i !== undefined)
             ),
           }))
         );
@@ -188,7 +212,10 @@ export default function Attendance() {
   }
 
   function addSession() {
-    setSessions((list) => [...list, { key: newKey(), label: `Session ${list.length + 1}` }]);
+    setSessions((list) => [
+      ...list,
+      { key: newKey(), label: `Event ${list.length - FIXED_SESSIONS.length + 1}`, fixed: false },
+    ]);
     schedule();
   }
 
@@ -294,30 +321,30 @@ export default function Attendance() {
             <table className="sheet attendance-sheet">
               <thead>
                 <tr>
-                  <th className="sheet-sticky-col" scope="col" style={{ minWidth: 180 }}>
+                  <th className="sheet-sticky-col attendance-name-col" scope="col">
                     Name
                   </th>
                   {sessions.map((session, index) => (
-                    <th key={session.key} scope="col" style={{ minWidth: 110 }}>
-                      {canEdit ? (
-                        <input
-                          className="attendance-session-input"
-                          value={session.label}
-                          aria-label={`Session ${index + 1} name`}
-                          onChange={(e) => renameSession(index, e.target.value)}
-                        />
+                    <th key={session.key} scope="col" className="attendance-col">
+                      {canEdit && !session.fixed ? (
+                        <>
+                          <input
+                            className="attendance-session-input"
+                            value={session.label}
+                            aria-label={`Event ${index + 1} name`}
+                            onChange={(e) => renameSession(index, e.target.value)}
+                          />
+                          <button
+                            className="attendance-remove-session"
+                            onClick={() => removeSession(index)}
+                            aria-label={`Remove ${session.label}`}
+                            title="Remove this event"
+                          >
+                            ×
+                          </button>
+                        </>
                       ) : (
                         session.label
-                      )}
-                      {canEdit && sessions.length > 1 && (
-                        <button
-                          className="attendance-remove-session"
-                          onClick={() => removeSession(index)}
-                          aria-label={`Remove ${session.label}`}
-                          title="Remove this session"
-                        >
-                          ×
-                        </button>
                       )}
                     </th>
                   ))}
