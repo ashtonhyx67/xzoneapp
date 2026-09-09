@@ -5,39 +5,22 @@ const { requireAuth, requirePermission } = require("../middleware/auth");
 const { PERMISSIONS } = require("../lib/groups");
 const { normalizeTeam, canEditTeam, DEFAULT_TEAM, teamsInCg } = require("../lib/teams");
 const { resolveWeek } = require("../lib/weeks");
+const {
+  STATUSES,
+  CATEGORIES,
+  CATEGORY_KEYS,
+  categoryOf,
+  normalizeStatus,
+  normalizeCategory,
+  isPresent,
+} = require("../lib/attendance");
 
 const router = express.Router();
 
 const route = (handler) => (req, res, next) => handler(req, res, next).catch(next);
 
-// The four sessions every week has, always, in this order. They are fixed
-// rather than seeded: a week is compared against other weeks, so a team that
-// deleted or renamed a column would make its numbers meaningless next to
-// everyone else's. Extra one-off events are added after these.
-const FIXED_SESSIONS = ["Service 1", "Service 2", "Service 3", "Service Replay"];
-
-const isFixed = (label) => FIXED_SESSIONS.includes(label);
-
-// The session list a save is actually allowed to produce: the four fixed ones
-// first, then whatever extras the client sent, deduplicated. Returned with a
-// map from the positions the client used to the positions they land on, so the
-// ticks follow their columns even if the client sent them in another order.
-function reconcileSessions(incoming) {
-  const labels = incoming.map((label) => clean(label));
-
-  const extras = [];
-  for (const label of labels) {
-    if (!label || isFixed(label) || extras.includes(label)) continue;
-    extras.push(label);
-  }
-
-  const final = [...FIXED_SESSIONS, ...extras];
-  return { sessions: final, remap: labels.map((label) => final.indexOf(label)) };
-}
-
-const MAX_SESSIONS = 20;
-const MAX_PEOPLE = 300;
-const MAX_FIELD = 120;
+const MAX_PEOPLE = 400;
+const MAX_FIELD = 160;
 
 const clean = (value) => String(value ?? "").slice(0, MAX_FIELD).trim();
 
@@ -47,98 +30,110 @@ function teamFor(req) {
   return req.access.editableTeams[0] || req.access.teams[0] || DEFAULT_TEAM;
 }
 
+// The counts the sheet ends with: one per category, then the total. Derived on
+// read rather than stored, so they can never disagree with the register above
+// them.
+function tally(people) {
+  const byCategory = Object.fromEntries(
+    CATEGORY_KEYS.map((key) => [key, { listed: 0, present: 0 }])
+  );
+
+  let total = 0;
+  for (const person of people) {
+    const bucket = byCategory[person.category];
+    if (bucket) bucket.listed += 1;
+
+    if (isPresent(person.status)) {
+      total += 1;
+      if (bucket) bucket.present += 1;
+    }
+  }
+
+  // How many wore each status, so nothing is hidden by the headline number —
+  // whether Serving counts towards it or not, the breakdown still shows it.
+  const byStatus = Object.fromEntries(
+    STATUSES.map((status) => [
+      status.key,
+      people.filter((person) => person.status === status.key).length,
+    ])
+  );
+
+  return { total, byCategory, byStatus };
+}
+
 async function readWeek(team, year, week) {
   const meta = await pool.query(
-    "SELECT id FROM attendance_weeks WHERE team = $1 AND year = $2 AND week = $3",
+    "SELECT id, title FROM attendance_weeks WHERE team = $1 AND year = $2 AND week = $3",
     [team, year, week]
   );
   if (!meta.rows[0]) return null;
-  const weekId = meta.rows[0].id;
 
-  const sessions = await pool.query(
-    "SELECT id, label FROM attendance_sessions WHERE week_id = $1 ORDER BY position, id",
-    [weekId]
-  );
-
-  // People and their ticks in one query: the list is small, and this keeps it
-  // to a single round trip rather than one per person.
+  // The category comes from the person's record where the row is linked to one,
+  // so promoting someone or changing their category moves them on the register
+  // without it having to be restated here.
   const rows = await pool.query(
-    `SELECT p.id, p.name, p.person_id, m.session_id
-       FROM attendance_people p
-       LEFT JOIN attendance_marks m ON m.attendee_id = p.id
-      WHERE p.week_id = $1
-      ORDER BY p.position, p.id`,
-    [weekId]
+    `SELECT a.id, a.name, a.person_id, a.status, a.category AS own_category,
+            p.role AS person_role, p.category AS person_category
+       FROM attendance_people a
+       LEFT JOIN people p ON p.id = a.person_id
+      WHERE a.week_id = $1
+      ORDER BY a.position, a.id`,
+    [meta.rows[0].id]
   );
 
-  const people = [];
-  const byId = new Map();
-  for (const row of rows.rows) {
-    let person = byId.get(row.id);
-    if (!person) {
-      person = { id: row.id, name: row.name, personId: row.person_id, present: [] };
-      byId.set(row.id, person);
-      people.push(person);
-    }
-    // LEFT JOIN yields a null session for someone with no ticks at all.
-    if (row.session_id !== null) person.present.push(row.session_id);
-  }
+  const people = rows.rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    personId: row.person_id,
+    status: normalizeStatus(row.status),
+    // A linked row takes the person's category; a name typed in by hand keeps
+    // the one chosen on the register itself.
+    category: row.person_id
+      ? categoryOf({ role: row.person_role, category: row.person_category })
+      : normalizeCategory(row.own_category),
+  }));
 
-  return { team, year, week, sessions: sessions.rows, people };
+  return { team, year, week, title: meta.rows[0].title, people, counts: tally(people) };
 }
 
-// Replaces the whole week in one transaction, the same way the structure is
-// written: the screen holds all of it, so one atomic write cannot half-apply.
-// Session and person ids are reissued on every save, and the client sends its
-// ticks against the positions it was given rather than against stale ids.
-async function writeWeek(team, year, week, sessions, people) {
+// Replaces the whole week in one transaction. The screen holds all of it, so
+// one atomic write is simpler and safer than granular endpoints that could
+// half-apply.
+async function writeWeek(team, year, week, title, people) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
     const meta = await client.query(
-      `INSERT INTO attendance_weeks (team, year, week, updated_at) VALUES ($1, $2, $3, now())
-       ON CONFLICT (team, year, week) DO UPDATE SET updated_at = now()
+      `INSERT INTO attendance_weeks (team, year, week, title, updated_at)
+       VALUES ($1, $2, $3, $4, now())
+       ON CONFLICT (team, year, week)
+       DO UPDATE SET title = $4, updated_at = now()
        RETURNING id`,
-      [team, year, week]
+      [team, year, week, clean(title)]
     );
     const weekId = meta.rows[0].id;
 
-    // Marks cascade from both sides, so clearing these clears the ticks too.
-    await client.query("DELETE FROM attendance_sessions WHERE week_id = $1", [weekId]);
     await client.query("DELETE FROM attendance_people WHERE week_id = $1", [weekId]);
-
-    const sessionIds = [];
-    for (const [index, label] of sessions.entries()) {
-      const created = await client.query(
-        "INSERT INTO attendance_sessions (week_id, position, label) VALUES ($1, $2, $3) RETURNING id",
-        [weekId, index, clean(label) || `Session ${index + 1}`]
-      );
-      sessionIds.push(created.rows[0].id);
-    }
 
     for (const [index, person] of people.entries()) {
       const personId = Number.isInteger(Number(person.personId))
         ? Number(person.personId)
         : null;
 
-      const created = await client.query(
-        `INSERT INTO attendance_people (week_id, position, person_id, name)
-         VALUES ($1, $2, $3, $4) RETURNING id`,
-        [weekId, index, personId, clean(person.name)]
+      await client.query(
+        `INSERT INTO attendance_people (week_id, position, person_id, name, status, category)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          weekId,
+          index,
+          personId,
+          clean(person.name),
+          normalizeStatus(person.status),
+          // Only kept for an unlinked row; a linked one reads the person's.
+          personId ? "" : normalizeCategory(person.category),
+        ]
       );
-      const attendeeId = created.rows[0].id;
-
-      // `present` is a list of session positions, so it survives the ids being
-      // reissued above.
-      for (const position of person.present ?? []) {
-        const sessionId = sessionIds[Number(position)];
-        if (sessionId === undefined) continue;
-        await client.query(
-          "INSERT INTO attendance_marks (attendee_id, session_id) VALUES ($1, $2)",
-          [attendeeId, sessionId]
-        );
-      }
     }
 
     await client.query("COMMIT");
@@ -150,25 +145,47 @@ async function writeWeek(team, year, week, sessions, people) {
   }
 }
 
-// A week nobody has opened yet starts from the team's own members, so the
-// common case is ticking boxes rather than typing a register from scratch.
+// A week nobody has opened yet starts from the team's own members, in the order
+// the sheet lists them — by category, then by name — so the usual week is
+// marking people rather than typing a register from scratch.
 async function seedWeek(team, year, week) {
   const members = await pool.query(
-    "SELECT id, name FROM people WHERE team_key = $1 ORDER BY lower(name)",
+    "SELECT id, name, role, category FROM people WHERE team_key = $1 ORDER BY lower(name)",
     [team]
   );
+
+  const ordered = members.rows
+    .map((person) => ({ ...person, category: categoryOf(person) }))
+    .sort((a, b) => {
+      const rank = (c) => {
+        const index = CATEGORY_KEYS.indexOf(c);
+        // Anyone with no category yet sits after the named groups.
+        return index === -1 ? CATEGORY_KEYS.length : index;
+      };
+      return rank(a.category) - rank(b.category) || a.name.localeCompare(b.name);
+    });
 
   await writeWeek(
     team,
     year,
     week,
-    FIXED_SESSIONS,
-    members.rows.map((person) => ({ personId: person.id, name: person.name, present: [] }))
+    "",
+    ordered.map((person) => ({ personId: person.id, name: person.name, status: "" }))
   );
 }
 
 const canView = requirePermission(PERMISSIONS.VIEW_DIRECTORY);
 const canEdit = requirePermission(PERMISSIONS.EDIT_DATABASE);
+
+// The legend, so the app and the sheet always name things the same way.
+router.get(
+  "/legend",
+  requireAuth,
+  canView,
+  route(async (req, res) => {
+    res.json({ statuses: STATUSES, categories: CATEGORIES });
+  })
+);
 
 router.get(
   "/",
@@ -180,13 +197,20 @@ router.get(
 
     let record = await readWeek(team, year, week);
     if (!record) {
-      // Only fill a week in for someone who could have done it themselves;
-      // a read-only visitor gets the empty shape rather than side effects.
+      // Only fill a week in for someone who could have done it themselves; a
+      // read-only visitor gets the empty shape rather than side effects.
       if (canEditTeam(req.access, team)) {
         await seedWeek(team, year, week);
         record = await readWeek(team, year, week);
       } else {
-        record = { team, year, week, sessions: [], people: [] };
+        record = {
+          team,
+          year,
+          week,
+          title: "",
+          people: [],
+          counts: tally([]),
+        };
       }
     }
 
@@ -206,18 +230,9 @@ router.put(
       return res.status(403).json({ error: `${team} is not one of your teams.` });
     }
 
-    const sessions = Array.isArray(req.body?.sessions) ? req.body.sessions : null;
     const people = Array.isArray(req.body?.people) ? req.body.people : null;
-
-    if (!sessions || !people) {
-      return res.status(400).json({ error: "Attendance needs a list of sessions and people." });
-    }
-    // The four fixed sessions are put back whatever the client sent, and the
-    // ticks are moved to wherever their column ended up.
-    const { sessions: finalSessions, remap } = reconcileSessions(sessions);
-
-    if (finalSessions.length > MAX_SESSIONS) {
-      return res.status(400).json({ error: `At most ${MAX_SESSIONS} sessions in a week.` });
+    if (!people) {
+      return res.status(400).json({ error: "A register needs a list of people." });
     }
     if (people.length > MAX_PEOPLE) {
       return res.status(400).json({ error: `At most ${MAX_PEOPLE} people in a week.` });
@@ -226,22 +241,13 @@ router.put(
       return res.status(400).json({ error: "Every row needs a name." });
     }
 
-    const moved = people.map((person) => ({
-      ...person,
-      present: (Array.isArray(person.present) ? person.present : [])
-        .map((position) => remap[Number(position)])
-        .filter((position) => position !== undefined && position >= 0),
-    }));
-
-    await writeWeek(team, year, week, finalSessions, moved);
+    await writeWeek(team, year, week, req.body?.title, people);
     res.json({ ...(await readWeek(team, year, week)), canEdit: true });
   })
 );
 
-// The names a seating arrangement can draw on: everyone on the attendance lists
-// of that CG's teams for the week, with how many sessions they made. Marked
-// absent everywhere still counts as a name — the arrangement is planned before
-// the week is over.
+// The names a seating arrangement can draw on: everyone on the registers of
+// that CG's teams for the week, and whether they were actually there.
 router.get(
   "/roll",
   requireAuth,
@@ -253,17 +259,24 @@ router.get(
     if (teams.length === 0) return res.json({ year, week, names: [] });
 
     const rows = await pool.query(
-      `SELECT p.name, w.team, count(m.session_id)::int AS attended
+      `SELECT a.name, a.status, w.team
          FROM attendance_weeks w
-         JOIN attendance_people p ON p.week_id = w.id
-         LEFT JOIN attendance_marks m ON m.attendee_id = p.id
+         JOIN attendance_people a ON a.week_id = w.id
         WHERE w.team = ANY($1::text[]) AND w.year = $2 AND w.week = $3
-        GROUP BY p.id, p.name, w.team
-        ORDER BY lower(p.name)`,
+        ORDER BY lower(a.name)`,
       [teams, year, week]
     );
 
-    res.json({ year, week, names: rows.rows });
+    res.json({
+      year,
+      week,
+      names: rows.rows.map((row) => ({
+        name: row.name,
+        team: row.team,
+        status: normalizeStatus(row.status),
+        present: isPresent(row.status),
+      })),
+    });
   })
 );
 

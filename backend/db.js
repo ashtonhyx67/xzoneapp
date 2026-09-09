@@ -459,6 +459,52 @@ async function initSchema() {
       ON attendance_people (week_id, position);
   `);
 
+  // A person's category on a register: R, GI, I, G or NF. Separate from their
+  // leadership role — a leader has a role *and* is listed under R, which is
+  // derived rather than stored so a promotion needs only one edit.
+  await pool.query(`
+    ALTER TABLE people ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT '';
+  `);
+
+  // A week is one status per person, not a tick per service: that is how the
+  // sheet has always been written, and it is why a total is a count of people.
+  // `category` is only for a row typed in by hand — a row linked to a person
+  // takes theirs, so it cannot drift out of step with their record.
+  await pool.query(`
+    ALTER TABLE attendance_people
+      ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT '';
+  `);
+
+  // The heading the sheet carries: "XIIIA 5/6 Sept Next Steps WEEKEND!"
+  await pool.query(`
+    ALTER TABLE attendance_weeks ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT '';
+  `);
+
+  // Registers recorded while attendance was a grid of ticks keep their meaning:
+  // the earliest session someone was ticked for becomes their status. Guarded
+  // on status being empty, so it never overwrites one set since.
+  await pool.query(`
+    UPDATE attendance_people p
+       SET status = CASE s.position
+                      WHEN 0 THEN 'S1'
+                      WHEN 1 THEN 'S2'
+                      WHEN 2 THEN 'S3'
+                      ELSE 'REPLAY'
+                    END
+      FROM (
+        SELECT m.attendee_id, min(x.position) AS position
+          FROM attendance_marks m
+          JOIN attendance_sessions x ON x.id = m.session_id
+         GROUP BY m.attendee_id
+      ) AS first_mark
+      JOIN attendance_sessions s
+        ON s.position = first_mark.position
+     WHERE p.id = first_mark.attendee_id
+       AND p.status = ''
+       AND s.week_id = p.week_id;
+  `);
+
   // ---------- Seating arrangement ----------
   // Done by hand, once a week, by one leader per CG — so it is keyed on the CG
   // rather than the team, and it is an arrangement of names rather than a

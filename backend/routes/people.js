@@ -4,6 +4,7 @@ const { pool } = require("../db");
 const { requireAuth, requirePermission } = require("../middleware/auth");
 const { PERMISSIONS } = require("../lib/groups");
 const { normalizeTeam, canEditTeam } = require("../lib/teams");
+const { normalizeCategory } = require("../lib/attendance");
 
 const router = express.Router();
 
@@ -29,6 +30,7 @@ const FIELDS = [
   "updates",
   "next_steps",
   "team_key",
+  "category",
 ];
 
 const MAX_SHORT = 200;
@@ -36,6 +38,11 @@ const MAX_LONG = 4000;
 const LONG_FIELDS = new Set(["general_information", "updates", "next_steps", "photo_url"]);
 
 function clean(field, raw) {
+  if (field === "category") {
+    // R, GI, I, G or NF; anything else is no category rather than an invented
+    // one. A leader is counted as R without it being set here.
+    return normalizeCategory(raw);
+  }
   if (field === "team_key") {
     // Anything that is not a known team becomes unassigned rather than an
     // invented one.

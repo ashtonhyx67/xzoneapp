@@ -1444,75 +1444,192 @@ button {
   cursor: default;
 }
 
-/* Tick columns are as narrow as a tick needs. `width: 1%` with nowrap is the
-   long-standing way to tell a table to give a column only what it asks for and
-   hand the slack to the flexible column beside it. */
-.attendance-col {
-  width: 1%;
-  white-space: nowrap;
+/* The week's heading, e.g. "5/6 Sept Next Steps WEEKEND!". */
+.register-title-input,
+.register-title {
+  display: block;
+  width: 100%;
+  margin: 12px 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.register-title-input {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: inherit;
+}
+
+.register-total {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 10px 0 14px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: var(--accent-hover);
+  color: #fff;
+}
+
+.register-total-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.register-total-value {
+  margin-left: auto;
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.register-legend {
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.register-legend summary {
+  cursor: pointer;
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.register-legend-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 10px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-soft);
+}
+
+.legend-emoji {
+  font-size: 15px;
+}
+
+.legend-note {
+  font-size: 11px;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+/* Each category is its own short block with its own count, the way the sheet
+   is written — R first, then GI, I, G, NF. */
+.register-group {
+  margin-bottom: 18px;
+}
+
+.register-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--border);
+}
+
+.register-group-title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.register-group-count {
+  min-width: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
   text-align: center;
 }
 
-.attendance-name-col {
-  width: auto;
-  min-width: 150px;
+.register-group-listed {
+  font-size: 12px;
+  color: var(--text-soft);
 }
 
-.attendance-sheet {
-  width: 100%;
+.register-group-head .link-btn {
+  margin-left: auto;
 }
 
-.attendance-sheet .attendance-cell {
-  padding: 1px 6px;
+.register-rows {
+  display: flex;
+  flex-direction: column;
 }
 
-.attendance-session-input {
-  width: 100%;
-  min-width: 64px;
-  padding: 4px 6px;
+.register-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.register-row:last-child {
+  border-bottom: none;
+}
+
+/* Someone who was there reads as settled; everyone else stays quiet, so a
+   glance down the column shows who is still missing. */
+.register-row-present .register-name,
+.register-row-present .register-name-text {
+  font-weight: 600;
+}
+
+.register-name,
+.register-name-text {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 6px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
   font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
   color: inherit;
+  overflow-wrap: anywhere;
 }
 
-.attendance-session-input:hover,
-.attendance-session-input:focus {
+.register-name:hover,
+.register-name:focus {
   border-color: var(--border);
   background: var(--surface);
 }
 
-.attendance-remove-session {
-  border: none;
-  background: transparent;
-  color: var(--text-soft);
+.register-status {
+  width: 160px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: inherit;
   font-size: 13px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 2px 4px;
+  color: inherit;
 }
 
-.attendance-remove-session:hover {
-  color: var(--danger);
-}
-
-.attendance-sheet tfoot td {
-  border-top: 2px solid var(--border-strong);
-  font-weight: 700;
-}
-
-.attendance-total-label {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+.register-status:disabled {
+  background: var(--bg);
   color: var(--text-soft);
 }
 
-.attendance-total {
-  font-variant-numeric: tabular-nums;
+@media (max-width: 560px) {
+  .register-status {
+    width: 108px;
+  }
 }
 
 /* Seating: the plan on the left, the people still to place on the right. */

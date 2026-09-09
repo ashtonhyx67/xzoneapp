@@ -4,23 +4,18 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
 import { CGS } from "../lib/teams.js";
 import { isoWeek } from "../lib/weeks.js";
+import { CATEGORIES, CATEGORY_KEYS, STATUSES, isPresent } from "../lib/attendance.js";
 import AppShell from "../components/AppShell.jsx";
 import WeekPicker from "../components/WeekPicker.jsx";
 
 const SAVE_DELAY = 700;
 
-// The four every week has, always. They cannot be renamed or removed, because a
-// week is read next to other weeks and a team with its own columns would not
-// compare. The server puts them back regardless, so this is the same rule stated
-// where people can see it. Anything else is a one-off event for that week.
-const FIXED_SESSIONS = ["Service 1", "Service 2", "Service 3", "Service Replay"];
+let counter = 0;
+const newKey = () => `new-${(counter += 1)}`;
 
-let newRowCounter = 0;
-const newKey = () => `new-${(newRowCounter += 1)}`;
-
-// The register for one team for one week: people down the side, sessions across
-// the top. Ticks are held against the session's *position*, not its id, because
-// a save reissues the ids — position is the thing that survives.
+// One week's register for one team, laid out the way the sheet is written: a
+// heading, the legend, then people grouped by category with a count on each
+// group and a total at the top. Each person carries one status for the week.
 export default function Attendance() {
   const { token, can } = useAuth();
   const canView = can(PERMISSIONS.VIEW_DIRECTORY);
@@ -28,8 +23,8 @@ export default function Attendance() {
   const [team, setTeam] = useState("");
   const [when, setWhen] = useState(() => isoWeek());
   const [record, setRecord] = useState(null);
+  const [title, setTitle] = useState("");
   const [people, setPeople] = useState([]);
-  const [sessions, setSessions] = useState([]);
   const [directory, setDirectory] = useState([]);
   const [status, setStatus] = useState("idle"); // idle | saving | error
   const [error, setError] = useState("");
@@ -38,8 +33,6 @@ export default function Attendance() {
   const inFlight = useRef(false);
   const dirty = useRef(false);
 
-  // Which team to open on, and the names to offer. Both come from the same
-  // place the rest of the app gets them.
   useEffect(() => {
     if (!token || !canView) return;
     const controller = new AbortController();
@@ -70,36 +63,14 @@ export default function Attendance() {
       .then((data) => {
         if (!active) return;
         setRecord(data);
-
-        // Fixed four first, then whatever else the week has. A week recorded
-        // before this rule may be missing one or hold them in another order,
-        // so the display order is rebuilt rather than trusted.
-        const ordered = [
-          ...FIXED_SESSIONS.map((label) => ({
-            label,
-            fixed: true,
-            id: data.sessions.find((s) => s.label === label)?.id ?? null,
-          })),
-          ...data.sessions
-            .filter((s) => !FIXED_SESSIONS.includes(s.label))
-            .map((s) => ({ label: s.label, fixed: false, id: s.id })),
-        ];
-
-        setSessions(ordered.map((s, i) => ({ key: `s-${i}-${s.label}`, ...s })));
-
-        const positionOf = new Map(
-          ordered.map((s, index) => [s.id, index]).filter(([id]) => id !== null)
-        );
-
+        setTitle(data.title);
         setPeople(
-          data.people.map((p) => ({
-            key: `p-${p.id}`,
-            personId: p.personId,
-            name: p.name,
-            // Ids off the wire become positions, which is what a save speaks.
-            present: new Set(
-              p.present.map((id) => positionOf.get(id)).filter((i) => i !== undefined)
-            ),
+          data.people.map((person) => ({
+            key: `p-${person.id}`,
+            personId: person.personId,
+            name: person.name,
+            status: person.status,
+            category: person.category,
           }))
         );
         dirty.current = false;
@@ -117,31 +88,34 @@ export default function Attendance() {
 
   const canEdit = Boolean(record?.canEdit);
 
-  const stateRef = useRef({ people, sessions });
-  stateRef.current = { people, sessions };
+  const stateRef = useRef({ people, title });
+  stateRef.current = { people, title };
 
   const flush = useCallback(async () => {
     if (inFlight.current || !dirty.current || !record?.canEdit) return;
 
-    const { people: rows, sessions: cols } = stateRef.current;
+    const { people: rows, title: heading } = stateRef.current;
     // A nameless row is still being typed; it is not ready to be written.
     const ready = rows.filter((row) => row.name.trim());
 
     inFlight.current = true;
     setStatus("saving");
     try {
-      await api.saveAttendance(token, {
+      const saved = await api.saveAttendance(token, {
         team,
         year: when.year,
         week: when.week,
-        sessions: cols.map((c) => c.label),
+        title: heading,
         people: ready.map((row) => ({
           personId: row.personId ?? null,
           name: row.name,
-          present: [...row.present],
+          status: row.status,
+          category: row.category,
         })),
       });
       dirty.current = false;
+      // Counts come back derived, so they can never drift from the register.
+      setRecord(saved);
       setStatus("idle");
       setError("");
     } catch (err) {
@@ -174,76 +148,60 @@ export default function Attendance() {
     };
   }, []);
 
-  function toggle(personKey, position) {
-    setPeople((list) =>
-      list.map((row) => {
-        if (row.key !== personKey) return row;
-        const present = new Set(row.present);
-        if (present.has(position)) present.delete(position);
-        else present.add(position);
-        return { ...row, present };
-      })
+  const update = useCallback(
+    (key, patch) => {
+      setPeople((list) => list.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+      schedule();
+    },
+    [schedule]
+  );
+
+  function setName(key, name) {
+    const match = directory.find(
+      (person) => person.name.trim().toLowerCase() === name.trim().toLowerCase()
     );
-    schedule();
+    // Matching a record links the row to it, which is what makes the category
+    // follow the person rather than being restated every week.
+    update(key, {
+      name,
+      personId: match?.id ?? null,
+      ...(match ? {} : { category: "" }),
+    });
   }
 
-  function setName(personKey, name) {
-    setPeople((list) =>
-      list.map((row) => {
-        if (row.key !== personKey) return row;
-        // Typing a name that is in the database links the row to that record,
-        // so the roll can tell a known person from a walk-in.
-        const match = directory.find(
-          (p) => p.name.trim().toLowerCase() === name.trim().toLowerCase()
-        );
-        return { ...row, name, personId: match?.id ?? null };
-      })
-    );
-    schedule();
-  }
-
-  function addPerson() {
-    setPeople((list) => [...list, { key: newKey(), personId: null, name: "", present: new Set() }]);
-  }
-
-  function removePerson(personKey) {
-    setPeople((list) => list.filter((row) => row.key !== personKey));
-    schedule();
-  }
-
-  function addSession() {
-    setSessions((list) => [
+  function addPerson(category) {
+    setPeople((list) => [
       ...list,
-      { key: newKey(), label: `Event ${list.length - FIXED_SESSIONS.length + 1}`, fixed: false },
+      { key: newKey(), personId: null, name: "", status: "", category },
     ]);
-    schedule();
   }
 
-  function renameSession(index, label) {
-    setSessions((list) => list.map((s, i) => (i === index ? { ...s, label } : s)));
-    schedule();
-  }
+  // The register, grouped the way the sheet groups it. Anyone whose category is
+  // not set yet gets their own block at the end rather than being dropped.
+  const groups = useMemo(() => {
+    const blocks = CATEGORIES.map((category) => ({
+      ...category,
+      people: people.filter((person) => person.category === category.key),
+    }));
 
-  function removeSession(index) {
-    setSessions((list) => list.filter((_, i) => i !== index));
-    // Every tick past the removed column shifts down one, and ticks on the
-    // column itself go with it.
-    setPeople((list) =>
-      list.map((row) => {
-        const present = new Set();
-        for (const position of row.present) {
-          if (position < index) present.add(position);
-          else if (position > index) present.add(position - 1);
-        }
-        return { ...row, present };
-      })
-    );
-    schedule();
-  }
+    const ungrouped = people.filter((person) => !CATEGORY_KEYS.includes(person.category));
+    if (ungrouped.length > 0) {
+      blocks.push({
+        key: "",
+        label: "No category",
+        description: "Set a category on their record so they are counted",
+        people: ungrouped,
+      });
+    }
 
-  const totals = useMemo(
-    () => sessions.map((_, index) => people.filter((row) => row.present.has(index)).length),
-    [people, sessions]
+    return blocks;
+  }, [people]);
+
+  // Counted here as well as on the server so the numbers move as boxes are
+  // ticked, rather than waiting for the save to come back.
+  const total = useMemo(
+    () => people.filter((person) => isPresent(person.status)).length,
+    [people]
   );
 
   if (!canView) {
@@ -263,10 +221,9 @@ export default function Attendance() {
     <AppShell>
       <header className="page-head">
         <h1 className="page-title">Attendance</h1>
-        <span className="page-count">{people.length}</span>
       </header>
 
-      <div className="panel sheet-panel">
+      <div className="panel">
         <div className="sheet-toolbar attendance-toolbar">
           <WeekPicker value={when} onChange={setWhen} />
 
@@ -290,17 +247,6 @@ export default function Attendance() {
           <span className="sheet-status">
             {status === "saving" ? "Saving…" : status === "error" ? "Not saved" : ""}
           </span>
-
-          {canEdit && (
-            <span className="attendance-actions">
-              <button className="btn btn-secondary btn-inline" onClick={addPerson}>
-                + Person
-              </button>
-              <button className="btn btn-secondary btn-inline" onClick={addSession}>
-                + Session
-              </button>
-            </span>
-          )}
         </div>
 
         {error && <div className="error-banner panel-notice">{error}</div>}
@@ -308,118 +254,132 @@ export default function Attendance() {
           <div className="panel-notice list-empty">Read-only — not your team</div>
         )}
 
-        <datalist id="attendance-names">
-          {directory.map((person) => (
-            <option key={person.id} value={person.name} />
-          ))}
-        </datalist>
-
         {!record ? (
           <div className="list-empty">Loading…</div>
         ) : (
-          <div className="sheet-scroll">
-            <table className="sheet attendance-sheet">
-              <thead>
-                <tr>
-                  <th className="sheet-sticky-col attendance-name-col" scope="col">
-                    Name
-                  </th>
-                  {sessions.map((session, index) => (
-                    <th key={session.key} scope="col" className="attendance-col">
-                      {canEdit && !session.fixed ? (
-                        <>
-                          <input
-                            className="attendance-session-input"
-                            value={session.label}
-                            aria-label={`Event ${index + 1} name`}
-                            onChange={(e) => renameSession(index, e.target.value)}
-                          />
-                          <button
-                            className="attendance-remove-session"
-                            onClick={() => removeSession(index)}
-                            aria-label={`Remove ${session.label}`}
-                            title="Remove this event"
-                          >
-                            ×
-                          </button>
-                        </>
-                      ) : (
-                        session.label
-                      )}
-                    </th>
-                  ))}
-                  {canEdit && <th className="sheet-rowaction" scope="col" />}
-                </tr>
-              </thead>
+          <>
+            {/* The heading the sheet carries, e.g. "5/6 Sept Next Steps
+                WEEKEND!". Free text, because it names what was on that week. */}
+            {canEdit ? (
+              <input
+                className="register-title-input"
+                value={title}
+                placeholder={`${team} — what was on this week?`}
+                aria-label="Week heading"
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  schedule();
+                }}
+              />
+            ) : (
+              title && <h2 className="register-title">{title}</h2>
+            )}
 
-              <tbody>
-                {people.length === 0 ? (
-                  <tr>
-                    <td colSpan={sessions.length + 2} className="list-empty">
-                      Nobody on the list yet.
-                    </td>
-                  </tr>
+            <div className="register-total">
+              <span className="register-total-label">Total attendance</span>
+              <span className="register-total-value">{total}</span>
+            </div>
+
+            <details className="register-legend">
+              <summary>Legend</summary>
+              <div className="register-legend-list">
+                {STATUSES.map((s) => (
+                  <span className="legend-item" key={s.key}>
+                    <span className="legend-emoji">{s.emoji}</span>
+                    {s.label}
+                    {!s.counts && <span className="legend-note">not counted</span>}
+                  </span>
+                ))}
+              </div>
+            </details>
+
+            {groups.map((group) => (
+              <section className="register-group" key={group.key || "none"}>
+                <div className="register-group-head">
+                  <h3 className="register-group-title" title={group.description}>
+                    {group.label}
+                  </h3>
+                  <span className="register-group-count">
+                    {group.people.filter((person) => isPresent(person.status)).length}
+                  </span>
+                  <span className="register-group-listed">of {group.people.length}</span>
+
+                  {canEdit && group.key && (
+                    <button className="link-btn" onClick={() => addPerson(group.key)}>
+                      + Add
+                    </button>
+                  )}
+                </div>
+
+                {group.people.length === 0 ? (
+                  <div className="list-empty">Nobody listed.</div>
                 ) : (
-                  people.map((row) => (
-                    <tr key={row.key}>
-                      <td className="sheet-sticky-col">
+                  <div className="register-rows">
+                    {group.people.map((person) => (
+                      <div
+                        className={`register-row${
+                          isPresent(person.status) ? " register-row-present" : ""
+                        }`}
+                        key={person.key}
+                      >
                         {canEdit ? (
                           <input
-                            className="sheet-input"
+                            className="register-name"
                             list="attendance-names"
-                            value={row.name}
+                            value={person.name}
                             placeholder="Name"
                             aria-label="Name"
-                            onChange={(e) => setName(row.key, e.target.value)}
+                            onChange={(e) => setName(person.key, e.target.value)}
                           />
                         ) : (
-                          <span className="sheet-readonly">{row.name}</span>
+                          <span className="register-name-text">{person.name}</span>
                         )}
-                      </td>
 
-                      {sessions.map((session, index) => (
-                        <td key={session.key} className="attendance-cell">
-                          <input
-                            type="checkbox"
-                            className="attendance-tick"
-                            checked={row.present.has(index)}
-                            disabled={!canEdit}
-                            aria-label={`${row.name || "Unnamed"} at ${session.label}`}
-                            onChange={() => toggle(row.key, index)}
-                          />
-                        </td>
-                      ))}
+                        {/* One status for the week. The emoji is the label, so
+                            the app reads the same as the sheet it replaces. */}
+                        <select
+                          className="register-status"
+                          value={person.status}
+                          disabled={!canEdit}
+                          aria-label={`Status for ${person.name || "this person"}`}
+                          onChange={(e) => update(person.key, { status: e.target.value })}
+                        >
+                          <option value="">—</option>
+                          {STATUSES.map((s) => (
+                            <option key={s.key} value={s.key}>
+                              {s.emoji} {s.label}
+                            </option>
+                          ))}
+                        </select>
 
-                      {canEdit && (
-                        <td className="sheet-rowaction">
+                        {canEdit && (
                           <button
                             className="sheet-remove"
-                            onClick={() => removePerson(row.key)}
-                            aria-label={`Remove ${row.name || "this row"}`}
+                            onClick={() => {
+                              setPeople((list) =>
+                                list.filter((row) => row.key !== person.key)
+                              );
+                              schedule();
+                            }}
+                            aria-label={`Remove ${person.name || "this row"}`}
                             title="Remove from this week"
                           >
                             ×
                           </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </tbody>
+              </section>
+            ))}
 
-              <tfoot>
-                <tr>
-                  <td className="sheet-sticky-col attendance-total-label">Present</td>
-                  {totals.map((total, index) => (
-                    <td key={sessions[index].key} className="attendance-cell attendance-total">
-                      {total}
-                    </td>
-                  ))}
-                  {canEdit && <td className="sheet-rowaction" />}
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+            <datalist id="attendance-names">
+              {directory.map((person) => (
+                <option key={person.id} value={person.name} />
+              ))}
+            </datalist>
+          </>
         )}
       </div>
     </AppShell>
