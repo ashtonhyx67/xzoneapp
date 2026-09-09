@@ -401,6 +401,105 @@ async function initSchema() {
 
   await migrateRosterToTeam();
 
+  // ---------- Attendance ----------
+  // Recorded once a week, per team. A week is named by its ISO year and week
+  // number, which is what the dashboard banner shows, so the number a leader
+  // reads there is the number their records are filed under.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS attendance_weeks (
+      id SERIAL PRIMARY KEY,
+      team TEXT NOT NULL,
+      year INTEGER NOT NULL,
+      week INTEGER NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (team, year, week)
+    );
+  `);
+
+  // The sessions that week. Four are seeded, but a week with an extra event
+  // gets an extra column, which is why these are rows and not fixed fields.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS attendance_sessions (
+      id SERIAL PRIMARY KEY,
+      week_id INTEGER NOT NULL REFERENCES attendance_weeks(id) ON DELETE CASCADE,
+      position INTEGER NOT NULL,
+      label TEXT NOT NULL
+    );
+  `);
+
+  // Who is on the list. person_id links a row to the database when the name
+  // came from there; a name typed in by hand has no link and is kept as text,
+  // so the list is never limited to people already in the database.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS attendance_people (
+      id SERIAL PRIMARY KEY,
+      week_id INTEGER NOT NULL REFERENCES attendance_weeks(id) ON DELETE CASCADE,
+      position INTEGER NOT NULL,
+      person_id INTEGER REFERENCES people(id) ON DELETE SET NULL,
+      name TEXT NOT NULL DEFAULT ''
+    );
+  `);
+
+  // One tick. Absence is the absence of a row, so a fresh week costs nothing.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS attendance_marks (
+      attendee_id INTEGER NOT NULL REFERENCES attendance_people(id) ON DELETE CASCADE,
+      session_id INTEGER NOT NULL REFERENCES attendance_sessions(id) ON DELETE CASCADE,
+      PRIMARY KEY (attendee_id, session_id)
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS attendance_sessions_week_idx
+      ON attendance_sessions (week_id, position);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS attendance_people_week_idx
+      ON attendance_people (week_id, position);
+  `);
+
+  // ---------- Seating arrangement ----------
+  // Done by hand, once a week, by one leader per CG — so it is keyed on the CG
+  // rather than the team, and it is an arrangement of names rather than a
+  // second record of who exists. The names come from that week's attendance.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS seating_weeks (
+      id SERIAL PRIMARY KEY,
+      cg TEXT NOT NULL,
+      year INTEGER NOT NULL,
+      week INTEGER NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (cg, year, week)
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS seating_rows (
+      id SERIAL PRIMARY KEY,
+      week_id INTEGER NOT NULL REFERENCES seating_weeks(id) ON DELETE CASCADE,
+      position INTEGER NOT NULL,
+      label TEXT NOT NULL DEFAULT ''
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS seating_seats (
+      id SERIAL PRIMARY KEY,
+      row_id INTEGER NOT NULL REFERENCES seating_rows(id) ON DELETE CASCADE,
+      position INTEGER NOT NULL,
+      name TEXT NOT NULL DEFAULT ''
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS seating_rows_week_idx ON seating_rows (week_id, position);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS seating_seats_row_idx ON seating_seats (row_id, position);
+  `);
+
   // Temporary store for in-flight WebAuthn challenges.
   // A real production app might use Redis for this; a table is fine at this scale.
   await pool.query(`

@@ -32,6 +32,16 @@ export default function AppShell({ children }) {
               Members
             </NavLink>
           )}
+          {can(PERMISSIONS.VIEW_DIRECTORY) && (
+            <NavLink to="/attendance" className={navClass}>
+              Attendance
+            </NavLink>
+          )}
+          {can(PERMISSIONS.VIEW_DIRECTORY) && (
+            <NavLink to="/seating" className={navClass}>
+              Seating
+            </NavLink>
+          )}
           {can(PERMISSIONS.EDIT_DATABASE) && (
             <NavLink to="/database" className={navClass}>
               Database

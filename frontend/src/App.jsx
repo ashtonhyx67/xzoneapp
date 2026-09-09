@@ -9,6 +9,8 @@ import SetPin from "./pages/SetPin.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Members from "./pages/Members.jsx";
 import Database from "./pages/Database.jsx";
+import Attendance from "./pages/Attendance.jsx";
+import Seating from "./pages/Seating.jsx";
 import Admin from "./pages/Admin.jsx";
 
 // A signed-out visitor whose device already knows them goes to the PIN screen,
@@ -62,6 +64,22 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Members />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/attendance"
+        element={
+          <ProtectedRoute>
+            <Attendance />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/seating"
+        element={
+          <ProtectedRoute>
+            <Seating />
           </ProtectedRoute>
         }
       />

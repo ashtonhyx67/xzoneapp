@@ -53,6 +53,25 @@ export const api = {
 
   getTeams: (token, signal) => request("/teams", { token, signal }),
 
+  getAttendance: (token, { team, year, week }, signal) =>
+    request(`/attendance?team=${encodeURIComponent(team)}&year=${year}&week=${week}`, {
+      token,
+      signal,
+    }),
+  saveAttendance: (token, body) => request("/attendance", { method: "PUT", body, token }),
+
+  // Everyone on the CG's attendance lists that week — the names a seating
+  // arrangement draws on.
+  getAttendanceRoll: (token, { cg, year, week }, signal) =>
+    request(`/attendance/roll?cg=${encodeURIComponent(cg)}&year=${year}&week=${week}`, {
+      token,
+      signal,
+    }),
+
+  getSeating: (token, { cg, year, week }, signal) =>
+    request(`/seating?cg=${encodeURIComponent(cg)}&year=${year}&week=${week}`, { token, signal }),
+  saveSeating: (token, body) => request("/seating", { method: "PUT", body, token }),
+
   getAccounts: (token, signal) => request("/admin/accounts", { token, signal }),
   createAccount: (token, account) =>
     request("/admin/accounts", { method: "POST", body: account, token }),

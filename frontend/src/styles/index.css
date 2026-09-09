@@ -1387,6 +1387,261 @@ button {
   color: var(--text-soft);
 }
 
+/* ---------- Weeks, attendance, seating ---------- */
+
+.week-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.week-picker-label {
+  display: flex;
+  flex-direction: column;
+  min-width: 148px;
+  line-height: 1.25;
+}
+
+.week-picker-week {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.week-picker-range {
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.attendance-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.attendance-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* A register is read by scanning down a column, so the ticks are centred and
+   given room rather than left-aligned like text. */
+.attendance-cell {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.attendance-tick {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.attendance-tick:disabled {
+  cursor: default;
+}
+
+.attendance-session-input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: inherit;
+}
+
+.attendance-session-input:hover,
+.attendance-session-input:focus {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.attendance-remove-session {
+  border: none;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.attendance-remove-session:hover {
+  color: var(--danger);
+}
+
+.attendance-sheet tfoot td {
+  border-top: 2px solid var(--border-strong);
+  font-weight: 700;
+}
+
+.attendance-total-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-soft);
+}
+
+.attendance-total {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Seating: the plan on the left, the people still to place on the right. */
+.seating-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 20px;
+  align-items: start;
+}
+
+.seating-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.seating-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.seating-row-label,
+.seating-row-label-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.seating-row-label {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: inherit;
+  color: inherit;
+}
+
+.seating-row-count {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+.seating-row-tools {
+  display: flex;
+  gap: 2px;
+}
+
+.seating-seats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  min-height: 46px;
+}
+
+.seat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--card-head);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.seat-remove {
+  border: none;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.seat-remove:hover {
+  color: var(--danger);
+}
+
+.seating-empty {
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.seating-pool {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.seating-pool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pool-person {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.pool-name {
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.pool-team {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+.pool-place {
+  grid-column: 1 / -1;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 12px;
+  color: inherit;
+}
+
+/* On a narrow screen the pool goes under the plan rather than beside it. */
+@media (max-width: 860px) {
+  .seating-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .attendance-actions {
+    margin-left: 0;
+  }
+}
+
 /* ---------- Teams and CGs ---------- */
 
 /* Which teams an account works on, laid out CG by CG. The CG chip is the

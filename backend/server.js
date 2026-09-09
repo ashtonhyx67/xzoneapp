@@ -10,6 +10,8 @@ const { router: peopleRoutes } = require("./routes/people");
 const dashboardRoutes = require("./routes/dashboard");
 const adminRoutes = require("./routes/admin");
 const teamRoutes = require("./routes/teams");
+const attendanceRoutes = require("./routes/attendance");
+const seatingRoutes = require("./routes/seating");
 
 if (!process.env.JWT_SECRET) {
   console.error(
@@ -47,6 +49,8 @@ app.use("/api/roster", rosterRoutes);
 app.use("/api/people", peopleRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/teams", teamRoutes);
+app.use("/api/attendance", attendanceRoutes);
+app.use("/api/seating", seatingRoutes);
 
 app.use("/api/dashboard", dashboardRoutes);
 
