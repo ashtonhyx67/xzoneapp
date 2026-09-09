@@ -745,23 +745,20 @@ button {
   color: var(--text);
 }
 
-.roster-tint-rose {
-  background: #fbdce0;
+.roster-tint-green {
+  background: #cdebd6;
 }
-.roster-tint-cyan {
-  background: #d3edf7;
+.roster-tint-red {
+  background: #fbd5d5;
 }
 .roster-tint-yellow {
-  background: #fdf3b4;
+  background: #fdf1ae;
 }
-.roster-tint-peach {
-  background: #fbe0c8;
+.roster-tint-purple {
+  background: #ded5f0;
 }
-.roster-tint-lavender {
-  background: #ded7ee;
-}
-.roster-tint-mint {
-  background: #d3efdf;
+.roster-tint-blue {
+  background: #d2e9f8;
 }
 
 /* ---------- Roster: edit mode ---------- */
@@ -1243,34 +1240,23 @@ button {
 
 /* ---------- Role and group colours ---------- */
 
-/* One pastel set, shared by role pills, group pills, and the role cell in the
-   database grid. frontend/src/lib/roles.js decides which role wears which. */
-.tint-rose {
-  background: #fbdce0;
+/* One pastel set per leader tier, shared by role pills, the role cell in the
+   database grid, and whole rows of the structure.
+   frontend/src/lib/roles.js decides which role wears which. */
+.tint-green {
+  background: #cdebd6;
 }
-.tint-peach {
-  background: #fbe0c8;
-}
-.tint-cyan {
-  background: #d3edf7;
+.tint-red {
+  background: #fbd5d5;
 }
 .tint-yellow {
-  background: #fdf3b4;
+  background: #fdf1ae;
 }
-.tint-lavender {
-  background: #ded7ee;
+.tint-purple {
+  background: #ded5f0;
 }
-.tint-mint {
-  background: #d3efdf;
-}
-.tint-sky {
-  background: #d9e5fb;
-}
-.tint-sand {
-  background: #f0e7d3;
-}
-.tint-clay {
-  background: #f6dcd2;
+.tint-blue {
+  background: #d2e9f8;
 }
 .tint-none {
   background: var(--bg);
@@ -1337,20 +1323,54 @@ button {
   margin: 10px 0 12px;
 }
 
-/* A value the structure reads off the person's record rather than storing its
-   own copy of. Shown as text so it reads as settled, not as a blank to fill. */
+/* Groups need to be visibly separate before "move group up" means anything. */
+.roster-group-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 14px 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.roster-group-size {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A value read off the person's record rather than typed here. Wears the role
+   colour, so an edit row reads the same as a saved one. */
 .roster-linked {
   display: flex;
   align-items: center;
   min-height: 32px;
   padding: 0 8px;
-  border: 1px dashed var(--border-strong);
   border-radius: var(--radius-sm);
-  background: var(--bg);
-  color: var(--text-soft);
   font-size: 13px;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
+
+/* Untinted — an unknown role, or the School cell, which has no colour of its
+   own — still needs an edge so it does not look like a missing box. */
+.roster-linked:not([class*="tint-"]),
+.roster-linked.tint-none {
+  border: 1px dashed var(--border-strong);
+  background: var(--bg);
+  color: var(--text-soft);
+  font-weight: 400;
+}
+
+.icon-btn:disabled,
+.link-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 
 .roster-name-linked {
   font-weight: 600;

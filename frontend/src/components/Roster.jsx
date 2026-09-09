@@ -1,19 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
+import { ROLES, roleTint } from "../lib/roles.js";
 
-export const ROSTER_COLORS = ["", "rose", "cyan", "yellow", "peach", "lavender", "mint"];
-
-const COLOR_LABELS = {
-  "": "None",
-  rose: "Rose",
-  cyan: "Cyan",
-  yellow: "Yellow",
-  peach: "Peach",
-  lavender: "Lavender",
-  mint: "Mint",
-};
-
-const emptyRow = () => ({ role: "", name: "", year: "", school: "", color: "" });
+const emptyRow = () => ({ role: "", name: "", year: "", school: "" });
 
 // Structural edits are all array swaps/splices on a cloned roster.
 function move(list, index, delta) {
@@ -22,6 +11,42 @@ function move(list, index, delta) {
   const next = [...list];
   [next[index], next[target]] = [next[target], next[index]];
   return next;
+}
+
+// Moving a person up off the top of their group, or down off the bottom, puts
+// them at the near end of the neighbouring group rather than stopping dead —
+// that is how someone actually gets reassigned, and it is the whole reason to
+// be dragging rows around in the first place.
+function movePerson(groups, groupIndex, rowIndex, delta) {
+  const group = groups[groupIndex];
+  const withinGroup = rowIndex + delta >= 0 && rowIndex + delta < group.rows.length;
+
+  if (withinGroup) {
+    return groups.map((g, gi) =>
+      gi === groupIndex ? { ...g, rows: move(g.rows, rowIndex, delta) } : g
+    );
+  }
+
+  const targetIndex = groupIndex + delta;
+  if (targetIndex < 0 || targetIndex >= groups.length) return groups;
+
+  const person = group.rows[rowIndex];
+  return groups.map((g, gi) => {
+    if (gi === groupIndex) return { ...g, rows: g.rows.filter((_, ri) => ri !== rowIndex) };
+    if (gi !== targetIndex) return g;
+    // Going up lands at the bottom of the group above; going down lands at the
+    // top of the group below.
+    return { ...g, rows: delta < 0 ? [...g.rows, person] : [person, ...g.rows] };
+  });
+}
+
+// Whether this person has anywhere left to go in that direction.
+function canMove(groups, groupIndex, rowIndex, delta) {
+  const withinGroup =
+    rowIndex + delta >= 0 && rowIndex + delta < groups[groupIndex].rows.length;
+  if (withinGroup) return true;
+  const targetIndex = groupIndex + delta;
+  return targetIndex >= 0 && targetIndex < groups.length;
 }
 
 function countPeople(groups) {
@@ -186,8 +211,10 @@ export default function Roster({ token, people = [] }) {
       {editing && (
         <>
           <p className="roster-hint">
-            Type a name from the database and its Role and School fill themselves in.
-            Arrange who sits under whom here; change their details on their record.
+            Type a name from the database and their Role and School fill themselves in —
+            add the Year by hand. The row colour comes from the role, so it is the same
+            everywhere. ↑ and ↓ move someone within their group, and past the top or
+            bottom into the group next door.
           </p>
           {/* Native autocomplete, so the browser does the filtering. */}
           <datalist id="roster-people">
@@ -209,21 +236,51 @@ export default function Roster({ token, people = [] }) {
 
         {shown.groups.map((group, groupIndex) => (
           <div className="roster-group" key={group.id ?? groupIndex}>
+            {editing && (
+              <div className="roster-group-label">
+                Group {groupIndex + 1}
+                <span className="roster-group-size">
+                  {group.rows.length} {group.rows.length === 1 ? "person" : "people"}
+                </span>
+              </div>
+            )}
             {group.rows.map((raw, rowIndex) => {
               const row = fromDatabase(raw, byName);
               return editing ? (
-                <div className="roster-row roster-row-edit" key={rowIndex}>
+                <div
+                  className={`roster-row roster-row-edit${
+                    roleTint(row.role) ? ` roster-tint-${roleTint(row.role)}` : ""
+                  }`}
+                  key={rowIndex}
+                >
                   {row.linked ? (
-                    <span className="roster-linked" title="From this person's record">
-                      {row.role}
+                    <span
+                      className={`roster-linked${
+                        roleTint(row.role) ? ` tint-${roleTint(row.role)}` : ""
+                      }`}
+                      title="From this person's record"
+                    >
+                      {row.role || "—"}
                     </span>
                   ) : (
-                    <input
+                    // Not in the database yet, so the role has to be picked
+                    // here. The list is the standard one, so the colour still
+                    // comes out right.
+                    <select
                       aria-label="Role"
-                      placeholder="Role"
                       value={raw.role}
                       onChange={(e) => updateRow(groupIndex, rowIndex, "role", e.target.value)}
-                    />
+                    >
+                      <option value="">Role</option>
+                      {ROLES.map((role) => (
+                        <option key={role.value} value={role.value}>
+                          {role.label}
+                        </option>
+                      ))}
+                      {raw.role && !ROLES.some((r) => r.value === raw.role) && (
+                        <option value={raw.role}>{raw.role}</option>
+                      )}
+                    </select>
                   )}
                   <input
                     aria-label="Name"
@@ -252,41 +309,24 @@ export default function Roster({ token, people = [] }) {
                     />
                   )}
                   <div className="roster-tools">
-                    <select
-                      aria-label="Highlight colour"
-                      value={row.color}
-                      onChange={(e) => updateRow(groupIndex, rowIndex, "color", e.target.value)}
-                    >
-                      {ROSTER_COLORS.map((c) => (
-                        <option key={c || "none"} value={c}>
-                          {COLOR_LABELS[c]}
-                        </option>
-                      ))}
-                    </select>
                     <button
                       className="icon-btn"
-                      title="Move up"
+                      title="Move up (past the top, into the group above)"
                       aria-label="Move person up"
+                      disabled={!canMove(draft.groups, groupIndex, rowIndex, -1)}
                       onClick={() =>
-                        updateGroups(
-                          draft.groups.map((g, gi) =>
-                            gi === groupIndex ? { ...g, rows: move(g.rows, rowIndex, -1) } : g
-                          )
-                        )
+                        updateGroups(movePerson(draft.groups, groupIndex, rowIndex, -1))
                       }
                     >
                       ↑
                     </button>
                     <button
                       className="icon-btn"
-                      title="Move down"
+                      title="Move down (past the bottom, into the group below)"
                       aria-label="Move person down"
+                      disabled={!canMove(draft.groups, groupIndex, rowIndex, 1)}
                       onClick={() =>
-                        updateGroups(
-                          draft.groups.map((g, gi) =>
-                            gi === groupIndex ? { ...g, rows: move(g.rows, rowIndex, 1) } : g
-                          )
-                        )
+                        updateGroups(movePerson(draft.groups, groupIndex, rowIndex, 1))
                       }
                     >
                       ↓
@@ -311,8 +351,10 @@ export default function Roster({ token, people = [] }) {
                 </div>
               ) : (
                 <div
-                  className={`roster-row${row.color ? ` roster-tint-${row.color}` : ""}`}
-                  key={row.id ?? rowIndex}
+                  className={`roster-row${
+                    roleTint(row.role) ? ` roster-tint-${roleTint(row.role)}` : ""
+                  }`}
+                  key={raw.id ?? rowIndex}
                 >
                   <span className="roster-role">{row.role}</span>
                   <span className="roster-name">{row.name}</span>
@@ -338,12 +380,14 @@ export default function Roster({ token, people = [] }) {
                 </button>
                 <button
                   className="link-btn"
+                  disabled={groupIndex === 0}
                   onClick={() => updateGroups(move(draft.groups, groupIndex, -1))}
                 >
                   Move group up
                 </button>
                 <button
                   className="link-btn"
+                  disabled={groupIndex === draft.groups.length - 1}
                   onClick={() => updateGroups(move(draft.groups, groupIndex, 1))}
                 >
                   Move group down
