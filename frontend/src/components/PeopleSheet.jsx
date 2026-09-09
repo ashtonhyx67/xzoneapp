@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
 import { ROLES, findRole, roleTint } from "../lib/roles.js";
+import { ZONES } from "../lib/zones.js";
 
 // The columns of the people table, in spreadsheet order. `type` picks the kind
 // of cell: a plain box, the standard-role dropdown, or a date picker. `readOnly`
 // marks a value the server derives — Age comes from Birthday.
 const COLUMNS = [
   { field: "name", label: "Name", width: 150, sticky: true },
+  { field: "zone", label: "Zone", width: 74, type: "zone" },
   { field: "role", label: "Role", width: 84, type: "role" },
   { field: "team", label: "Team", width: 52 },
   { field: "contact", label: "Contact", width: 106 },
@@ -323,6 +325,24 @@ export default function PeopleSheet({ token, people, onSaved }) {
       onKeyDown: (e) => onCellKeyDown(e, rowIndex, colIndex),
       onPaste: (e) => onCellPaste(e, rowIndex, colIndex),
     };
+
+    if (column.type === "zone") {
+      return (
+        <select
+          {...shared}
+          className="sheet-input sheet-select"
+          value={row.zone ?? ""}
+          onChange={(e) => setCell(row._key, "zone", e.target.value)}
+        >
+          <option value="">—</option>
+          {ZONES.map((zone) => (
+            <option key={zone} value={zone}>
+              {zone}
+            </option>
+          ))}
+        </select>
+      );
+    }
 
     if (column.type === "role") {
       const value = row.role ?? "";

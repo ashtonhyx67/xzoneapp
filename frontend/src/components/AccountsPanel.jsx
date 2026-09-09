@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
+import { ZONES } from "../lib/zones.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { initials } from "../lib/photo.js";
 
@@ -55,6 +56,31 @@ export default function AccountsPanel() {
       const { account: saved } = await api.setAccountGroup(token, account.id, group);
       setAccounts((list) => list.map((a) => (a.id === saved.id ? saved : a)));
       setNotice(`${saved.name} is now ${labelFor(saved.group)}.`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // Zones are not access — they say which zone's members someone works on — so
+  // unlike a group, an admin may change their own.
+  async function toggleZone(account, zone) {
+    const next = account.zones.includes(zone)
+      ? account.zones.filter((z) => z !== zone)
+      : [...account.zones, zone];
+
+    setBusyId(account.id);
+    setError("");
+    setNotice("");
+    try {
+      const { account: saved } = await api.setAccountZones(token, account.id, next);
+      setAccounts((list) => list.map((a) => (a.id === saved.id ? saved : a)));
+      setNotice(
+        saved.zones.length
+          ? `${saved.name} works on ${saved.zones.join(", ")}.`
+          : `${saved.name} is not in any zone yet.`
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -200,6 +226,30 @@ export default function AccountsPanel() {
                   ))}
                 </select>
               )}
+
+              {/* Which zones this account works on. An admin already reaches
+                  every zone, so there is nothing to choose for them. */}
+              <span className="account-zones">
+                {account.group === "admin" || account.isOwner ? (
+                  <span className="account-zones-all">All zones</span>
+                ) : (
+                  ZONES.map((zone) => (
+                    <button
+                      type="button"
+                      key={zone}
+                      className={`zone-chip${
+                        account.zones?.includes(zone) ? " zone-chip-on" : ""
+                      }`}
+                      onClick={() => toggleZone(account, zone)}
+                      disabled={busyId === account.id}
+                      aria-pressed={Boolean(account.zones?.includes(zone))}
+                      aria-label={`${zone} for ${account.name}`}
+                    >
+                      {zone}
+                    </button>
+                  ))
+                )}
+              </span>
 
               <span className="account-actions">
                 {account.isOwner || account.id === user?.id ? null : confirmId === account.id ? (

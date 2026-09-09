@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const { pool } = require("../db");
 const { isOwnerEmail } = require("../lib/owner");
 const { getGroup, permissionsFor, DEFAULT_GROUP } = require("../lib/groups");
+const { normalizeZone, editableZones } = require("../lib/zones");
 
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || "";
@@ -35,13 +36,26 @@ async function loadAccess(userId) {
   // The owner's group comes from their email, so it survives any edit.
   const groupKey = isOwnerEmail(row.email) ? "owner" : row.group_key || DEFAULT_GROUP;
 
-  return {
+  const assigned = await pool.query(
+    "SELECT zone FROM user_zones WHERE user_id = $1 ORDER BY zone",
+    [userId]
+  );
+
+  const access = {
     user: row,
     groupKey,
     group: getGroup(groupKey),
     permissions: permissionsFor(groupKey),
     isOwner: isOwnerEmail(row.email),
+    // Zones this account has been put in. A zone that has since been removed
+    // from lib/zones.js drops out here rather than lingering as a dead key.
+    zones: assigned.rows.map((r) => normalizeZone(r.zone)).filter(Boolean),
   };
+
+  // Reading is not zoned — a leader can look into any zone. Writing is.
+  access.editableZones = editableZones(access);
+
+  return access;
 }
 
 // Guards a route with a named permission from lib/groups.js.

@@ -40,7 +40,7 @@ function isoWeek(date) {
 
 // The top of the dashboard. Attendance and SA are recorded every week, so the
 // week and the day are the first thing the page says.
-function WeekBanner({ firstName }) {
+function WeekBanner({ firstName, zones }) {
   // Tick over at midnight rather than only when the tab is reopened.
   const [now, setNow] = useState(() => new Date());
 
@@ -69,6 +69,14 @@ function WeekBanner({ firstName }) {
           Welcome back{firstName ? `, ${firstName}` : ""}
         </div>
         <div className="week-tags">
+          {/* Which zones these birthdays and follow-ups are for. Nothing shown
+              while the summary is still loading, or for an account that has
+              not been put in a zone and is therefore seeing all of them. */}
+          {zones.map((zone) => (
+            <span className="week-tag week-tag-zone" key={zone}>
+              {zone}
+            </span>
+          ))}
           <span className="week-tag">Attendance</span>
           <span className="week-tag">SA</span>
         </div>
@@ -122,7 +130,7 @@ export default function Dashboard() {
     let active = true;
 
     api
-      .dashboardSummary(token, controller.signal)
+      .dashboardSummary(token, null, controller.signal)
       .then((data) => {
         if (active) setSummary(data);
       })
@@ -141,7 +149,7 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <WeekBanner firstName={firstName} />
+      <WeekBanner firstName={firstName} zones={summary?.scope ?? []} />
 
       {summaryError && <div className="error-banner">{summaryError}</div>}
 

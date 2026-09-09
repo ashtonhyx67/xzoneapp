@@ -3,6 +3,7 @@ const express = require("express");
 const { pool } = require("../db");
 const { requireAuth, requirePermission } = require("../middleware/auth");
 const { PERMISSIONS } = require("../lib/groups");
+const { normalizeZone, canEditZone } = require("../lib/zones");
 
 const router = express.Router();
 
@@ -27,6 +28,7 @@ const FIELDS = [
   "general_information",
   "updates",
   "next_steps",
+  "zone",
 ];
 
 const MAX_SHORT = 200;
@@ -34,6 +36,11 @@ const MAX_LONG = 4000;
 const LONG_FIELDS = new Set(["general_information", "updates", "next_steps", "photo_url"]);
 
 function clean(field, raw) {
+  if (field === "zone") {
+    // Anything that is not a known zone becomes unassigned rather than an
+    // invented one.
+    return normalizeZone(raw);
+  }
   if (field === "birthday") {
     // An empty date must become NULL, not the string "".
     const value = String(raw ?? "").trim();
@@ -74,6 +81,26 @@ const SELECT_PERSON = `
     FROM people p
 `;
 
+// A leader may read every zone but only change their own. Both ends of a move
+// are checked: you cannot edit someone in a zone you do not run, and you cannot
+// push someone into one either.
+function zoneRefusal(access, currentZone, nextZone) {
+  if (!canEditZone(access, currentZone)) {
+    return `${currentZone} is not one of your zones.`;
+  }
+  if (nextZone !== undefined && !canEditZone(access, nextZone)) {
+    return `You cannot move someone into ${nextZone}.`;
+  }
+  return null;
+}
+
+// Current zone of each id, so an update can be checked against where the person
+// actually is rather than against whatever the request claims.
+async function zonesById(ids, client = pool) {
+  const found = await client.query("SELECT id, zone FROM people WHERE id = ANY($1::int[])", [ids]);
+  return new Map(found.rows.map((row) => [row.id, row.zone]));
+}
+
 router.use(requireAuth);
 
 // Reading the directory and changing it are separate permissions, so a group
@@ -98,6 +125,9 @@ router.post(
     if (!values.name) {
       return res.status(400).json({ error: "A name is required." });
     }
+
+    const refusal = zoneRefusal(req.access, values.zone);
+    if (refusal) return res.status(403).json({ error: refusal });
 
     const columns = FIELDS.join(", ");
     const placeholders = FIELDS.map((_, i) => `$${i + 1}`).join(", ");
@@ -139,6 +169,47 @@ router.put(
     const ids = deletes.map(Number).filter(Number.isInteger);
     const columns = FIELDS.join(", ");
     const placeholders = FIELDS.map((_, i) => `$${i + 1}`).join(", ");
+
+    // Everything the request touches is checked up front, so a refusal leaves
+    // the whole write unapplied rather than half of it.
+    // Number(null) is 0, which is a perfectly good integer — so "is this row
+    // new?" has to be asked of the raw value, exactly as the write loop below
+    // asks it. Getting that wrong would let a new row skip the zone check.
+    const isNewRow = (row) => row.id === null || row.id === undefined || row.id === "";
+
+    const existingIds = upserts
+      .filter((row) => !isNewRow(row))
+      .map((row) => Number(row.id))
+      .filter(Number.isInteger);
+
+    const touched = [...ids, ...existingIds];
+    const zones = touched.length > 0 ? await zonesById(touched) : new Map();
+
+    for (const id of ids) {
+      if (!zones.has(id)) continue;
+      const refusal = zoneRefusal(req.access, zones.get(id));
+      if (refusal) return res.status(403).json({ error: refusal });
+    }
+
+    for (const row of upserts) {
+      const hasZone = Object.prototype.hasOwnProperty.call(row, "zone");
+      const nextZone = hasZone ? normalizeZone(row.zone) : undefined;
+
+      if (isNewRow(row)) {
+        // A new row only has to land somewhere allowed.
+        const refusal = zoneRefusal(req.access, nextZone ?? "");
+        if (refusal) return res.status(403).json({ error: refusal });
+        continue;
+      }
+
+      // An existing one also has to be somewhere allowed already. A row that no
+      // longer exists is left to the write loop to report.
+      const id = Number(row.id);
+      if (!zones.has(id)) continue;
+
+      const refusal = zoneRefusal(req.access, zones.get(id), nextZone);
+      if (refusal) return res.status(403).json({ error: refusal });
+    }
 
     const client = await pool.connect();
     let created = 0;
@@ -233,6 +304,16 @@ router.put(
     if (changed.includes("name") && !values.name) {
       return res.status(400).json({ error: "A name is required." });
     }
+
+    const zones = await zonesById([id]);
+    if (!zones.has(id)) return res.status(404).json({ error: "Person not found." });
+
+    const refusal = zoneRefusal(
+      req.access,
+      zones.get(id),
+      changed.includes("zone") ? values.zone : undefined
+    );
+    if (refusal) return res.status(403).json({ error: refusal });
     if (changed.length === 0) {
       const current = await pool.query(`${SELECT_PERSON} WHERE p.id = $1`, [id]);
       if (!current.rows[0]) return res.status(404).json({ error: "Person not found." });
@@ -269,6 +350,12 @@ router.delete(
   route(async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ error: "Unknown person." });
+
+    const zones = await zonesById([id]);
+    if (!zones.has(id)) return res.status(404).json({ error: "Person not found." });
+
+    const refusal = zoneRefusal(req.access, zones.get(id));
+    if (refusal) return res.status(403).json({ error: refusal });
 
     const deleted = await pool.query("DELETE FROM people WHERE id = $1 RETURNING id", [id]);
     if (!deleted.rows[0]) return res.status(404).json({ error: "Person not found." });

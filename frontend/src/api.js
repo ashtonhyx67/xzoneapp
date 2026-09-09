@@ -26,7 +26,11 @@ export const api = {
   signup: (payload) => request("/auth/signup", { method: "POST", body: payload }),
   login: (payload) => request("/auth/login", { method: "POST", body: payload }),
   me: (token, signal) => request("/auth/me", { token, signal }),
-  dashboardSummary: (token, signal) => request("/dashboard/summary", { token, signal }),
+  dashboardSummary: (token, zone, signal) =>
+    request(`/dashboard/summary${zone ? `?zone=${encodeURIComponent(zone)}` : ""}`, {
+      token,
+      signal,
+    }),
 
   getPeople: (token, signal) => request("/people", { token, signal }),
   createPerson: (token, person) => request("/people", { method: "POST", body: person, token }),
@@ -42,14 +46,20 @@ export const api = {
   bulkSavePeople: (token, changes) =>
     request("/people/bulk", { method: "PUT", body: changes, token }),
 
-  getRoster: (token, signal) => request("/roster", { token, signal }),
+  // A structure belongs to a zone; omitting one opens the caller's own.
+  getRoster: (token, zone, signal) =>
+    request(`/roster${zone ? `?zone=${encodeURIComponent(zone)}` : ""}`, { token, signal }),
   saveRoster: (token, roster) => request("/roster", { method: "PUT", body: roster, token }),
+
+  getZones: (token, signal) => request("/zones", { token, signal }),
 
   getAccounts: (token, signal) => request("/admin/accounts", { token, signal }),
   createAccount: (token, account) =>
     request("/admin/accounts", { method: "POST", body: account, token }),
   setAccountGroup: (token, id, group) =>
     request(`/admin/accounts/${id}`, { method: "PATCH", body: { group }, token }),
+  setAccountZones: (token, id, zones) =>
+    request(`/admin/accounts/${id}`, { method: "PATCH", body: { zones }, token }),
   deleteAccount: (token, id) => request(`/admin/accounts/${id}`, { method: "DELETE", token }),
 
   webauthnRegisterOptions: (token) =>

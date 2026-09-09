@@ -1383,6 +1383,73 @@ button {
   color: var(--text-soft);
 }
 
+/* ---------- Zones ---------- */
+
+/* Which zones an account works on. A chip is a toggle, so it has to read as
+   clearly on or off at a glance down a list of accounts. */
+.account-zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.zone-chip {
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-soft);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.zone-chip:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.zone-chip-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.zone-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.account-zones-all {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+/* The zone a structure is showing. */
+.roster-zone-select {
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.roster-readonly-note {
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+/* The zones the dashboard reminders cover, set apart from the weekly tags. */
+.week-tag-zone {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 /* ---------- Dashboard week banner ---------- */
 
 /* Attendance and SA are weekly, so the week owns the top of the dashboard.
