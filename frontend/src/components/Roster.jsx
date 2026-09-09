@@ -265,13 +265,6 @@ export default function Roster({ token, people = [] }) {
 
       {editing && (
         <>
-          <p className="roster-hint">
-            Type a name from the database and their Role and School fill themselves in —
-            add the Year by hand. The row colour comes from the role, so it is the same
-            everywhere. ↑ and ↓ move someone within their group, and past the top or
-            bottom into the group next door. Anyone deployed into this team can be placed
-            here too; they stay counted under their own.
-          </p>
           {/* Native autocomplete, so the browser does the filtering. */}
           <datalist id="roster-people">
             {teamPeople.map((person) => (

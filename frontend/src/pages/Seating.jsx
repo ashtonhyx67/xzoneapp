@@ -174,6 +174,7 @@ export default function Seating() {
     place(held, rowIndex);
   }
 
+  // Rows are drawn as columns, so moving one is sideways — the arrows say so.
   function moveRow(index, delta) {
     const target = index + delta;
     if (target < 0 || target >= rows.length) return;
@@ -200,7 +201,7 @@ export default function Seating() {
   return (
     <AppShell>
       <header className="page-head">
-        <h1 className="page-title">Seating arrangement</h1>
+        <h1 className="page-title">Seating Arrangement</h1>
       </header>
 
       <div className="panel">
@@ -250,9 +251,7 @@ export default function Seating() {
           <div className="seating-layout">
             <div className="seating-plan">
               {rows.length === 0 ? (
-                <div className="list-empty">
-                  No rows yet. Add one, then place people from the list.
-                </div>
+                <div className="list-empty">No rows yet.</div>
               ) : (
                 rows.map((row, rowIndex) => (
                   <div
@@ -294,17 +293,19 @@ export default function Seating() {
                             className="icon-btn"
                             onClick={() => moveRow(rowIndex, -1)}
                             disabled={rowIndex === 0}
-                            aria-label="Move row up"
+                            aria-label="Move this row left"
+                            title="Move left"
                           >
-                            ↑
+                            ←
                           </button>
                           <button
                             className="icon-btn"
                             onClick={() => moveRow(rowIndex, 1)}
                             disabled={rowIndex === rows.length - 1}
-                            aria-label="Move row down"
+                            aria-label="Move this row right"
+                            title="Move right"
                           >
-                            ↓
+                            →
                           </button>
                           <button
                             className="icon-btn icon-btn-danger"
@@ -376,11 +377,6 @@ export default function Seating() {
                   <span className="section-count">{unplaced.length}</span>
                 </div>
 
-                <p className="seating-hint">
-                  {held
-                    ? `Carrying ${held.name} — tap a row to put them there.`
-                    : "Drag someone onto a row, or tap them and then tap the row."}
-                </p>
 
                 {roll.length === 0 ? (
                   <div className="list-empty">
@@ -419,6 +415,17 @@ export default function Seating() {
           </div>
         )}
       </div>
+      {/* Only while something is in hand. A phone cannot show a drag, so this
+          is what says the tap registered and what happens next. */}
+      {canEdit && held && (
+        <div className="carrying" role="status">
+          <span className="carrying-name">{held.name}</span>
+          <span className="carrying-hint">tap a row</span>
+          <button className="carrying-cancel" onClick={() => setHeld(null)}>
+            Cancel
+          </button>
+        </div>
+      )}
     </AppShell>
   );
 }

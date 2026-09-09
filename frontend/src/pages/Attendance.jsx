@@ -456,9 +456,7 @@ export default function Attendance() {
                   )}
                 </div>
 
-                {group.people.length === 0 ? (
-                  <div className="list-empty">Nobody listed.</div>
-                ) : (
+                {group.people.length > 0 && (
                   <div className="register-rows">
                     {group.people.map((person) => (
                       <div

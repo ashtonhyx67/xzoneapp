@@ -658,6 +658,25 @@ button {
   }
 }
 
+/* Roomier once there is width for it: the two field tables sit side by side
+   rather than stacked, so the card fills out instead of running long. */
+@media (min-width: 1100px) {
+  .person-card {
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 32px;
+    padding: 24px;
+  }
+
+  /* The two field tables side by side. The long-text rows are a sibling of
+     this block and already span the card, so they are unaffected. */
+  .person-main {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    align-items: start;
+  }
+}
+
 /* Phones: stack anything still sitting side by side. */
 @media (max-width: 480px) {
   .auth-shell {
@@ -995,8 +1014,8 @@ button {
 
 .person-card {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 28px;
   align-items: start;
   position: relative;
   margin-top: 20px;
@@ -1225,8 +1244,24 @@ button {
     gap: 16px;
   }
 
+  /* Centred rather than pinned to one side, so the space beside it is even
+     instead of a gap on the right. */
   .person-side {
     max-width: 260px;
+    margin-left: auto;
+    margin-right: auto;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .person-heading,
+  .person-tags {
+    justify-content: center;
+  }
+
+  .person-tags {
+    display: flex;
+    flex-wrap: wrap;
   }
 
   .card-field {
@@ -2087,20 +2122,33 @@ button {
   border-bottom: 1px solid var(--border);
 }
 
+/* The label carries the header at the same weight as the number it labels,
+   rather than being a caption above it. */
 .tally-total-label {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-soft);
+  font-size: 22px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--text);
 }
 
 .tally-total-value {
   margin-left: auto;
   font-size: 26px;
-  line-height: 1;
+  line-height: 1.1;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .tally-total-label {
+    font-size: 18px;
+  }
+
+  .tally-total-value {
+    font-size: 22px;
+  }
 }
 
 .tally-groups {
@@ -2185,9 +2233,91 @@ button {
   margin-left: auto;
 }
 
+/* What is in hand, while it is in hand. A phone cannot render a drag, so this
+   stands in for one: it says the tap landed and what to do next, and it is gone
+   the moment the person is placed. */
+.carrying {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 16px;
+  border-radius: 999px;
+  background: var(--text);
+  color: #fff;
+  box-shadow: 0 8px 28px rgba(26, 26, 26, 0.28);
+}
+
+@media (min-width: 769px) {
+  .carrying {
+    left: auto;
+    right: 20px;
+    bottom: 20px;
+    max-width: 340px;
+  }
+}
+
+.carrying-name {
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.carrying-hint {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.carrying-cancel {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 /* Seating: a row lights up while something is being carried over it. */
 .seating-row-armed {
   border-style: dashed;
+  border-color: var(--accent);
+  cursor: pointer;
+}
+
+/* On a phone the whole column is the target, so it is worth it being a big
+   one — dragging precisely on a touch screen is the thing that does not work. */
+@media (max-width: 768px) {
+  .seating-row-armed {
+    background: #f2faf6;
+  }
+
+  .seating-row-armed .seating-seats {
+    min-height: 88px;
+  }
+
+  /* Rearranging is done with these on a phone, so they need to be thumb-sized
+     rather than cursor-sized. */
+  .seating-row-tools .icon-btn {
+    min-width: 34px;
+    min-height: 34px;
+  }
+
+  .seat {
+    padding: 10px 12px;
+  }
+
+  .pool-person {
+    padding: 12px 12px;
+  }
 }
 
 .seating-row-over {
