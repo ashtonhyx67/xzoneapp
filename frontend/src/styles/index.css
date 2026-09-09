@@ -2933,6 +2933,22 @@ button {
   line-height: 16px;
 }
 
+/* An optional cell: dashed and faint while unset, so a column that is usually
+   empty does not read as a column that is usually wrong. */
+.sheet-select-optional {
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.sheet-select-optional.is-set {
+  border-style: solid;
+  border-color: var(--accent);
+  background: #e8f4ee;
+  color: #1a1a1a;
+}
+
 .sheet-select:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;

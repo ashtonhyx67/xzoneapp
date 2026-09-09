@@ -9,6 +9,9 @@ import { CGS, TEAM_KEYS } from "../lib/teams.js";
 const COLUMNS = [
   { field: "name", label: "Name", width: 138, sticky: true },
   { field: "team_key", label: "Team", width: 64, type: "team" },
+  // Where they have been sent to help, if anywhere. Their team above is
+  // unaffected — that is still who they belong to and who counts them.
+  { field: "deployed_to", label: "Deployed to", width: 84, type: "team", optional: true },
   { field: "role", label: "Role", width: 70, type: "role" },
   { field: "contact", label: "Contact", width: 94 },
   { field: "telegram", label: "Telegram", width: 88 },
@@ -404,11 +407,16 @@ export default function PeopleSheet({ token, people, onSaved }) {
     };
 
     if (column.type === "team") {
+      const value = row[column.field] ?? "";
       return (
         <select
           {...shared}
-          className="sheet-input sheet-select"
-          value={row[column.field] ?? ""}
+          // Deployment is the exception rather than the rule, so an empty one
+          // stays quiet and only reads as set when it actually is.
+          className={`sheet-input sheet-select${
+            column.optional ? ` sheet-select-optional${value ? " is-set" : ""}` : ""
+          }`}
+          value={value}
           onChange={(e) => setCell(row._key, column.field, e.target.value)}
         >
           <option value="">—</option>
