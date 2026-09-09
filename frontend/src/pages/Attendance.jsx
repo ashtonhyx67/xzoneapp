@@ -73,6 +73,7 @@ export default function Attendance() {
             name: person.name,
             statuses: person.statuses ?? [],
             category: person.category,
+            fromTeam: person.fromTeam,
           }))
         );
         dirty.current = false;
@@ -403,7 +404,7 @@ export default function Attendance() {
                         }`}
                         key={person.key}
                       >
-                        {canEdit ? (
+                        {canEdit && !person.fromTeam ? (
                           <input
                             className="register-name"
                             list="attendance-names"
@@ -413,6 +414,8 @@ export default function Attendance() {
                             onChange={(e) => setName(person.key, e.target.value)}
                           />
                         ) : (
+                          // One of the team's own: the name belongs to their
+                          // record, so it is changed there, not here.
                           <span className="register-name-text">{person.name}</span>
                         )}
 
@@ -438,7 +441,10 @@ export default function Attendance() {
                           ))}
                         </span>
 
-                        {canEdit && (
+                        {/* Only a name added by hand can be taken off. A member
+                            of the team is always listed; not coming is what an
+                            empty row of marks means. */}
+                        {canEdit && !person.fromTeam && (
                           <button
                             className="sheet-remove"
                             onClick={() => {

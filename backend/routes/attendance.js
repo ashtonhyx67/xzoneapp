@@ -5,7 +5,7 @@ const { requireAuth, requirePermission } = require("../middleware/auth");
 const { PERMISSIONS } = require("../lib/groups");
 const { normalizeTeam, canEditTeam, DEFAULT_TEAM, teamsInCg } = require("../lib/teams");
 const { roleRank } = require("../lib/roles");
-const { resolveWeek } = require("../lib/weeks");
+const { resolveWeek, isoWeek } = require("../lib/weeks");
 const {
   BUILTIN_STATUSES,
   BUILTIN_KEYS,
@@ -76,6 +76,81 @@ function tally(people, allowed) {
   return { total, byCategory, byStatus };
 }
 
+// A register that has already been written is not re-seeded, but it should
+// still pick up someone added to the team since. Only for this week and later:
+// a past register is the record of who was actually there, and quietly adding
+// people to it afterwards would rewrite history.
+function isCurrentOrLater(year, week) {
+  const now = isoWeek();
+  return year > now.year || (year === now.year && week >= now.week);
+}
+
+// Brings a register in step with the team as it stands now. Adds anyone missing
+// and drops anyone who has left the team *and* has no marks — a row with marks
+// on it is a record of something that happened, so it stays put whatever the
+// database says today.
+async function syncMembers(team, year, week) {
+  const meta = await pool.query(
+    "SELECT id FROM attendance_weeks WHERE team = $1 AND year = $2 AND week = $3",
+    [team, year, week]
+  );
+  if (!meta.rows[0]) return;
+  const weekId = meta.rows[0].id;
+
+  const [listed, members] = await Promise.all([
+    pool.query(
+      "SELECT id, person_id, statuses FROM attendance_people WHERE week_id = $1",
+      [weekId]
+    ),
+    pool.query("SELECT id, name, role FROM people WHERE team_key = $1", [team]),
+  ]);
+
+  const already = new Set(listed.rows.map((row) => row.person_id).filter(Boolean));
+  const stillOnTeam = new Set(members.rows.map((person) => person.id));
+
+  const missing = members.rows
+    .filter((person) => !already.has(person.id))
+    .sort((a, b) => roleRank(a.role) - roleRank(b.role) || a.name.localeCompare(b.name));
+
+  const departed = listed.rows.filter(
+    (row) => row.person_id && !stillOnTeam.has(row.person_id) && !row.statuses
+  );
+
+  if (missing.length === 0 && departed.length === 0) return;
+
+  const next = await pool.query(
+    "SELECT COALESCE(max(position), -1) + 1 AS position FROM attendance_people WHERE week_id = $1",
+    [weekId]
+  );
+  let position = next.rows[0].position;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    for (const person of missing) {
+      await client.query(
+        `INSERT INTO attendance_people (week_id, position, person_id, name, statuses)
+         VALUES ($1, $2, $3, $4, '')`,
+        [weekId, position++, person.id, person.name]
+      );
+    }
+
+    if (departed.length > 0) {
+      await client.query("DELETE FROM attendance_people WHERE id = ANY($1::int[])", [
+        departed.map((row) => row.id),
+      ]);
+    }
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 async function readWeek(team, year, week, allowed) {
   const meta = await pool.query(
     "SELECT id FROM attendance_weeks WHERE team = $1 AND year = $2 AND week = $3",
@@ -88,7 +163,7 @@ async function readWeek(team, year, week, allowed) {
   // to be restated here.
   const rows = await pool.query(
     `SELECT a.id, a.name, a.person_id, a.statuses, a.category AS own_category,
-            p.role AS person_role
+            p.role AS person_role, p.team_key AS person_team
        FROM attendance_people a
        LEFT JOIN people p ON p.id = a.person_id
       WHERE a.week_id = $1
@@ -106,6 +181,10 @@ async function readWeek(team, year, week, allowed) {
     category: row.person_id
       ? categoryOf({ role: row.person_role })
       : categoryOf({ role: row.own_category }),
+    // One of the team's own, as the database has it right now. Those are kept
+    // in step automatically, so they are not removed by hand — someone who did
+    // not come is left unmarked, which is what absent means.
+    fromTeam: row.person_team === team,
   }));
 
   return { team, year, week, people, counts: tally(people, allowed) };
@@ -268,6 +347,10 @@ router.get(
       } else {
         record = { team, year, week, people: [], counts: tally([], allowed) };
       }
+    } else if (canEditTeam(req.access, team) && isCurrentOrLater(year, week)) {
+      // Already written, so pick up anyone added to the team since it was.
+      await syncMembers(team, year, week);
+      record = await readWeek(team, year, week, allowed);
     }
 
     // The statuses travel with the register, so the page always offers exactly
