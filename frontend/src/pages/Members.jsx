@@ -8,6 +8,7 @@ import PersonCard from "../components/PersonCard.jsx";
 import MemberRow from "../components/MemberRow.jsx";
 import Roster from "../components/Roster.jsx";
 import { CGS, cgOf } from "../lib/teams.js";
+import SearchBox from "../components/SearchBox.jsx";
 
 // The member list and the scorecard side by side: pick anyone on the left, read
 // or edit their record on the right. Both are the same database rows the
@@ -149,14 +150,7 @@ export default function Members() {
       ) : (
         <div className="members-layout">
           <aside className="panel member-list-panel">
-            <input
-              className="sheet-search member-search"
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search"
-              aria-label="Search members"
-            />
+            <SearchBox value={query} onChange={setQuery} label="Search members" />
             <div className="scope-filter" role="group" aria-label="Filter by CG or team">
               <button
                 type="button"

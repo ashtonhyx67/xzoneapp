@@ -10,6 +10,10 @@
   --danger: #d72c0d;
   --danger-bg: #fdeceb;
   --card-head: #f6cccc;
+  /* One height for every control that sits in a row with another: search
+     boxes, selects, inline buttons. Without it each was sized by its own
+     padding and no two lined up. */
+  --control-h: 34px;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -2199,8 +2203,9 @@ button {
 .picker-box {
   display: inline-flex;
   align-items: center;
+  min-height: var(--control-h);
   gap: 4px;
-  padding: 4px 6px;
+  padding: 3px 6px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -2807,8 +2812,15 @@ button {
 }
 
 .scope-chip {
-  min-width: 28px;
-  padding: 4px 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scope-chip {
+  min-width: 30px;
+  height: 26px;
+  padding: 0 10px;
   border: 1px solid transparent;
   border-radius: 999px;
   background: transparent;
@@ -2945,9 +2957,9 @@ button {
   overflow-y: auto;
 }
 
-.member-search {
-  width: 100%;
-  margin-bottom: 8px;
+/* In the sidebar it is the only thing on its line, so it takes the width. */
+.member-list-panel .search-box {
+  max-width: none;
 }
 
 .member-detail-pane {
@@ -3286,41 +3298,52 @@ button {
 .sheet-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-/* The search box and Add row are the same size, side by side. */
-.sheet-search-wrap {
+/* The shared search box. The magnifier is the label, so there is no
+   placeholder to make one box look different from another. */
+.search-box {
   position: relative;
-  width: 108px;
-  height: 32px;
+  display: flex;
+  align-items: center;
+  flex: 1 1 180px;
+  min-width: 0;
+  max-width: 320px;
 }
 
-.sheet-search {
+.search-box-icon {
+  position: absolute;
+  left: 10px;
+  width: 15px;
+  height: 15px;
+  color: var(--text-soft);
+  pointer-events: none;
+}
+
+.search-box-input {
   width: 100%;
-  height: 32px;
-  padding: 0 8px 0 28px;
+  height: var(--control-h);
+  padding: 0 10px 0 31px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
   font-family: inherit;
   font-size: 13px;
-}
-
-.sheet-search:focus {
+  color: var(--text);
   outline: none;
-  border-color: var(--accent);
 }
 
-.sheet-search-icon {
-  position: absolute;
-  left: 9px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 14px;
-  height: 14px;
-  color: var(--text-soft);
-  pointer-events: none;
+.search-box-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 128, 96, 0.12);
+}
+
+/* Safari draws its own clear button and reserves room for it. */
+.search-box-input::-webkit-search-decoration,
+.search-box-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
 }
 
 .sheet-actions .btn-inline {
@@ -3568,8 +3591,13 @@ button {
   color: var(--text-soft);
 }
 
-.sheet-sort select {
-  padding: 6px 8px;
+/* Sorting, choosing a team, choosing a CG — the same control doing the same
+   kind of job, so they are the same control. */
+.sheet-sort select,
+.roster-team-select,
+.picker-team {
+  height: var(--control-h);
+  padding: 0 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -3578,6 +3606,22 @@ button {
   font-weight: 600;
   color: var(--text);
   cursor: pointer;
+}
+
+/* Inside the week box it is one half of a single control, so it keeps no edge
+   of its own. */
+.picker-team {
+  border: none;
+  background: transparent;
+}
+
+/* A button standing in a row with them matches. */
+.sheet-toolbar .btn-inline,
+.attendance-toolbar .btn-inline {
+  height: var(--control-h);
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Zebra striping makes a wide row easy to follow across the screen. */

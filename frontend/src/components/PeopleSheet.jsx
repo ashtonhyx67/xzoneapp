@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { api } from "../api.js";
 import { ROLES, findRole, roleStyle, roleRank } from "../lib/roles.js";
 import { CGS, TEAM_KEYS } from "../lib/teams.js";
+import SearchBox from "./SearchBox.jsx";
 
 // The columns of the people table, in spreadsheet order. `type` picks the kind
 // of cell: a plain box, the standard-role dropdown, or a date picker. `readOnly`
@@ -474,27 +475,7 @@ export default function PeopleSheet({ token, people, onSaved }) {
     <div className="panel sheet-panel">
       <div className="sheet-toolbar">
         <div className="sheet-actions">
-          <div className="sheet-search-wrap">
-            <svg className="sheet-search-icon" viewBox="0 0 16 16" aria-hidden="true">
-              <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
-              <line
-                x1="10.4"
-                y1="10.4"
-                x2="14"
-                y2="14"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-              />
-            </svg>
-            <input
-              className="sheet-search"
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search"
-            />
-          </div>
+          <SearchBox value={query} onChange={setQuery} label="Search the database" />
           <button className="btn btn-secondary btn-inline" onClick={addRow}>
             Add row
           </button>
