@@ -155,6 +155,11 @@ export default function PersonCard({
           <div className="person-tags">
             {person.role && <span className={roleClass(person.role)}>{person.role}</span>}
             {person.team_key && <span className="team-pill">{person.team_key}</span>}
+            {person.deployed_to && (
+              <span className="team-pill team-pill-loan" title="Deployed here, still counted under their own team">
+                → {person.deployed_to}
+              </span>
+            )}
           </div>
         </div>
 

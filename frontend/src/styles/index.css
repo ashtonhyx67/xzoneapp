@@ -1332,6 +1332,25 @@ button {
   margin: 10px 0 12px;
 }
 
+/* Someone deployed into this team from another: their own team's name, small
+   and quiet, so the structure never implies they are counted here. */
+.roster-on-loan {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+.team-pill-loan {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+}
+
 /* Groups need to be visibly separate before "move group up" means anything. */
 .roster-group-label {
   display: flex;

@@ -9,6 +9,7 @@ import { CGS } from "../lib/teams.js";
 const COLUMNS = [
   { field: "name", label: "Name", width: 138, sticky: true },
   { field: "team_key", label: "Team", width: 64, type: "team" },
+  { field: "deployed_to", label: "Deployed", width: 74, type: "team" },
   { field: "role", label: "Role", width: 70, type: "role" },
   { field: "contact", label: "Contact", width: 94 },
   { field: "telegram", label: "Telegram", width: 88 },
@@ -330,8 +331,8 @@ export default function PeopleSheet({ token, people, onSaved }) {
         <select
           {...shared}
           className="sheet-input sheet-select"
-          value={row.team_key ?? ""}
-          onChange={(e) => setCell(row._key, "team_key", e.target.value)}
+          value={row[column.field] ?? ""}
+          onChange={(e) => setCell(row._key, column.field, e.target.value)}
         >
           <option value="">—</option>
           {/* Grouped by CG, so the list reads the way the zone is actually

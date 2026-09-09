@@ -32,6 +32,7 @@ const FIELDS = [
   "updates",
   "next_steps",
   "team_key",
+  "deployed_to",
 ];
 
 const MAX_SHORT = 200;
@@ -39,7 +40,7 @@ const MAX_LONG = 4000;
 const LONG_FIELDS = new Set(["general_information", "updates", "next_steps", "photo_url"]);
 
 function clean(field, raw) {
-  if (field === "team_key") {
+  if (field === "team_key" || field === "deployed_to") {
     // Anything that is not a known team becomes unassigned rather than an
     // invented one.
     return normalizeTeam(raw);
@@ -53,11 +54,18 @@ function clean(field, raw) {
   return String(raw ?? "").slice(0, limit).trim();
 }
 
+// Being "deployed" to the team you already belong to says nothing, so it is
+// dropped rather than stored as a second copy of the same fact.
+function tidyDeployment(values) {
+  if (values.deployed_to && values.deployed_to === values.team_key) values.deployed_to = "";
+  return values;
+}
+
 // Creating a row: every column gets a value, missing ones default to empty.
 function normalize(body) {
   const values = {};
   for (const field of FIELDS) values[field] = clean(field, body[field]);
-  return values;
+  return tidyDeployment(values);
 }
 
 // Updating a row: only the columns the request actually carried. A field the
@@ -71,6 +79,9 @@ function normalizeUpdate(body) {
       values[field] = clean(field, body[field]);
     }
   }
+  // Only when the request carried both, since a partial update cannot compare
+  // against a column it did not send.
+  if ("deployed_to" in values && "team_key" in values) tidyDeployment(values);
   return values;
 }
 

@@ -345,6 +345,15 @@ async function initSchema() {
     }
   }
 
+  // Someone can be sent to work with another team while still belonging to
+  // their own — an X1 member deployed into X3A is on X3A's structure but stays
+  // X1's, and is counted there. Blank means they are only with their own team.
+  await pool.query(`
+    ALTER TABLE people ADD COLUMN IF NOT EXISTS deployed_to TEXT NOT NULL DEFAULT '';
+  `);
+
+  await pool.query(`CREATE INDEX IF NOT EXISTS people_deployed_to_idx ON people (deployed_to);`);
+
   // Which teams an account may edit. A leader can run several.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS user_teams (

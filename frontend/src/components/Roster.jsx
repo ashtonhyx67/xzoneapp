@@ -64,7 +64,7 @@ const key = (name) => String(name ?? "").trim().toLowerCase();
 // someone's school on their record moves it here too, and there is one place to
 // fix it rather than two. Year has no column on the person, so it stays typed
 // in here.
-function fromDatabase(row, people) {
+function fromDatabase(row, people, team) {
   const person = people.get(key(row.name));
   if (!person) return { ...row, linked: false };
   return {
@@ -73,6 +73,9 @@ function fromDatabase(row, people) {
     school: person.school || row.school,
     personId: person.id,
     linked: true,
+    // Someone on loan from another team, so it is obvious at a glance whose
+    // they actually are.
+    deployedFrom: person.team_key && person.team_key !== team ? person.team_key : "",
   };
 }
 
@@ -113,11 +116,17 @@ export default function Roster({ token, people = [] }) {
   const shown = editing ? draft : roster;
   const total = useMemo(() => (shown ? countPeople(shown.groups) : 0), [shown]);
 
-  // Only the people of the team being looked at can be put into its structure.
+  // A team's structure is its own people plus anyone deployed into it — an X1
+  // member sent to X3A belongs on X3A's structure even though they are still
+  // counted under X1.
   const teamPeople = useMemo(
     () =>
       people.filter(
-        (p) => !roster?.team || !p.team_key || p.team_key === roster.team
+        (p) =>
+          !roster?.team ||
+          !p.team_key ||
+          p.team_key === roster.team ||
+          p.deployed_to === roster.team
       ),
     [people, roster]
   );
@@ -260,7 +269,8 @@ export default function Roster({ token, people = [] }) {
             Type a name from the database and their Role and School fill themselves in —
             add the Year by hand. The row colour comes from the role, so it is the same
             everywhere. ↑ and ↓ move someone within their group, and past the top or
-            bottom into the group next door.
+            bottom into the group next door. Anyone deployed into this team can be placed
+            here too; they stay counted under their own.
           </p>
           {/* Native autocomplete, so the browser does the filtering. */}
           <datalist id="roster-people">
@@ -291,7 +301,7 @@ export default function Roster({ token, people = [] }) {
               </div>
             )}
             {group.rows.map((raw, rowIndex) => {
-              const row = fromDatabase(raw, byName);
+              const row = fromDatabase(raw, byName, roster?.team);
               return editing ? (
                 <div
                   className={`roster-row roster-row-edit${
@@ -403,7 +413,14 @@ export default function Roster({ token, people = [] }) {
                   key={raw.id ?? rowIndex}
                 >
                   <span className="roster-role">{row.role}</span>
-                  <span className="roster-name">{row.name}</span>
+                  <span className="roster-name">
+                    {row.name}
+                    {row.deployedFrom && (
+                      <span className="roster-on-loan" title={`Belongs to ${row.deployedFrom}`}>
+                        {row.deployedFrom}
+                      </span>
+                    )}
+                  </span>
                   <span className="roster-year">{row.year}</span>
                   <span className="roster-school">{row.school}</span>
                 </div>
