@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
 import { CGS } from "../lib/teams.js";
 import { isoWeek } from "../lib/weeks.js";
-import { BUILTIN_STATUSES, CATEGORIES, CATEGORY_KEYS, isPresent } from "../lib/attendance.js";
+import { BUILTIN_STATUSES, CATEGORIES, CATEGORY_KEYS, categoryOf, isPresent } from "../lib/attendance.js";
 import AppShell from "../components/AppShell.jsx";
 import WeekPicker from "../components/WeekPicker.jsx";
 
@@ -163,12 +163,15 @@ export default function Attendance() {
     const match = directory.find(
       (person) => person.name.trim().toLowerCase() === name.trim().toLowerCase()
     );
-    // Matching a record links the row to it, which is what makes the category
-    // follow the person rather than being restated every week.
+    // Matching a record links the row to it, which is what makes the group
+    // follow the person rather than being restated every week. A name that
+    // matches nothing keeps the group it was added under — clearing it would
+    // throw a guest into "No category" on the first keystroke, before they had
+    // finished typing their own name.
     update(key, {
       name,
       personId: match?.id ?? null,
-      ...(match ? {} : { category: "" }),
+      ...(match ? { category: categoryOf(match.role) } : {}),
     });
   }
 

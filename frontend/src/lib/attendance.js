@@ -1,3 +1,5 @@
+import { LEADER_ROLES } from "./roles.js";
+
 // What a week's register is made of. Mirrors backend/lib/attendance.js — the
 // server is the authority and /api/attendance/legend hands back the live list,
 // but having it here means the page renders before that request lands.
@@ -32,3 +34,13 @@ export const CATEGORIES = [
 ];
 
 export const CATEGORY_KEYS = CATEGORIES.map((category) => category.key);
+
+// Which group a role is listed under. A leadership role is tallied as R; the
+// member roles are their own group. Mirrors categoryOf in
+// backend/lib/attendance.js, so linking a name here lands it where the server
+// will put it too.
+export function categoryOf(role) {
+  const key = String(role ?? "").trim().toUpperCase();
+  if (LEADER_ROLES.includes(key)) return "R";
+  return CATEGORY_KEYS.includes(key) ? key : "";
+}
