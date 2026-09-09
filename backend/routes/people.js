@@ -4,7 +4,7 @@ const { pool } = require("../db");
 const { requireAuth, requirePermission } = require("../middleware/auth");
 const { PERMISSIONS } = require("../lib/groups");
 const { normalizeTeam, canEditTeam } = require("../lib/teams");
-const { normalizeCategory } = require("../lib/attendance");
+const { roleRank } = require("../lib/roles");
 
 const router = express.Router();
 
@@ -30,7 +30,6 @@ const FIELDS = [
   "updates",
   "next_steps",
   "team_key",
-  "category",
 ];
 
 const MAX_SHORT = 200;
@@ -38,11 +37,6 @@ const MAX_LONG = 4000;
 const LONG_FIELDS = new Set(["general_information", "updates", "next_steps", "photo_url"]);
 
 function clean(field, raw) {
-  if (field === "category") {
-    // R, GI, I, G or NF; anything else is no category rather than an invented
-    // one. A leader is counted as R without it being set here.
-    return normalizeCategory(raw);
-  }
   if (field === "team_key") {
     // Anything that is not a known team becomes unassigned rather than an
     // invented one.
@@ -118,12 +112,19 @@ router.use(requireAuth);
 const canView = requirePermission(PERMISSIONS.VIEW_DIRECTORY);
 const canEdit = requirePermission(PERMISSIONS.EDIT_DATABASE);
 
+// Ordered by role — leaders down to NF — then by name inside each role, which
+// is how a list of people is actually read. Sorted here rather than in SQL
+// because the ranking lives in lib/roles.js, so there is one place to change it.
+function byRoleThenName(a, b) {
+  return roleRank(a.role) - roleRank(b.role) || a.name.localeCompare(b.name);
+}
+
 router.get(
   "/",
   canView,
   route(async (req, res) => {
-    const result = await pool.query(`${SELECT_PERSON} ORDER BY lower(p.name)`);
-    res.json({ people: result.rows });
+    const result = await pool.query(SELECT_PERSON);
+    res.json({ people: result.rows.sort(byRoleThenName) });
   })
 );
 
@@ -297,8 +298,8 @@ router.put(
 
     // Hand back the saved table so the grid shows server truth (new ids,
     // recomputed ages) rather than what the browser hoped it wrote.
-    const result = await pool.query(`${SELECT_PERSON} ORDER BY lower(p.name)`);
-    res.json({ created, updated, deleted, people: result.rows });
+    const result = await pool.query(SELECT_PERSON);
+    res.json({ created, updated, deleted, people: result.rows.sort(byRoleThenName) });
   })
 );
 

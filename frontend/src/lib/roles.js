@@ -36,11 +36,32 @@ export const ROLES = [
   { value: "PTL", label: "PTL", tint: "blue" },
   { value: "POTL", label: "POTL", tint: "blue" },
   { value: "PMTL", label: "PMTL", tint: "blue" },
+
+  // Everyone else. These are the same column — a leader keeps their own role,
+  // and is only *counted* under R when a register is tallied.
+  { value: "R", label: "R", tint: "slate" },
+  { value: "GI", label: "GI", tint: "slate" },
+  { value: "I", label: "I", tint: "slate" },
+  { value: "G", label: "G", tint: "slate" },
+  { value: "NF", label: "NF", tint: "slate" },
 ];
+
+// The roles that make someone a leader, as opposed to a member. A leader is
+// tallied under R on a register whatever their rank.
+export const LEADER_ROLES = ROLES.slice(0, 15).map((role) => role.value);
+
+// Where a role sorts: leaders first in rank order, then R, GI, I, G, NF, then
+// anything unrecognised.
+const ROLE_ORDER = ROLES.map((role) => role.value);
+
+export function roleRank(value) {
+  const index = ROLE_ORDER.indexOf(String(value ?? "").trim().toUpperCase());
+  return index === -1 ? ROLE_ORDER.length : index;
+}
 
 // The colours a role can wear. Each one has a matching `.tint-<name>` rule in
 // the stylesheet, and a `.roster-tint-<name>` rule for a whole structure row.
-export const TINTS = ["green", "red", "yellow", "purple", "blue"];
+export const TINTS = ["green", "red", "yellow", "purple", "blue", "slate"];
 
 const BY_VALUE = new Map(ROLES.map((role) => [role.value.toLowerCase(), role]));
 

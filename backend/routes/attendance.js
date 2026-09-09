@@ -4,14 +4,18 @@ const { pool } = require("../db");
 const { requireAuth, requirePermission } = require("../middleware/auth");
 const { PERMISSIONS } = require("../lib/groups");
 const { normalizeTeam, canEditTeam, DEFAULT_TEAM, teamsInCg } = require("../lib/teams");
+const { roleRank } = require("../lib/roles");
 const { resolveWeek } = require("../lib/weeks");
 const {
-  STATUSES,
+  BUILTIN_STATUSES,
+  BUILTIN_KEYS,
   CATEGORIES,
   CATEGORY_KEYS,
   categoryOf,
-  normalizeStatus,
-  normalizeCategory,
+  slugify,
+  parseStatuses,
+  cleanStatuses,
+  serializeStatuses,
   isPresent,
 } = require("../lib/attendance");
 
@@ -24,16 +28,26 @@ const MAX_FIELD = 160;
 
 const clean = (value) => String(value ?? "").slice(0, MAX_FIELD).trim();
 
+// The built-in statuses plus whatever has been added. Read per request rather
+// than cached, so a status added on one device shows up on the next without a
+// restart.
+async function allowedStatuses() {
+  const extra = await pool.query(
+    "SELECT key, label, emoji, counts FROM attendance_extra_statuses ORDER BY position, key"
+  );
+  return [...BUILTIN_STATUSES, ...extra.rows.map((row) => ({ ...row, builtin: false }))];
+}
+
 function teamFor(req) {
   const asked = normalizeTeam(req.query.team ?? req.body?.team);
   if (asked) return asked;
   return req.access.editableTeams[0] || req.access.teams[0] || DEFAULT_TEAM;
 }
 
-// The counts the sheet ends with: one per category, then the total. Derived on
+// The counts the sheet ends with: one per group, then the total. Derived on
 // read rather than stored, so they can never disagree with the register above
 // them.
-function tally(people) {
+function tally(people, allowed) {
   const byCategory = Object.fromEntries(
     CATEGORY_KEYS.map((key) => [key, { listed: 0, present: 0 }])
   );
@@ -43,37 +57,38 @@ function tally(people) {
     const bucket = byCategory[person.category];
     if (bucket) bucket.listed += 1;
 
-    if (isPresent(person.status)) {
+    // Present once, however many statuses that took.
+    if (isPresent(person.statuses, allowed)) {
       total += 1;
       if (bucket) bucket.present += 1;
     }
   }
 
-  // How many wore each status, so nothing is hidden by the headline number —
-  // whether Serving counts towards it or not, the breakdown still shows it.
+  // How many wore each status. Someone at two services appears under both,
+  // which is why this can add up to more than the total.
   const byStatus = Object.fromEntries(
-    STATUSES.map((status) => [
+    allowed.map((status) => [
       status.key,
-      people.filter((person) => person.status === status.key).length,
+      people.filter((person) => person.statuses.includes(status.key)).length,
     ])
   );
 
   return { total, byCategory, byStatus };
 }
 
-async function readWeek(team, year, week) {
+async function readWeek(team, year, week, allowed) {
   const meta = await pool.query(
-    "SELECT id, title FROM attendance_weeks WHERE team = $1 AND year = $2 AND week = $3",
+    "SELECT id FROM attendance_weeks WHERE team = $1 AND year = $2 AND week = $3",
     [team, year, week]
   );
   if (!meta.rows[0]) return null;
 
-  // The category comes from the person's record where the row is linked to one,
-  // so promoting someone or changing their category moves them on the register
-  // without it having to be restated here.
+  // The group comes from the person's own role where the row is linked to a
+  // record, so promoting someone moves them on the register without it having
+  // to be restated here.
   const rows = await pool.query(
-    `SELECT a.id, a.name, a.person_id, a.status, a.category AS own_category,
-            p.role AS person_role, p.category AS person_category
+    `SELECT a.id, a.name, a.person_id, a.statuses, a.category AS own_category,
+            p.role AS person_role
        FROM attendance_people a
        LEFT JOIN people p ON p.id = a.person_id
       WHERE a.week_id = $1
@@ -85,32 +100,31 @@ async function readWeek(team, year, week) {
     id: row.id,
     name: row.name,
     personId: row.person_id,
-    status: normalizeStatus(row.status),
-    // A linked row takes the person's category; a name typed in by hand keeps
-    // the one chosen on the register itself.
+    statuses: cleanStatuses(row.statuses, allowed),
+    // A linked row is grouped by the person's own role; a name typed in by hand
+    // keeps the group chosen on the register itself.
     category: row.person_id
-      ? categoryOf({ role: row.person_role, category: row.person_category })
-      : normalizeCategory(row.own_category),
+      ? categoryOf({ role: row.person_role })
+      : categoryOf({ role: row.own_category }),
   }));
 
-  return { team, year, week, title: meta.rows[0].title, people, counts: tally(people) };
+  return { team, year, week, people, counts: tally(people, allowed) };
 }
 
 // Replaces the whole week in one transaction. The screen holds all of it, so
 // one atomic write is simpler and safer than granular endpoints that could
 // half-apply.
-async function writeWeek(team, year, week, title, people) {
+async function writeWeek(team, year, week, people, allowed) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
     const meta = await client.query(
-      `INSERT INTO attendance_weeks (team, year, week, title, updated_at)
-       VALUES ($1, $2, $3, $4, now())
-       ON CONFLICT (team, year, week)
-       DO UPDATE SET title = $4, updated_at = now()
+      `INSERT INTO attendance_weeks (team, year, week, updated_at)
+       VALUES ($1, $2, $3, now())
+       ON CONFLICT (team, year, week) DO UPDATE SET updated_at = now()
        RETURNING id`,
-      [team, year, week, clean(title)]
+      [team, year, week]
     );
     const weekId = meta.rows[0].id;
 
@@ -122,16 +136,16 @@ async function writeWeek(team, year, week, title, people) {
         : null;
 
       await client.query(
-        `INSERT INTO attendance_people (week_id, position, person_id, name, status, category)
+        `INSERT INTO attendance_people (week_id, position, person_id, name, statuses, category)
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [
           weekId,
           index,
           personId,
           clean(person.name),
-          normalizeStatus(person.status),
-          // Only kept for an unlinked row; a linked one reads the person's.
-          personId ? "" : normalizeCategory(person.category),
+          serializeStatuses(cleanStatuses(person.statuses, allowed)),
+          // Only kept for an unlinked row; a linked one follows the person.
+          personId ? "" : categoryOf({ role: person.category }),
         ]
       );
     }
@@ -146,44 +160,92 @@ async function writeWeek(team, year, week, title, people) {
 }
 
 // A week nobody has opened yet starts from the team's own members, in the order
-// the sheet lists them — by category, then by name — so the usual week is
-// marking people rather than typing a register from scratch.
-async function seedWeek(team, year, week) {
+// the sheet lists them — by role, then by name — so the usual week is marking
+// people rather than typing a register from scratch.
+async function seedWeek(team, year, week, allowed) {
   const members = await pool.query(
-    "SELECT id, name, role, category FROM people WHERE team_key = $1 ORDER BY lower(name)",
+    "SELECT id, name, role FROM people WHERE team_key = $1",
     [team]
   );
 
-  const ordered = members.rows
-    .map((person) => ({ ...person, category: categoryOf(person) }))
-    .sort((a, b) => {
-      const rank = (c) => {
-        const index = CATEGORY_KEYS.indexOf(c);
-        // Anyone with no category yet sits after the named groups.
-        return index === -1 ? CATEGORY_KEYS.length : index;
-      };
-      return rank(a.category) - rank(b.category) || a.name.localeCompare(b.name);
-    });
+  const ordered = members.rows.sort(
+    (a, b) => roleRank(a.role) - roleRank(b.role) || a.name.localeCompare(b.name)
+  );
 
   await writeWeek(
     team,
     year,
     week,
-    "",
-    ordered.map((person) => ({ personId: person.id, name: person.name, status: "" }))
+    ordered.map((person) => ({ personId: person.id, name: person.name, statuses: [] })),
+    allowed
   );
 }
 
 const canView = requirePermission(PERMISSIONS.VIEW_DIRECTORY);
 const canEdit = requirePermission(PERMISSIONS.EDIT_DATABASE);
 
-// The legend, so the app and the sheet always name things the same way.
 router.get(
-  "/legend",
+  "/statuses",
   requireAuth,
   canView,
   route(async (req, res) => {
-    res.json({ statuses: STATUSES, categories: CATEGORIES });
+    res.json({ statuses: await allowedStatuses(), categories: CATEGORIES });
+  })
+);
+
+// Adding a status changes every register — one week is read next to another, so
+// a column that existed for a single team would not compare. It is therefore
+// offered to whoever can edit the database rather than to one team's leader.
+router.post(
+  "/statuses",
+  requireAuth,
+  canEdit,
+  route(async (req, res) => {
+    const label = clean(req.body?.label);
+    if (!label) return res.status(400).json({ error: "A status needs a name." });
+
+    const key = slugify(label);
+    if (!key) {
+      return res.status(400).json({ error: "That name has no letters or digits in it." });
+    }
+    if (BUILTIN_KEYS.has(key)) {
+      return res.status(409).json({ error: `${label} is already a status.` });
+    }
+
+    const emoji = String(req.body?.emoji ?? "").slice(0, 8).trim();
+    // Anything added is assumed to be something people turned up to, unless it
+    // is explicitly marked as not counting.
+    const counts = req.body?.counts !== false;
+
+    const next = await pool.query(
+      "SELECT COALESCE(max(position), 0) + 1 AS position FROM attendance_extra_statuses"
+    );
+
+    await pool.query(
+      `INSERT INTO attendance_extra_statuses (key, label, emoji, counts, position)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (key) DO UPDATE SET label = $2, emoji = $3, counts = $4`,
+      [key, label, emoji, counts, next.rows[0].position]
+    );
+
+    res.json({ statuses: await allowedStatuses() });
+  })
+);
+
+router.delete(
+  "/statuses/:key",
+  requireAuth,
+  canEdit,
+  route(async (req, res) => {
+    const key = slugify(req.params.key);
+    if (BUILTIN_KEYS.has(key)) {
+      return res.status(400).json({ error: "The standard statuses cannot be removed." });
+    }
+
+    // Marks referring to it are left where they are: cleanStatuses drops
+    // anything the register no longer offers, so they simply stop showing.
+    await pool.query("DELETE FROM attendance_extra_statuses WHERE key = $1", [key]);
+    res.json({ statuses: await allowedStatuses() });
   })
 );
 
@@ -194,27 +256,23 @@ router.get(
   route(async (req, res) => {
     const team = teamFor(req);
     const { year, week } = resolveWeek(req.query.year, req.query.week);
+    const allowed = await allowedStatuses();
 
-    let record = await readWeek(team, year, week);
+    let record = await readWeek(team, year, week, allowed);
     if (!record) {
       // Only fill a week in for someone who could have done it themselves; a
       // read-only visitor gets the empty shape rather than side effects.
       if (canEditTeam(req.access, team)) {
-        await seedWeek(team, year, week);
-        record = await readWeek(team, year, week);
+        await seedWeek(team, year, week, allowed);
+        record = await readWeek(team, year, week, allowed);
       } else {
-        record = {
-          team,
-          year,
-          week,
-          title: "",
-          people: [],
-          counts: tally([]),
-        };
+        record = { team, year, week, people: [], counts: tally([], allowed) };
       }
     }
 
-    res.json({ ...record, canEdit: canEditTeam(req.access, team) });
+    // The statuses travel with the register, so the page always offers exactly
+    // what the server will accept.
+    res.json({ ...record, statuses: allowed, canEdit: canEditTeam(req.access, team) });
   })
 );
 
@@ -241,8 +299,14 @@ router.put(
       return res.status(400).json({ error: "Every row needs a name." });
     }
 
-    await writeWeek(team, year, week, req.body?.title, people);
-    res.json({ ...(await readWeek(team, year, week)), canEdit: true });
+    const allowed = await allowedStatuses();
+    await writeWeek(team, year, week, people, allowed);
+
+    res.json({
+      ...(await readWeek(team, year, week, allowed)),
+      statuses: allowed,
+      canEdit: true,
+    });
   })
 );
 
@@ -258,8 +322,9 @@ router.get(
 
     if (teams.length === 0) return res.json({ year, week, names: [] });
 
+    const allowed = await allowedStatuses();
     const rows = await pool.query(
-      `SELECT a.name, a.status, w.team
+      `SELECT a.name, a.statuses, w.team
          FROM attendance_weeks w
          JOIN attendance_people a ON a.week_id = w.id
         WHERE w.team = ANY($1::text[]) AND w.year = $2 AND w.week = $3
@@ -273,8 +338,8 @@ router.get(
       names: rows.rows.map((row) => ({
         name: row.name,
         team: row.team,
-        status: normalizeStatus(row.status),
-        present: isPresent(row.status),
+        statuses: parseStatuses(row.statuses),
+        present: isPresent(row.statuses, allowed),
       })),
     });
   })

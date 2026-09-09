@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { api } from "../api.js";
 import { ROLES, findRole, roleTint } from "../lib/roles.js";
 import { CGS } from "../lib/teams.js";
-import { CATEGORIES } from "../lib/attendance.js";
 
 // The columns of the people table, in spreadsheet order. `type` picks the kind
 // of cell: a plain box, the standard-role dropdown, or a date picker. `readOnly`
@@ -11,7 +10,6 @@ const COLUMNS = [
   { field: "name", label: "Name", width: 138, sticky: true },
   { field: "team_key", label: "Team", width: 64, type: "team" },
   { field: "role", label: "Role", width: 70, type: "role" },
-  { field: "category", label: "Cat", width: 52, type: "category" },
   { field: "team", label: "Letter", width: 46 },
   { field: "contact", label: "Contact", width: 94 },
   { field: "telegram", label: "Telegram", width: 88 },
@@ -347,24 +345,6 @@ export default function PeopleSheet({ token, people, onSaved }) {
                 </option>
               ))}
             </optgroup>
-          ))}
-        </select>
-      );
-    }
-
-    if (column.type === "category") {
-      return (
-        <select
-          {...shared}
-          className="sheet-input sheet-select"
-          value={row.category ?? ""}
-          onChange={(e) => setCell(row._key, "category", e.target.value)}
-        >
-          <option value="">—</option>
-          {CATEGORIES.map((category) => (
-            <option key={category.key} value={category.key} title={category.description}>
-              {category.label}
-            </option>
           ))}
         </select>
       );

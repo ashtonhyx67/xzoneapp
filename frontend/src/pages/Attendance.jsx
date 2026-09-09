@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
 import { CGS } from "../lib/teams.js";
 import { isoWeek } from "../lib/weeks.js";
-import { CATEGORIES, CATEGORY_KEYS, STATUSES, isPresent } from "../lib/attendance.js";
+import { BUILTIN_STATUSES, CATEGORIES, CATEGORY_KEYS, isPresent } from "../lib/attendance.js";
 import AppShell from "../components/AppShell.jsx";
 import WeekPicker from "../components/WeekPicker.jsx";
 
@@ -13,9 +13,9 @@ const SAVE_DELAY = 700;
 let counter = 0;
 const newKey = () => `new-${(counter += 1)}`;
 
-// One week's register for one team, laid out the way the sheet is written: a
-// heading, the legend, then people grouped by category with a count on each
-// group and a total at the top. Each person carries one status for the week.
+// One week's register for one team, laid out the way the sheet is written:
+// people grouped by their role, a count on each group, and the total across the
+// top. A person can carry more than one status, so the statuses are toggles.
 export default function Attendance() {
   const { token, can } = useAuth();
   const canView = can(PERMISSIONS.VIEW_DIRECTORY);
@@ -23,8 +23,10 @@ export default function Attendance() {
   const [team, setTeam] = useState("");
   const [when, setWhen] = useState(() => isoWeek());
   const [record, setRecord] = useState(null);
-  const [title, setTitle] = useState("");
+  const [statuses, setStatuses] = useState(BUILTIN_STATUSES);
   const [people, setPeople] = useState([]);
+  const [adding, setAdding] = useState(false);
+  const [newStatus, setNewStatus] = useState({ label: "", emoji: "", counts: true });
   const [directory, setDirectory] = useState([]);
   const [status, setStatus] = useState("idle"); // idle | saving | error
   const [error, setError] = useState("");
@@ -63,13 +65,13 @@ export default function Attendance() {
       .then((data) => {
         if (!active) return;
         setRecord(data);
-        setTitle(data.title);
+        setStatuses(data.statuses ?? BUILTIN_STATUSES);
         setPeople(
           data.people.map((person) => ({
             key: `p-${person.id}`,
             personId: person.personId,
             name: person.name,
-            status: person.status,
+            statuses: person.statuses ?? [],
             category: person.category,
           }))
         );
@@ -88,13 +90,13 @@ export default function Attendance() {
 
   const canEdit = Boolean(record?.canEdit);
 
-  const stateRef = useRef({ people, title });
-  stateRef.current = { people, title };
+  const stateRef = useRef({ people });
+  stateRef.current = { people };
 
   const flush = useCallback(async () => {
     if (inFlight.current || !dirty.current || !record?.canEdit) return;
 
-    const { people: rows, title: heading } = stateRef.current;
+    const { people: rows } = stateRef.current;
     // A nameless row is still being typed; it is not ready to be written.
     const ready = rows.filter((row) => row.name.trim());
 
@@ -105,17 +107,17 @@ export default function Attendance() {
         team,
         year: when.year,
         week: when.week,
-        title: heading,
         people: ready.map((row) => ({
           personId: row.personId ?? null,
           name: row.name,
-          status: row.status,
+          statuses: row.statuses,
           category: row.category,
         })),
       });
       dirty.current = false;
       // Counts come back derived, so they can never drift from the register.
       setRecord(saved);
+      setStatuses(saved.statuses ?? BUILTIN_STATUSES);
       setStatus("idle");
       setError("");
     } catch (err) {
@@ -169,10 +171,56 @@ export default function Attendance() {
     });
   }
 
+  // A person can be at more than one thing in a week, so a status is toggled
+  // rather than chosen.
+  function toggleStatus(personKey, statusKey) {
+    setPeople((list) =>
+      list.map((row) => {
+        if (row.key !== personKey) return row;
+        const has = row.statuses.includes(statusKey);
+        return {
+          ...row,
+          statuses: has
+            ? row.statuses.filter((key) => key !== statusKey)
+            : // Kept in the offered order, so the chips always read the same way.
+              statuses.map((s) => s.key).filter((key) => key === statusKey || row.statuses.includes(key)),
+        };
+      })
+    );
+    schedule();
+  }
+
+  async function addStatus(event) {
+    event.preventDefault();
+    if (!newStatus.label.trim()) return;
+    setError("");
+    try {
+      const { statuses: saved } = await api.addAttendanceStatus(token, newStatus);
+      setStatuses(saved);
+      setNewStatus({ label: "", emoji: "", counts: true });
+      setAdding(false);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function removeStatus(key) {
+    setError("");
+    try {
+      const { statuses: saved } = await api.removeAttendanceStatus(token, key);
+      setStatuses(saved);
+      setPeople((list) =>
+        list.map((row) => ({ ...row, statuses: row.statuses.filter((k) => k !== key) }))
+      );
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   function addPerson(category) {
     setPeople((list) => [
       ...list,
-      { key: newKey(), personId: null, name: "", status: "", category },
+      { key: newKey(), personId: null, name: "", statuses: [], category },
     ]);
   }
 
@@ -200,8 +248,8 @@ export default function Attendance() {
   // Counted here as well as on the server so the numbers move as boxes are
   // ticked, rather than waiting for the save to come back.
   const total = useMemo(
-    () => people.filter((person) => isPresent(person.status)).length,
-    [people]
+    () => people.filter((person) => isPresent(person.statuses, statuses)).length,
+    [people, statuses]
   );
 
   if (!canView) {
@@ -258,40 +306,73 @@ export default function Attendance() {
           <div className="list-empty">Loading…</div>
         ) : (
           <>
-            {/* The heading the sheet carries, e.g. "5/6 Sept Next Steps
-                WEEKEND!". Free text, because it names what was on that week. */}
-            {canEdit ? (
-              <input
-                className="register-title-input"
-                value={title}
-                placeholder={`${team} — what was on this week?`}
-                aria-label="Week heading"
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  schedule();
-                }}
-              />
-            ) : (
-              title && <h2 className="register-title">{title}</h2>
-            )}
-
-            <div className="register-total">
-              <span className="register-total-label">Total attendance</span>
+            <div className="register-bar">
+              <span className="register-total-label">Total</span>
               <span className="register-total-value">{total}</span>
+
+              {canEdit && (
+                <button
+                  type="button"
+                  className="link-btn register-add-status"
+                  onClick={() => setAdding((open) => !open)}
+                >
+                  {adding ? "Cancel" : "+ Add a status"}
+                </button>
+              )}
             </div>
 
-            <details className="register-legend">
-              <summary>Legend</summary>
-              <div className="register-legend-list">
-                {STATUSES.map((s) => (
-                  <span className="legend-item" key={s.key}>
-                    <span className="legend-emoji">{s.emoji}</span>
-                    {s.label}
-                    {!s.counts && <span className="legend-note">not counted</span>}
-                  </span>
-                ))}
+            {/* A status added here applies to every register, because one week
+                is read next to another. */}
+            {canEdit && adding && (
+              <form className="status-form" onSubmit={addStatus}>
+                <input
+                  className="status-form-emoji"
+                  value={newStatus.emoji}
+                  maxLength={4}
+                  placeholder="🎯"
+                  aria-label="Emoji"
+                  onChange={(e) => setNewStatus((v) => ({ ...v, emoji: e.target.value }))}
+                />
+                <input
+                  className="status-form-label"
+                  value={newStatus.label}
+                  placeholder="What is it called?"
+                  aria-label="Status name"
+                  onChange={(e) => setNewStatus((v) => ({ ...v, label: e.target.value }))}
+                />
+                <label className="status-form-counts">
+                  <input
+                    type="checkbox"
+                    checked={newStatus.counts}
+                    onChange={(e) => setNewStatus((v) => ({ ...v, counts: e.target.checked }))}
+                  />
+                  Counts towards the total
+                </label>
+                <button className="btn btn-primary btn-inline" type="submit">
+                  Add
+                </button>
+              </form>
+            )}
+
+            {canEdit && statuses.some((s) => !s.builtin) && (
+              <div className="status-extras">
+                {statuses
+                  .filter((s) => !s.builtin)
+                  .map((s) => (
+                    <span className="status-extra" key={s.key}>
+                      {s.emoji} {s.label}
+                      <button
+                        className="seat-remove"
+                        onClick={() => removeStatus(s.key)}
+                        aria-label={`Remove the ${s.label} status`}
+                        title="Remove this status everywhere"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
               </div>
-            </details>
+            )}
 
             {groups.map((group) => (
               <section className="register-group" key={group.key || "none"}>
@@ -300,7 +381,7 @@ export default function Attendance() {
                     {group.label}
                   </h3>
                   <span className="register-group-count">
-                    {group.people.filter((person) => isPresent(person.status)).length}
+                    {group.people.filter((person) => isPresent(person.statuses, statuses)).length}
                   </span>
                   <span className="register-group-listed">of {group.people.length}</span>
 
@@ -318,7 +399,7 @@ export default function Attendance() {
                     {group.people.map((person) => (
                       <div
                         className={`register-row${
-                          isPresent(person.status) ? " register-row-present" : ""
+                          isPresent(person.statuses, statuses) ? " register-row-present" : ""
                         }`}
                         key={person.key}
                       >
@@ -335,22 +416,27 @@ export default function Attendance() {
                           <span className="register-name-text">{person.name}</span>
                         )}
 
-                        {/* One status for the week. The emoji is the label, so
-                            the app reads the same as the sheet it replaces. */}
-                        <select
-                          className="register-status"
-                          value={person.status}
-                          disabled={!canEdit}
-                          aria-label={`Status for ${person.name || "this person"}`}
-                          onChange={(e) => update(person.key, { status: e.target.value })}
-                        >
-                          <option value="">—</option>
-                          {STATUSES.map((s) => (
-                            <option key={s.key} value={s.key}>
-                              {s.emoji} {s.label}
-                            </option>
+                        {/* Toggles rather than a dropdown: someone can be at
+                            more than one thing in a week, and a tap is quicker
+                            than opening a list on a phone. */}
+                        <span className="register-marks">
+                          {statuses.map((s) => (
+                            <button
+                              type="button"
+                              key={s.key}
+                              className={`mark${
+                                person.statuses.includes(s.key) ? " mark-on" : ""
+                              }`}
+                              disabled={!canEdit}
+                              aria-pressed={person.statuses.includes(s.key)}
+                              title={s.label + (s.counts ? "" : " (not counted)")}
+                              aria-label={`${s.label} for ${person.name || "this person"}`}
+                              onClick={() => toggleStatus(person.key, s.key)}
+                            >
+                              {s.emoji || s.label.slice(0, 2)}
+                            </button>
                           ))}
-                        </select>
+                        </span>
 
                         {canEdit && (
                           <button

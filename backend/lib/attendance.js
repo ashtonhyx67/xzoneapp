@@ -1,26 +1,29 @@
 // What a week's register is made of.
 //
-// A person gets one status for the week, not a tick per service — that is how
-// the sheet has always been written, and it is why the totals are a count of
-// people rather than a count of attendances.
+// A person can carry more than one status in a week — someone at Service 1 who
+// also watched the replay wears both — so a status is a set, not a single
+// choice. The total still counts people: two services is still one person.
 
-// The statuses, in the order they appear in the legend. Everything here except
-// Hangout is a service, so `counts` is simply whether the person was at one —
-// Serving and Good Grounds are not marked at all, and someone overseas watches
-// the replay, so they are marked Service Replay like anyone else who did.
-const STATUSES = [
-  { key: "S1", emoji: "1⃣", label: "Service 1", counts: true },
-  { key: "S2", emoji: "2⃣", label: "Service 2", counts: true },
-  { key: "S3", emoji: "3⃣", label: "Service 3", counts: true },
-  { key: "REPLAY", emoji: "💻", label: "Service Replay", counts: true },
-  { key: "HANGOUT", emoji: "🍁", label: "Hangout", counts: false },
+// The statuses every register has. Everything here except Hangout is a service,
+// so `counts` is simply whether the person was at one. Serving and Good Grounds
+// are not marked, and someone overseas watches the replay, so they are marked
+// Service Replay like anyone else who did. Anything else a week needs is added
+// alongside these and applies everywhere, because one register is read next to
+// another.
+const BUILTIN_STATUSES = [
+  { key: "S1", emoji: "1⃣", label: "Service 1", counts: true, builtin: true },
+  { key: "S2", emoji: "2⃣", label: "Service 2", counts: true, builtin: true },
+  { key: "S3", emoji: "3⃣", label: "Service 3", counts: true, builtin: true },
+  { key: "REPLAY", emoji: "💻", label: "Service Replay", counts: true, builtin: true },
+  { key: "HANGOUT", emoji: "🍁", label: "Hangout", counts: false, builtin: true },
 ];
 
-const STATUS_BY_KEY = new Map(STATUSES.map((status) => [status.key, status]));
+const BUILTIN_KEYS = new Set(BUILTIN_STATUSES.map((status) => status.key));
+
+const { MEMBER_ROLES, isLeaderRole, normalizeRole } = require("./roles");
 
 // The groups a register is broken into, in the order the sheet lists them.
-// These are not the leadership roles — a leader has one of those *and* sits
-// under R here.
+// They are roles like any other — the same column a leader's rank lives in.
 const CATEGORIES = [
   { key: "R", label: "R", description: "Regulars, including every leader" },
   { key: "GI", label: "GI", description: "Growing in faith" },
@@ -29,52 +32,69 @@ const CATEGORIES = [
   { key: "NF", label: "NF", description: "New friends" },
 ];
 
-const CATEGORY_KEYS = CATEGORIES.map((category) => category.key);
+const CATEGORY_KEYS = MEMBER_ROLES;
 
-// Every leadership role. A leader is a Regular for the purposes of a register,
-// whatever their rank, so their category never has to be set by hand. Kept in
-// step with frontend/src/lib/roles.js.
-const LEADER_ROLES = new Set([
-  "ZL", "ZM", "SCGL",
-  "CGL", "OGL", "MGL",
-  "PCGL", "POGL", "PMGL",
-  "TL", "OTL", "ML",
-  "PTL", "POTL", "PMTL",
-]);
-
-const isLeaderRole = (role) => LEADER_ROLES.has(String(role ?? "").trim().toUpperCase());
-
-// Which group a person is listed under. A leadership role wins: it means R
-// regardless of what the category column happens to say, so promoting someone
-// moves them up the sheet without a second edit.
+// Which group a person is listed under on a register. A leadership role is
+// tallied as R — the leader keeps their own role on their record, and only the
+// register treats them as a Regular.
 function categoryOf(person) {
-  if (isLeaderRole(person?.role)) return "R";
-  return normalizeCategory(person?.category);
+  const role = normalizeRole(person?.role);
+  if (isLeaderRole(role)) return "R";
+  return CATEGORY_KEYS.includes(role) ? role : "";
 }
 
-function normalizeStatus(value) {
-  const key = String(value ?? "").trim().toUpperCase();
-  return STATUS_BY_KEY.has(key) ? key : "";
+// A status added by hand needs a key that cannot collide with a built-in one or
+// upset the comma-separated storage below.
+function slugify(label) {
+  return String(label ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 32);
 }
 
-function normalizeCategory(value) {
-  const key = String(value ?? "").trim().toUpperCase();
-  return CATEGORY_KEYS.includes(key) ? key : "";
+// Statuses live in one text column as a comma-separated list. A register is
+// always written whole, so this keeps a person's marks on the person's row
+// rather than in a join table torn down and rebuilt on every save.
+function parseStatuses(value) {
+  return String(value ?? "")
+    .split(",")
+    .map((key) => key.trim().toUpperCase())
+    .filter(Boolean);
 }
 
-// Someone wearing a status that counts was there. No status means absent.
-function isPresent(status) {
-  return STATUS_BY_KEY.get(normalizeStatus(status))?.counts ?? false;
+// Only keys the register actually offers survive, deduplicated and returned in
+// the offered order, so storage can never hold a status nothing can display.
+function cleanStatuses(value, allowed) {
+  const asked = new Set(
+    Array.isArray(value)
+      ? value.map((key) => String(key).trim().toUpperCase())
+      : parseStatuses(value)
+  );
+  return allowed.map((status) => status.key).filter((key) => asked.has(key));
+}
+
+const serializeStatuses = (keys) => keys.join(",");
+
+// Present once, however many statuses that took.
+function isPresent(statuses, allowed) {
+  const counting = new Set(
+    allowed.filter((status) => status.counts).map((status) => status.key)
+  );
+  const keys = Array.isArray(statuses) ? statuses : parseStatuses(statuses);
+  return keys.some((key) => counting.has(key));
 }
 
 module.exports = {
-  STATUSES,
+  BUILTIN_STATUSES,
+  BUILTIN_KEYS,
   CATEGORIES,
   CATEGORY_KEYS,
-  LEADER_ROLES,
-  isLeaderRole,
   categoryOf,
-  normalizeStatus,
-  normalizeCategory,
+  slugify,
+  parseStatuses,
+  cleanStatuses,
+  serializeStatuses,
   isPresent,
 };

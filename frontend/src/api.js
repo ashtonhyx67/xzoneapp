@@ -60,6 +60,13 @@ export const api = {
     }),
   saveAttendance: (token, body) => request("/attendance", { method: "PUT", body, token }),
 
+  // Statuses are zone-wide: a register is read next to other registers, so a
+  // status added for one team would not compare.
+  addAttendanceStatus: (token, body) =>
+    request("/attendance/statuses", { method: "POST", body, token }),
+  removeAttendanceStatus: (token, key) =>
+    request(`/attendance/statuses/${encodeURIComponent(key)}`, { method: "DELETE", token }),
+
   // Everyone on the CG's attendance lists that week — the names a seating
   // arrangement draws on.
   getAttendanceRoll: (token, { cg, year, week }, signal) =>
