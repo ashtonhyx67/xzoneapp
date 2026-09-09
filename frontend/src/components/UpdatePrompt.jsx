@@ -48,31 +48,31 @@ export default function UpdatePrompt() {
   if (!ready || dismissed) return null;
 
   return (
-    <div className="update-prompt" role="status">
-      <span className="update-prompt-text">A new version is ready.</span>
+    <div className="update-backdrop" role="dialog" aria-modal="true" aria-label="Update available">
+      <div className="update-card">
+        <p className="update-card-text">
+          The app is updated, please press the update button below
+        </p>
 
-      <button
-        className="btn btn-primary btn-inline"
-        onClick={() => {
-          setReloading(true);
-          reloadApp();
-        }}
-        disabled={reloading}
-      >
-        {reloading ? "Updating…" : "Update"}
-      </button>
+        <button
+          className="btn btn-primary update-card-btn"
+          onClick={() => {
+            setReloading(true);
+            reloadApp();
+          }}
+          disabled={reloading}
+        >
+          {reloading ? "Updating…" : "Update"}
+        </button>
 
-      {/* Dismissing is for this session only — closing the app and coming back
-          asks again. It does not nag in between: someone in the middle of
-          marking a register should not be interrupted twice, and Admin carries
-          a permanent Update button for whenever they are ready. */}
-      <button
-        className="update-prompt-later"
-        onClick={() => setDismissed(true)}
-        aria-label="Not now"
-      >
-        ×
-      </button>
+        {/* Dismissing is for this session only — closing the app and coming
+            back asks again. Someone in the middle of marking a register should
+            be able to finish, and Admin carries a permanent Update button for
+            whenever they are ready. */}
+        <button className="update-card-later" onClick={() => setDismissed(true)}>
+          Not now
+        </button>
+      </div>
     </div>
   );
 }

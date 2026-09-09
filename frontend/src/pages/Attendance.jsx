@@ -95,7 +95,18 @@ export default function Attendance() {
   stateRef.current = { people };
 
   const flush = useCallback(async () => {
-    if (inFlight.current || !dirty.current || !record?.canEdit) return;
+    if (!record?.canEdit) return;
+
+    // A save is already going. Leave the work marked as outstanding and let the
+    // one in flight pick it up when it lands — dropping out here without that
+    // is what lost marks made while a save was on the wire.
+    if (inFlight.current) return;
+    if (!dirty.current) return;
+
+    // Cleared before sending, not after: anything ticked from here on marks it
+    // dirty again, so a mark made mid-request survives instead of being wiped
+    // by the response to a request that predates it.
+    dirty.current = false;
 
     const { people: rows } = stateRef.current;
     // A nameless row is still being typed; it is not ready to be written.
@@ -115,17 +126,21 @@ export default function Attendance() {
           category: row.category,
         })),
       });
-      dirty.current = false;
       // Counts come back derived, so they can never drift from the register.
       setRecord(saved);
       setStatuses(saved.statuses ?? BUILTIN_STATUSES);
       setStatus("idle");
       setError("");
     } catch (err) {
+      // Still unsaved, so it must go out again rather than be forgotten.
+      dirty.current = true;
       setError(err.message);
       setStatus("error");
     } finally {
       inFlight.current = false;
+      // Whatever was ticked while this was in the air, or a failed write worth
+      // retrying.
+      if (dirty.current) setTimeout(() => flushRef.current(), 200);
     }
   }, [record, team, token, when]);
 
@@ -178,17 +193,23 @@ export default function Attendance() {
   // A person can be at more than one thing in a week, so a status is toggled
   // rather than chosen.
   function toggleStatus(personKey, statusKey) {
+    // The order marks are offered in, so a row always reads the same way.
+    const order = statuses.map((s) => s.key);
+    const rank = (key) => {
+      const index = order.indexOf(key);
+      // A mark the register no longer offers keeps its place at the end rather
+      // than being dropped. Rebuilding the row from the offered list instead is
+      // what made ticking one box clear another.
+      return index === -1 ? order.length : index;
+    };
+
     setPeople((list) =>
       list.map((row) => {
         if (row.key !== personKey) return row;
-        const has = row.statuses.includes(statusKey);
-        return {
-          ...row,
-          statuses: has
-            ? row.statuses.filter((key) => key !== statusKey)
-            : // Kept in the offered order, so the chips always read the same way.
-              statuses.map((s) => s.key).filter((key) => key === statusKey || row.statuses.includes(key)),
-        };
+        const next = row.statuses.includes(statusKey)
+          ? row.statuses.filter((key) => key !== statusKey)
+          : [...row.statuses, statusKey];
+        return { ...row, statuses: next.sort((a, b) => rank(a) - rank(b)) };
       })
     );
     schedule();
