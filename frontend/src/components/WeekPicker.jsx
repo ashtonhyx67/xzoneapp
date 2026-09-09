@@ -1,5 +1,5 @@
 import React from "react";
-import { isoWeek, sameWeek, stepWeek } from "../lib/weeks.js";
+import { stepWeek } from "../lib/weeks.js";
 
 // The Monday and Sunday a given ISO week covers, so the week number is not the
 // only thing on offer — "Week 37" means little until you see the dates.
@@ -20,10 +20,9 @@ function weekRange({ year, week }) {
 
 // Steps through weeks. Shared by attendance and seating so both file records
 // under the same week, named the same way the dashboard names it.
+// Every page opens on the current week, so there is nothing to offer a way back
+// to — leaving the page and returning does it.
 export default function WeekPicker({ value, onChange }) {
-  const current = isoWeek();
-  const isThisWeek = sameWeek(value, current);
-
   return (
     <div className="week-picker">
       <button
@@ -51,11 +50,6 @@ export default function WeekPicker({ value, onChange }) {
         →
       </button>
 
-      {!isThisWeek && (
-        <button type="button" className="link-btn" onClick={() => onChange(current)}>
-          This week
-        </button>
-      )}
     </div>
   );
 }

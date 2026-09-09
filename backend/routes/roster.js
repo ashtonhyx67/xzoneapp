@@ -22,7 +22,10 @@ const clean = (value) => String(value ?? "").slice(0, MAX_FIELD).trim();
 function teamFor(req) {
   const asked = normalizeTeam(req.query.team ?? req.body?.team);
   if (asked) return asked;
-  return req.access.editableTeams[0] || req.access.teams[0] || DEFAULT_TEAM;
+  // The account's own team comes first. Everyone can edit every team now that
+  // access tiers are gone, so "the first team you may edit" is X3A for
+  // everybody — which would open every leader on someone else's register.
+  return req.access.teams[0] || req.access.editableTeams[0] || DEFAULT_TEAM;
 }
 
 async function readRoster(team) {

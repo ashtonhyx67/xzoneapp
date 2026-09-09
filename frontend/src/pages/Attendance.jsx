@@ -112,7 +112,10 @@ export default function Attendance() {
     ])
       .then(([mine, all]) => {
         setDirectory(all.people);
-        setTeam((current) => current || mine.editable[0] || mine.teams[0]?.key || "");
+        // Their own team first: every account may edit every team now, so the
+        // first editable one is X3A for everybody, which would open every
+        // leader on someone else's register.
+        setTeam((current) => current || mine.mine[0] || mine.editable[0] || "");
       })
       .catch((err) => {
         if (err.name !== "AbortError") setError(err.message);

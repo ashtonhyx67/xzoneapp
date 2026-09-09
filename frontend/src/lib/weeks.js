@@ -58,5 +58,3 @@ export function stepWeek({ year, week }, delta) {
 
   return { year: nextYear, week: nextWeek };
 }
-
-export const sameWeek = (a, b) => a.year === b.year && a.week === b.week;

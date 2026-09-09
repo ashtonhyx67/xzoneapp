@@ -41,7 +41,10 @@ async function allowedStatuses() {
 function teamFor(req) {
   const asked = normalizeTeam(req.query.team ?? req.body?.team);
   if (asked) return asked;
-  return req.access.editableTeams[0] || req.access.teams[0] || DEFAULT_TEAM;
+  // The account's own team comes first. Everyone can edit every team now that
+  // access tiers are gone, so "the first team you may edit" is X3A for
+  // everybody — which would open every leader on someone else's register.
+  return req.access.teams[0] || req.access.editableTeams[0] || DEFAULT_TEAM;
 }
 
 // The counts the sheet ends with: one per group, then the total. Derived on
@@ -162,7 +165,11 @@ async function readWeek(team, year, week, allowed) {
   // record, so promoting someone moves them on the register without it having
   // to be restated here.
   const rows = await pool.query(
-    `SELECT a.id, a.name, a.person_id, a.statuses, a.category AS own_category,
+    `SELECT a.id, a.person_id, a.statuses, a.category AS own_category,
+            -- A linked row shows the name the record has now, not the one it
+            -- had the week it was written, so renaming someone in the database
+            -- carries through instead of leaving the register stale.
+            COALESCE(p.name, a.name) AS name,
             p.role AS person_role, p.team_key AS person_team
        FROM attendance_people a
        LEFT JOIN people p ON p.id = a.person_id
@@ -413,9 +420,10 @@ router.get(
 
     const allowed = await allowedStatuses();
     const rows = await pool.query(
-      `SELECT a.name, a.statuses, w.team
+      `SELECT COALESCE(p.name, a.name) AS name, a.statuses, w.team
          FROM attendance_weeks w
          JOIN attendance_people a ON a.week_id = w.id
+         LEFT JOIN people p ON p.id = a.person_id
         WHERE w.team = ANY($1::text[]) AND w.year = $2 AND w.week = $3
         ORDER BY lower(a.name)`,
       [teams, year, week]

@@ -40,7 +40,7 @@ export default function Seating() {
     api
       .getTeams(token, controller.signal)
       .then((mine) => {
-        const myTeam = mine.editable[0];
+        const myTeam = mine.mine[0] || mine.editable[0];
         setCg(
           (current) =>
             current ||

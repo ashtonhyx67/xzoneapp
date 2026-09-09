@@ -24,7 +24,9 @@ function cgFor(req) {
   const asked = String(req.query.cg ?? req.body?.cg ?? "").trim().toUpperCase();
   if (SEATING_CGS.some((cg) => cg.key === asked)) return asked;
 
-  const mine = editableTeams(req.access)[0];
+  // The account's own team first, for the same reason attendance does: every
+  // account may edit every team, so the first editable one is X3A for everybody.
+  const mine = (req.access.teams ?? [])[0] || editableTeams(req.access)[0];
   return SEATING_CGS.find((cg) => cg.teams.includes(mine))?.key ?? SEATING_CGS[0].key;
 }
 
