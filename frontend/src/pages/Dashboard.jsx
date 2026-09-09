@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
@@ -77,8 +78,13 @@ function WeekBanner({ firstName, teams }) {
               {team}
             </span>
           ))}
-          <span className="week-tag">Attendance</span>
-          <span className="week-tag">SA</span>
+          {/* The two things recorded every week, and the way to them. */}
+          <Link className="week-tag week-tag-link" to="/attendance">
+            Attendance
+          </Link>
+          <Link className="week-tag week-tag-link" to="/seating">
+            SA
+          </Link>
         </div>
       </div>
     </section>

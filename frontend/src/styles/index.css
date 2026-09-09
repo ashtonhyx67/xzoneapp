@@ -1337,6 +1337,13 @@ button {
   }
 }
 
+/* Shown for the moment a page's own chunk is being fetched. */
+.page-loading {
+  padding: 40px 24px;
+  color: var(--text-soft);
+  font-size: 14px;
+}
+
 /* ---------- Narrow screens: nothing runs off the side ---------- */
 
 /* Long unbroken strings — an email, a Telegram handle, a pasted note — are the
@@ -1352,6 +1359,17 @@ button {
   .member-name,
   .member-detail {
     overflow-wrap: anywhere;
+  }
+
+  /* The width comes from an inline style on the header cell, so overriding it
+     here has to outrank that. Narrower on a phone, where the name column was
+     taking a third of the screen before a single other column was reached. */
+  .sheet-sticky-col {
+    min-width: 92px !important;
+  }
+
+  .sheet .sheet-input {
+    font-size: 11px;
   }
 
   /* Rows of controls stack instead of squeezing. */
@@ -2442,6 +2460,19 @@ button {
 .roster-readonly-note {
   font-size: 13px;
   color: var(--text-soft);
+}
+
+/* The two that go somewhere read as buttons rather than labels. */
+.week-tag-link {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.week-tag-link:hover {
+  background: rgba(255, 255, 255, 0.32);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 /* The teams the dashboard reminders cover, set apart from the weekly tags. */

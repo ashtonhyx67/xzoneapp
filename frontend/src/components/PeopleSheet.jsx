@@ -7,7 +7,7 @@ import { CGS, TEAM_KEYS } from "../lib/teams.js";
 // of cell: a plain box, the standard-role dropdown, or a date picker. `readOnly`
 // marks a value the server derives — Age comes from Birthday.
 const COLUMNS = [
-  { field: "name", label: "Name", width: 138, sticky: true },
+  { field: "name", label: "Name", width: 116, sticky: true },
   { field: "team_key", label: "Team", width: 64, type: "team" },
   // Where they have been sent to help, if anywhere. Their team above is
   // unaffected — that is still who they belong to and who counts them.

@@ -2,6 +2,7 @@ require("dotenv").config();
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
+const compression = require("compression");
 
 const { initSchemaWithRetry } = require("./db");
 const authRoutes = require("./routes/auth");
@@ -24,6 +25,11 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 let dbReady = false;
+
+// Gzip everything on the way out. The JS bundle is a few hundred KB of text and
+// was going over the wire uncompressed, which is most of what a first load on a
+// phone was waiting for.
+app.use(compression());
 
 app.use(cors());
 // Saving the whole database grid in one request is larger than the 100kb default.

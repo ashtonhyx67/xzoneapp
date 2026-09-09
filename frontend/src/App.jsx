@@ -1,4 +1,4 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
 import { getDeviceAccount } from "./lib/device.js";
@@ -7,11 +7,15 @@ import Login from "./pages/Login.jsx";
 import Unlock from "./pages/Unlock.jsx";
 import SetPin from "./pages/SetPin.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
-import Members from "./pages/Members.jsx";
-import Database from "./pages/Database.jsx";
-import Attendance from "./pages/Attendance.jsx";
-import Seating from "./pages/Seating.jsx";
-import Admin from "./pages/Admin.jsx";
+
+// Everything past the dashboard is fetched when it is first opened rather than
+// on the way in. The dashboard is what loads on launch, so it stays in the main
+// bundle; the rest are a page each, and most sessions never touch all of them.
+const Members = lazy(() => import("./pages/Members.jsx"));
+const Database = lazy(() => import("./pages/Database.jsx"));
+const Attendance = lazy(() => import("./pages/Attendance.jsx"));
+const Seating = lazy(() => import("./pages/Seating.jsx"));
+const Admin = lazy(() => import("./pages/Admin.jsx"));
 
 // A signed-out visitor whose device already knows them goes to the PIN screen,
 // not to the sign-up card.
@@ -39,7 +43,8 @@ function ProtectedRoute({ children }) {
 
 export default function App() {
   return (
-    <Routes>
+    <Suspense fallback={<div className="page-loading">Loading…</div>}>
+      <Routes>
       <Route path="/signup" element={<SignUp />} />
       <Route path="/login" element={<Login />} />
       <Route path="/unlock" element={<Unlock />} />
@@ -100,6 +105,7 @@ export default function App() {
         }
       />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }
