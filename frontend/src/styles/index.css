@@ -2897,64 +2897,101 @@ button {
 }
 
 
-/* An account row is six things side by side on a laptop. On a phone that is
-   four too many, so it becomes a small block: who they are, then their teams,
-   then the action — each on its own line, aligned to the left edge. */
+/* An account row is six things side by side on a laptop, on a phone with room
+   for two. It becomes a small block instead: who they are on the first line,
+   then their teams, then the action.
+
+   Flex rather than named grid areas. Every child would need an area assigned,
+   and the one that had not been — the owner pill — dropped into whichever cell
+   was free and pushed the rest out of shape. This cannot fall out of step with
+   the markup. */
 @media (max-width: 700px) {
   .account-row {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas:
-      "avatar identity"
-      "signin signin"
-      "teams teams"
-      "actions actions";
-    gap: 8px 10px;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    padding: 14px 0;
+    gap: 8px;
+    padding: 12px 0;
   }
 
   .account-row .member-avatar {
-    grid-area: avatar;
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
   }
 
   .account-row .member-identity {
-    grid-area: identity;
+    flex: 1 1 0;
     min-width: 0;
   }
 
-  .account-row .member-name,
-  .account-row .member-detail {
+  .account-row .member-name {
+    font-size: 14px;
     overflow-wrap: anywhere;
   }
 
-  .account-signin {
-    grid-area: signin;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+  .account-row .member-detail {
+    font-size: 12px;
+    overflow-wrap: anywhere;
   }
 
-  .account-teams {
-    grid-area: teams;
-  }
-
+  /* Each of these takes a line of its own. */
+  .account-signin,
+  .account-teams,
   .account-actions {
-    grid-area: actions;
+    flex: 1 0 100%;
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
   }
 
-  /* The account form is a column of full-width fields rather than a row that
-     wraps into fragments. */
+  .account-signin:empty,
+  .account-actions:empty {
+    display: none;
+  }
+
+  /* Smaller: eight chips at desktop size wrap into four cramped lines. */
+  .cg-group {
+    gap: 2px;
+    padding: 1px;
+  }
+
+  .cg-chip {
+    padding: 3px 8px;
+    font-size: 10px;
+  }
+
+  .team-chip {
+    padding: 3px 7px;
+    font-size: 11px;
+  }
+
+  .account-actions .btn {
+    flex: 1 1 auto;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  /* A column of full-width fields rather than a row wrapping into fragments. */
   .account-form {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .account-form .btn,
   .account-panel .btn {
-    margin-left: 0;
     width: 100%;
+    margin-left: 0;
+  }
+
+  /* Every panel on the page, not only the account list. */
+  .panel-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .panel-row-actions {
+    margin-left: auto;
   }
 }
 

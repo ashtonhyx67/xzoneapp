@@ -50,6 +50,35 @@ export default function InstallPrompt({ onDone }) {
 
         {/* iOS has no install dialog at all — the Share menu is the only way,
             so the useful thing to offer is which taps. */}
+        {!canPromptToInstall() && !isIos() && (
+          <>
+            <button
+              className="btn btn-primary install-btn"
+              onClick={() => setShowSteps((open) => !open)}
+            >
+              {showSteps ? "Hide steps" : "Show me how"}
+            </button>
+
+            {showSteps && (
+              <ol className="install-steps">
+                <li>
+                  Open your browser's menu
+                  <span className="install-glyph" aria-hidden="true">
+                    {" "}
+                    ⋮
+                  </span>
+                </li>
+                <li>
+                  Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>
+                </li>
+                <li>
+                  Confirm with <strong>Install</strong>
+                </li>
+              </ol>
+            )}
+          </>
+        )}
+
         {!canPromptToInstall() && isIos() && (
           <>
             <button

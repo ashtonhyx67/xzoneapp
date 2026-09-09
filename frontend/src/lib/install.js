@@ -52,11 +52,14 @@ export function isIos() {
 // the Share-menu instructions are right for every browser on the platform.
 export const canPromptToInstall = () => deferred !== null;
 
-// Whether there is anything worth showing at all: a real prompt to offer, or an
-// iOS device where the manual route is the only route.
+// Whether there is anything worth showing at all. Deliberately not "has the
+// browser given us a prompt yet": beforeinstallprompt fires on its own
+// schedule and often has not by the time someone has finished signing up, and
+// gating on it meant the offer silently never appeared. Anything not already
+// installed gets the card; what the card can *do* varies, which is its problem
+// rather than this one.
 export function canInstall() {
-  if (isInstalled()) return false;
-  return canPromptToInstall() || isIos();
+  return !isInstalled();
 }
 
 // Lets a component re-render when the event arrives after it mounted.
