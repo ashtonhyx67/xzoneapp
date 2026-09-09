@@ -3,7 +3,7 @@ const express = require("express");
 const { pool } = require("../db");
 const { requireAuth, requirePermission } = require("../middleware/auth");
 const { PERMISSIONS } = require("../lib/groups");
-const { normalizeZone, canEditZone, DEFAULT_ZONE } = require("../lib/zones");
+const { normalizeTeam, canEditTeam, DEFAULT_TEAM } = require("../lib/teams");
 
 const router = express.Router();
 
@@ -16,17 +16,17 @@ const MAX_FIELD = 120;
 
 const clean = (value) => String(value ?? "").slice(0, MAX_FIELD).trim();
 
-// A structure belongs to a zone, so which one is being asked for has to be
-// settled before anything else. Falling back to the caller's first zone means
+// A structure belongs to a team, so which one is being asked for has to be
+// settled before anything else. Falling back to the caller's first team means
 // the app opens on their own structure without having to name it.
-function zoneFor(req) {
-  const asked = normalizeZone(req.query.zone ?? req.body?.zone);
+function teamFor(req) {
+  const asked = normalizeTeam(req.query.team ?? req.body?.team);
   if (asked) return asked;
-  return req.access.editableZones[0] || req.access.zones[0] || DEFAULT_ZONE;
+  return req.access.editableTeams[0] || req.access.teams[0] || DEFAULT_TEAM;
 }
 
-async function readRoster(zone) {
-  const meta = await pool.query("SELECT title FROM zone_rosters WHERE zone = $1", [zone]);
+async function readRoster(team) {
+  const meta = await pool.query("SELECT title FROM team_rosters WHERE team = $1", [team]);
   if (!meta.rows[0]) return null;
 
   // One query for the whole structure; grouping happens in memory because a
@@ -35,11 +35,11 @@ async function readRoster(zone) {
     `SELECT g.id AS group_id, g.position AS group_position,
             r.id AS row_id, r.position AS row_position,
             r.role, r.name, r.year, r.school
-       FROM zone_roster_groups g
-       LEFT JOIN zone_roster_rows r ON r.group_id = g.id
-      WHERE g.zone = $1
+       FROM team_roster_groups g
+       LEFT JOIN team_roster_rows r ON r.group_id = g.id
+      WHERE g.team = $1
       ORDER BY g.position, r.position`,
-    [zone]
+    [team]
   );
 
   const groups = [];
@@ -63,36 +63,36 @@ async function readRoster(zone) {
     }
   }
 
-  return { zone, title: meta.rows[0].title, groups };
+  return { team, title: meta.rows[0].title, groups };
 }
 
 // Replaces the structure wholesale. The edit screen holds the entire thing in
 // local state, so one atomic write is simpler and safer than a dozen granular
 // endpoints that could half-apply.
-async function writeRoster(zone, title, groups) {
+async function writeRoster(team, title, groups) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
     await client.query(
-      `INSERT INTO zone_rosters (zone, title, updated_at) VALUES ($1, $2, now())
-       ON CONFLICT (zone) DO UPDATE SET title = $2, updated_at = now()`,
-      [zone, title]
+      `INSERT INTO team_rosters (team, title, updated_at) VALUES ($1, $2, now())
+       ON CONFLICT (team) DO UPDATE SET title = $2, updated_at = now()`,
+      [team, title]
     );
 
     // Rows cascade from groups, so clearing groups clears everything.
-    await client.query("DELETE FROM zone_roster_groups WHERE zone = $1", [zone]);
+    await client.query("DELETE FROM team_roster_groups WHERE team = $1", [team]);
 
     for (const [groupIndex, group] of groups.entries()) {
       const inserted = await client.query(
-        "INSERT INTO zone_roster_groups (zone, position) VALUES ($1, $2) RETURNING id",
-        [zone, groupIndex]
+        "INSERT INTO team_roster_groups (team, position) VALUES ($1, $2) RETURNING id",
+        [team, groupIndex]
       );
       const groupId = inserted.rows[0].id;
 
       for (const [rowIndex, row] of group.rows.entries()) {
         await client.query(
-          `INSERT INTO zone_roster_rows (group_id, position, role, name, year, school)
+          `INSERT INTO team_roster_rows (group_id, position, role, name, year, school)
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [
             groupId,
@@ -115,7 +115,7 @@ async function writeRoster(zone, title, groups) {
   }
 }
 
-// Reading is open across zones; a leader can look at how another zone is laid
+// Reading is open across teams; a leader can look at how another team is laid
 // out even though they cannot change it.
 const canView = requirePermission(PERMISSIONS.VIEW_DIRECTORY);
 const canEdit = requirePermission(PERMISSIONS.EDIT_DATABASE);
@@ -125,17 +125,17 @@ router.get(
   requireAuth,
   canView,
   route(async (req, res) => {
-    const zone = zoneFor(req);
+    const team = teamFor(req);
 
-    let roster = await readRoster(zone);
+    let roster = await readRoster(team);
     if (!roster) {
-      // A zone nobody has laid out yet opens on one empty block rather than a
+      // A team nobody has laid out yet opens on one empty block rather than a
       // blank screen with nothing to click.
-      await writeRoster(zone, `${zone} Structure`, [{ rows: [] }]);
-      roster = await readRoster(zone);
+      await writeRoster(team, `${team} Structure`, [{ rows: [] }]);
+      roster = await readRoster(team);
     }
 
-    res.json({ ...roster, canEdit: canEditZone(req.access, zone) });
+    res.json({ ...roster, canEdit: canEditTeam(req.access, team) });
   })
 );
 
@@ -145,10 +145,10 @@ router.put(
   canEdit,
   route(async (req, res) => {
     const { title, groups } = req.body;
-    const zone = zoneFor(req);
+    const team = teamFor(req);
 
-    if (!canEditZone(req.access, zone)) {
-      return res.status(403).json({ error: `${zone} is not one of your zones.` });
+    if (!canEditTeam(req.access, team)) {
+      return res.status(403).json({ error: `${team} is not one of your teams.` });
     }
     if (!Array.isArray(groups)) {
       return res.status(400).json({ error: "Structure must include a list of groups." });
@@ -169,8 +169,8 @@ router.put(
       }
     }
 
-    await writeRoster(zone, clean(title) || `${zone} Structure`, groups);
-    res.json({ ...(await readRoster(zone)), canEdit: true });
+    await writeRoster(team, clean(title) || `${team} Structure`, groups);
+    res.json({ ...(await readRoster(team)), canEdit: true });
   })
 );
 

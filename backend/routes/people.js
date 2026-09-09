@@ -3,7 +3,7 @@ const express = require("express");
 const { pool } = require("../db");
 const { requireAuth, requirePermission } = require("../middleware/auth");
 const { PERMISSIONS } = require("../lib/groups");
-const { normalizeZone, canEditZone } = require("../lib/zones");
+const { normalizeTeam, canEditTeam } = require("../lib/teams");
 
 const router = express.Router();
 
@@ -28,7 +28,7 @@ const FIELDS = [
   "general_information",
   "updates",
   "next_steps",
-  "zone",
+  "team_key",
 ];
 
 const MAX_SHORT = 200;
@@ -36,10 +36,10 @@ const MAX_LONG = 4000;
 const LONG_FIELDS = new Set(["general_information", "updates", "next_steps", "photo_url"]);
 
 function clean(field, raw) {
-  if (field === "zone") {
-    // Anything that is not a known zone becomes unassigned rather than an
+  if (field === "team_key") {
+    // Anything that is not a known team becomes unassigned rather than an
     // invented one.
-    return normalizeZone(raw);
+    return normalizeTeam(raw);
   }
   if (field === "birthday") {
     // An empty date must become NULL, not the string "".
@@ -81,24 +81,27 @@ const SELECT_PERSON = `
     FROM people p
 `;
 
-// A leader may read every zone but only change their own. Both ends of a move
-// are checked: you cannot edit someone in a zone you do not run, and you cannot
+// A leader may read every team but only change their own. Both ends of a move
+// are checked: you cannot edit someone in a team you do not run, and you cannot
 // push someone into one either.
-function zoneRefusal(access, currentZone, nextZone) {
-  if (!canEditZone(access, currentZone)) {
-    return `${currentZone} is not one of your zones.`;
+function teamRefusal(access, currentTeam, nextTeam) {
+  if (!canEditTeam(access, currentTeam)) {
+    return `${currentTeam} is not one of your teams.`;
   }
-  if (nextZone !== undefined && !canEditZone(access, nextZone)) {
-    return `You cannot move someone into ${nextZone}.`;
+  if (nextTeam !== undefined && !canEditTeam(access, nextTeam)) {
+    return `You cannot move someone into ${nextTeam}.`;
   }
   return null;
 }
 
-// Current zone of each id, so an update can be checked against where the person
+// Current team of each id, so an update can be checked against where the person
 // actually is rather than against whatever the request claims.
-async function zonesById(ids, client = pool) {
-  const found = await client.query("SELECT id, zone FROM people WHERE id = ANY($1::int[])", [ids]);
-  return new Map(found.rows.map((row) => [row.id, row.zone]));
+async function teamsById(ids, client = pool) {
+  const found = await client.query(
+    "SELECT id, team_key FROM people WHERE id = ANY($1::int[])",
+    [ids]
+  );
+  return new Map(found.rows.map((row) => [row.id, row.team_key]));
 }
 
 router.use(requireAuth);
@@ -126,7 +129,7 @@ router.post(
       return res.status(400).json({ error: "A name is required." });
     }
 
-    const refusal = zoneRefusal(req.access, values.zone);
+    const refusal = teamRefusal(req.access, values.team_key);
     if (refusal) return res.status(403).json({ error: refusal });
 
     const columns = FIELDS.join(", ");
@@ -174,7 +177,7 @@ router.put(
     // the whole write unapplied rather than half of it.
     // Number(null) is 0, which is a perfectly good integer — so "is this row
     // new?" has to be asked of the raw value, exactly as the write loop below
-    // asks it. Getting that wrong would let a new row skip the zone check.
+    // asks it. Getting that wrong would let a new row skip the team check.
     const isNewRow = (row) => row.id === null || row.id === undefined || row.id === "";
 
     const existingIds = upserts
@@ -183,21 +186,21 @@ router.put(
       .filter(Number.isInteger);
 
     const touched = [...ids, ...existingIds];
-    const zones = touched.length > 0 ? await zonesById(touched) : new Map();
+    const teams = touched.length > 0 ? await teamsById(touched) : new Map();
 
     for (const id of ids) {
-      if (!zones.has(id)) continue;
-      const refusal = zoneRefusal(req.access, zones.get(id));
+      if (!teams.has(id)) continue;
+      const refusal = teamRefusal(req.access, teams.get(id));
       if (refusal) return res.status(403).json({ error: refusal });
     }
 
     for (const row of upserts) {
-      const hasZone = Object.prototype.hasOwnProperty.call(row, "zone");
-      const nextZone = hasZone ? normalizeZone(row.zone) : undefined;
+      const hasTeam = Object.prototype.hasOwnProperty.call(row, "team_key");
+      const nextTeam = hasTeam ? normalizeTeam(row.team_key) : undefined;
 
       if (isNewRow(row)) {
         // A new row only has to land somewhere allowed.
-        const refusal = zoneRefusal(req.access, nextZone ?? "");
+        const refusal = teamRefusal(req.access, nextTeam ?? "");
         if (refusal) return res.status(403).json({ error: refusal });
         continue;
       }
@@ -205,9 +208,9 @@ router.put(
       // An existing one also has to be somewhere allowed already. A row that no
       // longer exists is left to the write loop to report.
       const id = Number(row.id);
-      if (!zones.has(id)) continue;
+      if (!teams.has(id)) continue;
 
-      const refusal = zoneRefusal(req.access, zones.get(id), nextZone);
+      const refusal = teamRefusal(req.access, teams.get(id), nextTeam);
       if (refusal) return res.status(403).json({ error: refusal });
     }
 
@@ -305,13 +308,13 @@ router.put(
       return res.status(400).json({ error: "A name is required." });
     }
 
-    const zones = await zonesById([id]);
-    if (!zones.has(id)) return res.status(404).json({ error: "Person not found." });
+    const teams = await teamsById([id]);
+    if (!teams.has(id)) return res.status(404).json({ error: "Person not found." });
 
-    const refusal = zoneRefusal(
+    const refusal = teamRefusal(
       req.access,
-      zones.get(id),
-      changed.includes("zone") ? values.zone : undefined
+      teams.get(id),
+      changed.includes("team_key") ? values.team_key : undefined
     );
     if (refusal) return res.status(403).json({ error: refusal });
     if (changed.length === 0) {
@@ -351,10 +354,10 @@ router.delete(
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ error: "Unknown person." });
 
-    const zones = await zonesById([id]);
-    if (!zones.has(id)) return res.status(404).json({ error: "Person not found." });
+    const teams = await teamsById([id]);
+    if (!teams.has(id)) return res.status(404).json({ error: "Person not found." });
 
-    const refusal = zoneRefusal(req.access, zones.get(id));
+    const refusal = teamRefusal(req.access, teams.get(id));
     if (refusal) return res.status(403).json({ error: refusal });
 
     const deleted = await pool.query("DELETE FROM people WHERE id = $1 RETURNING id", [id]);

@@ -122,37 +122,44 @@ export default function PersonCard({
 
   return (
     <div className="person-card">
-      {canEdit && (
-        <div className="person-card-actions">
-          {editing ? (
-            <>
-              <button className="card-corner-btn" onClick={onCancel} disabled={saving}>
-                Cancel
-              </button>
-              <button
-                className="card-corner-btn card-corner-btn-save"
-                onClick={onSave}
-                disabled={saving}
-              >
-                {saving ? "Saving" : "Save"}
-              </button>
-            </>
-          ) : (
-            <button className="card-corner-btn" onClick={onEdit} aria-label="Edit this record">
-              Edit
-            </button>
-          )}
-        </div>
-      )}
-
       <div className="person-side">
         <Photo person={person} />
+
+        {/* Directly under the photo rather than floating in the card's corner:
+            it belongs to the person you are looking at, and on a phone the
+            corner put it a long way from them. */}
+        {canEdit && (
+          <div className="person-card-actions">
+            {editing ? (
+              <>
+                <button className="card-btn" onClick={onCancel} disabled={saving}>
+                  Cancel
+                </button>
+                <button
+                  className="card-btn card-btn-save"
+                  onClick={onSave}
+                  disabled={saving}
+                >
+                  {saving ? "Saving" : "Save"}
+                </button>
+              </>
+            ) : (
+              <button className="card-btn" onClick={onEdit} aria-label="Edit this record">
+                Edit
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="person-heading">
           <div className="person-name">{person.name}</div>
           <div className="person-tags">
             {person.role && <span className={roleClass(person.role)}>{person.role}</span>}
-            {person.team && <span className="team-pill">Team {person.team}</span>}
+            {person.team_key ? (
+              <span className="team-pill">{person.team_key}</span>
+            ) : (
+              person.team && <span className="team-pill">Team {person.team}</span>
+            )}
           </div>
         </div>
 

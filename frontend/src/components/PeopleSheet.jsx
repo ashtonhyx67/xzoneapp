@@ -1,16 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
 import { ROLES, findRole, roleTint } from "../lib/roles.js";
-import { ZONES } from "../lib/zones.js";
+import { CGS } from "../lib/teams.js";
 
 // The columns of the people table, in spreadsheet order. `type` picks the kind
 // of cell: a plain box, the standard-role dropdown, or a date picker. `readOnly`
 // marks a value the server derives — Age comes from Birthday.
 const COLUMNS = [
   { field: "name", label: "Name", width: 150, sticky: true },
-  { field: "zone", label: "Zone", width: 74, type: "zone" },
+  { field: "team_key", label: "Team", width: 78, type: "team" },
   { field: "role", label: "Role", width: 84, type: "role" },
-  { field: "team", label: "Team", width: 52 },
+  { field: "team", label: "Letter", width: 56 },
   { field: "contact", label: "Contact", width: 106 },
   { field: "telegram", label: "Telegram", width: 100 },
   { field: "instagram", label: "Instagram", width: 100 },
@@ -326,19 +326,25 @@ export default function PeopleSheet({ token, people, onSaved }) {
       onPaste: (e) => onCellPaste(e, rowIndex, colIndex),
     };
 
-    if (column.type === "zone") {
+    if (column.type === "team") {
       return (
         <select
           {...shared}
           className="sheet-input sheet-select"
-          value={row.zone ?? ""}
-          onChange={(e) => setCell(row._key, "zone", e.target.value)}
+          value={row.team_key ?? ""}
+          onChange={(e) => setCell(row._key, "team_key", e.target.value)}
         >
           <option value="">—</option>
-          {ZONES.map((zone) => (
-            <option key={zone} value={zone}>
-              {zone}
-            </option>
+          {/* Grouped by CG, so the list reads the way the zone is actually
+              organised rather than as five flat options. */}
+          {CGS.map((cg) => (
+            <optgroup key={cg.key} label={cg.key}>
+              {cg.teams.map((team) => (
+                <option key={team} value={team}>
+                  {team}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       );

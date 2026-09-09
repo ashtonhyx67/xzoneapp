@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
-import { ZONES } from "../lib/zones.js";
+import { CGS } from "../lib/teams.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { initials } from "../lib/photo.js";
 
@@ -63,29 +63,42 @@ export default function AccountsPanel() {
     }
   }
 
-  // Zones are not access — they say which zone's members someone works on — so
-  // unlike a group, an admin may change their own.
-  async function toggleZone(account, zone) {
-    const next = account.zones.includes(zone)
-      ? account.zones.filter((z) => z !== zone)
-      : [...account.zones, zone];
-
+  // Teams are not access — they say whose members someone works on — so unlike
+  // a group, an admin may change their own.
+  async function setTeams(account, next) {
     setBusyId(account.id);
     setError("");
     setNotice("");
     try {
-      const { account: saved } = await api.setAccountZones(token, account.id, next);
+      const { account: saved } = await api.setAccountTeams(token, account.id, next);
       setAccounts((list) => list.map((a) => (a.id === saved.id ? saved : a)));
       setNotice(
-        saved.zones.length
-          ? `${saved.name} works on ${saved.zones.join(", ")}.`
-          : `${saved.name} is not in any zone yet.`
+        saved.teams.length
+          ? `${saved.name} works on ${saved.teams.join(", ")}.`
+          : `${saved.name} is not on any team yet.`
       );
     } catch (err) {
       setError(err.message);
     } finally {
       setBusyId(null);
     }
+  }
+
+  function toggleTeam(account, team) {
+    const has = account.teams.includes(team);
+    setTeams(account, has ? account.teams.filter((t) => t !== team) : [...account.teams, team]);
+  }
+
+  // A whole CG is just its teams, so giving someone a CG adds all of them and
+  // taking it away removes all of them. Nothing is stored at CG level.
+  function toggleCg(account, cg) {
+    const hasAll = cg.teams.every((t) => account.teams.includes(t));
+    setTeams(
+      account,
+      hasAll
+        ? account.teams.filter((t) => !cg.teams.includes(t))
+        : [...new Set([...account.teams, ...cg.teams])]
+    );
   }
 
   async function remove(account) {
@@ -227,27 +240,46 @@ export default function AccountsPanel() {
                 </select>
               )}
 
-              {/* Which zones this account works on. An admin already reaches
-                  every zone, so there is nothing to choose for them. */}
-              <span className="account-zones">
+              {/* Which teams this account works on, laid out by CG. An admin
+                  already reaches the whole zone, so there is nothing to
+                  choose for them. */}
+              <span className="account-teams">
                 {account.group === "admin" || account.isOwner ? (
-                  <span className="account-zones-all">All zones</span>
+                  <span className="account-teams-all">Whole zone</span>
                 ) : (
-                  ZONES.map((zone) => (
-                    <button
-                      type="button"
-                      key={zone}
-                      className={`zone-chip${
-                        account.zones?.includes(zone) ? " zone-chip-on" : ""
-                      }`}
-                      onClick={() => toggleZone(account, zone)}
-                      disabled={busyId === account.id}
-                      aria-pressed={Boolean(account.zones?.includes(zone))}
-                      aria-label={`${zone} for ${account.name}`}
-                    >
-                      {zone}
-                    </button>
-                  ))
+                  CGS.map((cg) => {
+                    const held = cg.teams.filter((t) => account.teams?.includes(t));
+                    return (
+                      <span className="cg-group" key={cg.key}>
+                        <button
+                          type="button"
+                          className={`cg-chip${
+                            held.length === cg.teams.length ? " cg-chip-on" : ""
+                          }`}
+                          onClick={() => toggleCg(account, cg)}
+                          disabled={busyId === account.id}
+                          title={`Whole ${cg.key} CG`}
+                        >
+                          {cg.key}
+                        </button>
+                        {cg.teams.map((team) => (
+                          <button
+                            type="button"
+                            key={team}
+                            className={`team-chip${
+                              account.teams?.includes(team) ? " team-chip-on" : ""
+                            }`}
+                            onClick={() => toggleTeam(account, team)}
+                            disabled={busyId === account.id}
+                            aria-pressed={Boolean(account.teams?.includes(team))}
+                            aria-label={`${team} for ${account.name}`}
+                          >
+                            {team}
+                          </button>
+                        ))}
+                      </span>
+                    );
+                  })
                 )}
               </span>
 

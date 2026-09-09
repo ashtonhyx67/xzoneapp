@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import { ROLES, roleTint } from "../lib/roles.js";
-import { ZONES } from "../lib/zones.js";
+import { CGS } from "../lib/teams.js";
 
 const emptyRow = () => ({ role: "", name: "", year: "", school: "" });
 
@@ -82,9 +82,9 @@ export default function Roster({ token, people = [] }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  // Which zone is on screen. Empty means "whichever is mine" — the server picks
+  // Which team is on screen. Empty means "whichever is mine" — the server picks
   // on the first load, and its answer becomes the selection.
-  const [zone, setZone] = useState("");
+  const [team, setTeam] = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -93,11 +93,11 @@ export default function Roster({ token, people = [] }) {
 
     setRoster(null);
     api
-      .getRoster(token, zone, controller.signal)
+      .getRoster(token, team, controller.signal)
       .then((data) => {
         if (!active) return;
         setRoster(data);
-        setZone(data.zone);
+        setTeam(data.team);
         setError("");
       })
       .catch((err) => {
@@ -108,28 +108,26 @@ export default function Roster({ token, people = [] }) {
       active = false;
       controller.abort();
     };
-  }, [token, zone]);
+  }, [token, team]);
 
   const shown = editing ? draft : roster;
   const total = useMemo(() => (shown ? countPeople(shown.groups) : 0), [shown]);
 
-  // Only the people of the zone being looked at can be put into its structure.
-  const byName = useMemo(
+  // Only the people of the team being looked at can be put into its structure.
+  const teamPeople = useMemo(
     () =>
-      new Map(
-        people
-          .filter((person) => !roster?.zone || !person.zone || person.zone === roster.zone)
-          .map((person) => [key(person.name), person])
+      people.filter(
+        (p) => !roster?.team || !p.team_key || p.team_key === roster.team
       ),
     [people, roster]
   );
 
-  const zonePeople = useMemo(
-    () => people.filter((p) => !roster?.zone || !p.zone || p.zone === roster.zone),
-    [people, roster]
+  const byName = useMemo(
+    () => new Map(teamPeople.map((person) => [key(person.name), person])),
+    [teamPeople]
   );
 
-  // Another zone's structure is readable but not editable, so the Edit button
+  // Another team's structure is readable but not editable, so the Edit button
   // is simply not offered there.
   const canEdit = Boolean(roster?.canEdit);
 
@@ -150,7 +148,7 @@ export default function Roster({ token, people = [] }) {
     setSaving(true);
     setError("");
     try {
-      const saved = await api.saveRoster(token, { ...draft, zone: roster.zone });
+      const saved = await api.saveRoster(token, { ...draft, team: roster.team });
       setRoster(saved);
       setDraft(null);
       setEditing(false);
@@ -208,20 +206,25 @@ export default function Roster({ token, people = [] }) {
         </div>
 
         <div className="roster-actions">
-          {/* Switching zones is a read: any zone can be looked at, and the
-              server decides whether this one can also be changed. Hidden while
+          {/* Switching teams is a read: any team can be looked at, and the
+              server decides whether this one can also be changed. Grouped by
+              CG so the list matches how the zone is organised. Hidden while
               editing, so a switch cannot drop half-made changes. */}
           {!editing && (
             <select
-              className="roster-zone-select"
-              aria-label="Zone"
-              value={roster.zone ?? ""}
-              onChange={(e) => setZone(e.target.value)}
+              className="roster-team-select"
+              aria-label="Team"
+              value={roster.team ?? ""}
+              onChange={(e) => setTeam(e.target.value)}
             >
-              {ZONES.map((z) => (
-                <option key={z} value={z}>
-                  {z}
-                </option>
+              {CGS.map((cg) => (
+                <optgroup key={cg.key} label={cg.key}>
+                  {cg.teams.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           )}
@@ -244,7 +247,7 @@ export default function Roster({ token, people = [] }) {
               Edit
             </button>
           ) : (
-            <span className="roster-readonly-note">Read-only — not your zone</span>
+            <span className="roster-readonly-note">Read-only — not your team</span>
           )}
         </div>
       </div>
@@ -261,7 +264,7 @@ export default function Roster({ token, people = [] }) {
           </p>
           {/* Native autocomplete, so the browser does the filtering. */}
           <datalist id="roster-people">
-            {zonePeople.map((person) => (
+            {teamPeople.map((person) => (
               <option key={person.id} value={person.name} />
             ))}
           </datalist>

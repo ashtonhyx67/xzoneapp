@@ -3,7 +3,7 @@ const express = require("express");
 const { pool } = require("../db");
 const { requireAuth, loadAccess } = require("../middleware/auth");
 const { PERMISSIONS } = require("../lib/groups");
-const { normalizeZone } = require("../lib/zones");
+const { normalizeTeam, teamsInCg } = require("../lib/teams");
 
 const router = express.Router();
 
@@ -64,19 +64,20 @@ router.get(
       return res.json({ canView: false, stats: [], birthdays: [], followUps: [] });
     }
 
-    // The reminders are the zone's own: a leader is shown the birthdays and
+    // The reminders are the team's own: a leader is shown the birthdays and
     // follow-ups of the people they actually look after. Someone who has not
-    // been put in a zone yet — a new admin, say — sees everyone rather than an
-    // empty page. An explicit ?zone= overrides, for looking into another zone.
-    const asked = normalizeZone(req.query.zone);
-    const scope = asked ? [asked] : access.zones;
+    // been put in a team yet — a new admin, say — sees everyone rather than an
+    // empty page. An explicit ?team= or ?cg= overrides, for looking wider.
+    const askedTeam = normalizeTeam(req.query.team);
+    const askedCg = teamsInCg(req.query.cg);
+    const scope = askedTeam ? [askedTeam] : askedCg.length ? askedCg : access.teams;
 
     const result = scope.length
       ? await pool.query(
-          "SELECT id, name, birthday, follow_up, role, team, zone FROM people WHERE zone = ANY($1::text[])",
+          "SELECT id, name, birthday, follow_up, role, team, team_key FROM people WHERE team_key = ANY($1::text[])",
           [scope]
         )
-      : await pool.query("SELECT id, name, birthday, follow_up, role, team, zone FROM people");
+      : await pool.query("SELECT id, name, birthday, follow_up, role, team, team_key FROM people");
 
     const people = result.rows;
     const today = new Date();
@@ -93,7 +94,7 @@ router.get(
           turning: turningAge(p.birthday, daysAway, today),
           role: p.role,
           team: p.team,
-          zone: p.zone,
+          teamKey: p.team_key,
         };
       })
       .filter((p) => p.daysAway <= BIRTHDAY_WINDOW_DAYS)
@@ -107,7 +108,7 @@ router.get(
         status: p.follow_up || "Not set",
         role: p.role,
         team: p.team,
-        zone: p.zone,
+        teamKey: p.team_key,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -115,7 +116,7 @@ router.get(
 
     res.json({
       canView: true,
-      zones: access.zones,
+      teams: access.teams,
       scope,
       stats: [
         { label: "People", value: people.length },

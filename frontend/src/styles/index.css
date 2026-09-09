@@ -950,38 +950,42 @@ button {
   box-shadow: var(--shadow-card);
 }
 
-/* Editing lives in the corner rather than taking a row of its own. */
+/* Editing sits under the photo, so it reads as belonging to this person. Full
+   width of the photo column, which also makes it a comfortable tap target. */
 .person-card-actions {
-  position: absolute;
-  top: 14px;
-  right: 16px;
   display: flex;
   gap: 6px;
-  z-index: 1;
 }
 
-.card-corner-btn {
-  border: none;
-  background: transparent;
-  color: var(--text-soft);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 8px;
+.card-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-
-.card-corner-btn:hover:not(:disabled) {
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
 }
 
-.card-corner-btn-save {
-  color: var(--accent);
+.card-btn:hover:not(:disabled) {
+  background: var(--bg);
 }
 
-.card-corner-btn:disabled {
+.card-btn-save {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.card-btn-save:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.card-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -1383,52 +1387,79 @@ button {
   color: var(--text-soft);
 }
 
-/* ---------- Zones ---------- */
+/* ---------- Teams and CGs ---------- */
 
-/* Which zones an account works on. A chip is a toggle, so it has to read as
-   clearly on or off at a glance down a list of accounts. */
-.account-zones {
+/* Which teams an account works on, laid out CG by CG. The CG chip is the
+   heavier one: it owns the teams beside it, so it reads as their heading. */
+.account-teams {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 10px;
 }
 
-.zone-chip {
-  padding: 4px 9px;
+.cg-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--surface);
+}
+
+.cg-chip,
+.team-chip {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
   color: var(--text-soft);
   font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
-.zone-chip:hover:not(:disabled) {
-  border-color: var(--border-strong);
+.cg-chip {
+  padding: 4px 10px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  background: var(--bg);
 }
 
-.zone-chip-on {
-  background: var(--accent);
-  border-color: var(--accent);
+.team-chip {
+  padding: 4px 9px;
+  font-size: 12px;
+}
+
+.cg-chip:hover:not(:disabled),
+.team-chip:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--bg);
+}
+
+.cg-chip-on {
+  background: var(--accent-hover);
   color: #fff;
 }
 
-.zone-chip:disabled {
+.team-chip-on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.cg-chip:disabled,
+.team-chip:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.account-zones-all {
+.account-teams-all {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-soft);
 }
 
-/* The zone a structure is showing. */
-.roster-zone-select {
+/* The team a structure is showing. */
+.roster-team-select {
   padding: 7px 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -1444,8 +1475,8 @@ button {
   color: var(--text-soft);
 }
 
-/* The zones the dashboard reminders cover, set apart from the weekly tags. */
-.week-tag-zone {
+/* The teams the dashboard reminders cover, set apart from the weekly tags. */
+.week-tag-team {
   background: rgba(255, 255, 255, 0.3);
   border-color: rgba(255, 255, 255, 0.5);
 }
@@ -1461,9 +1492,9 @@ button {
   margin-bottom: 8px;
   padding: 26px 30px;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, var(--accent-hover) 0%, var(--accent) 100%);
+  background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 55%, #6366f1 100%);
   color: #fff;
-  box-shadow: 0 6px 18px rgba(0, 76, 63, 0.18);
+  box-shadow: 0 6px 18px rgba(30, 27, 75, 0.22);
 }
 
 .week-banner-main {

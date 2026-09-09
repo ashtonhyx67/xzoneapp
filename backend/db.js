@@ -2,7 +2,7 @@ const { Pool, types } = require("pg");
 
 const { OWNER_EMAIL } = require("./lib/owner");
 const { DEFAULT_GROUP } = require("./lib/groups");
-const { DEFAULT_ZONE } = require("./lib/zones");
+const { DEFAULT_TEAM } = require("./lib/teams");
 
 // A DATE has no time and no timezone, but node-pg turns it into a local-midnight
 // JS Date, which JSON.stringify then shifts to UTC — sending every birthday a
@@ -55,13 +55,13 @@ pool.on("error", (err) => {
   console.error("Unexpected Postgres client error:", err.message);
 });
 
-// Lifts the structure that used to belong to an account into the default zone,
-// once, so nobody has to retype it. It runs only when no zone has a structure
+// Lifts the structure that used to belong to an account into the default team,
+// once, so nobody has to retype it. It runs only when no team has a structure
 // yet, which makes re-running the migration a no-op rather than a duplicate.
 // The oldest account's structure wins: that is the owner's, the one that has
 // actually been kept up to date.
-async function migrateRosterToZone() {
-  const already = await pool.query("SELECT 1 FROM zone_rosters LIMIT 1");
+async function migrateRosterToTeam() {
+  const already = await pool.query("SELECT 1 FROM team_rosters LIMIT 1");
   if (already.rows[0]) return;
 
   const source = await pool.query(
@@ -75,8 +75,8 @@ async function migrateRosterToZone() {
   try {
     await client.query("BEGIN");
 
-    await client.query("INSERT INTO zone_rosters (zone, title) VALUES ($1, $2)", [
-      DEFAULT_ZONE,
+    await client.query("INSERT INTO team_rosters (team, title) VALUES ($1, $2)", [
+      DEFAULT_TEAM,
       title,
     ]);
 
@@ -87,12 +87,12 @@ async function migrateRosterToZone() {
 
     for (const group of groups.rows) {
       const created = await client.query(
-        "INSERT INTO zone_roster_groups (zone, position) VALUES ($1, $2) RETURNING id",
-        [DEFAULT_ZONE, group.position]
+        "INSERT INTO team_roster_groups (team, position) VALUES ($1, $2) RETURNING id",
+        [DEFAULT_TEAM, group.position]
       );
 
       await client.query(
-        `INSERT INTO zone_roster_rows (group_id, position, role, name, year, school)
+        `INSERT INTO team_roster_rows (group_id, position, role, name, year, school)
          SELECT $1::int, position, role, name, year, school
            FROM roster_rows WHERE group_id = $2::int ORDER BY position`,
         [created.rows[0].id, group.id]
@@ -100,7 +100,7 @@ async function migrateRosterToZone() {
     }
 
     await client.query("COMMIT");
-    console.log(`Structure migrated to zone ${DEFAULT_ZONE}.`);
+    console.log(`Structure migrated to team ${DEFAULT_TEAM}.`);
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
     throw err;
@@ -285,66 +285,102 @@ async function initSchema() {
     CREATE INDEX IF NOT EXISTS roster_rows_person_id_idx ON roster_rows (person_id);
   `);
 
-  // ---------- Zones ----------
-  // Each zone keeps its own members and its own structure. A person belongs to
-  // one zone; '' means unassigned, which is visible to everyone and filable by
-  // anyone who can edit the database.
+  // ---------- Teams ----------
+  // The zone divides into CGs and CGs into teams; a team is what actually owns
+  // records. An earlier version of this called a team a "zone", so the rename
+  // comes first — guarded both ways, which makes it a no-op on a database that
+  // has already had it, and on a fresh one that never had the old name.
+  //
+  // Note `people.team` is something else: the single letter the source
+  // spreadsheet kept ("A" in XIII A). It predates all of this and is left
+  // alone, which is why the team key lands in `team_key`.
   await pool.query(`
-    ALTER TABLE people ADD COLUMN IF NOT EXISTS zone TEXT NOT NULL DEFAULT '';
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_name = 'people' AND column_name = 'zone')
+      AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+                       WHERE table_name = 'people' AND column_name = 'team_key')
+      THEN ALTER TABLE people RENAME COLUMN zone TO team_key;
+      END IF;
+
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_zones')
+      AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_teams')
+      THEN
+        ALTER TABLE user_zones RENAME COLUMN zone TO team;
+        ALTER TABLE user_zones RENAME TO user_teams;
+      END IF;
+
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'zone_rosters')
+      AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'team_rosters')
+      THEN
+        ALTER TABLE zone_rosters RENAME COLUMN zone TO team;
+        ALTER TABLE zone_rosters RENAME TO team_rosters;
+        ALTER TABLE zone_roster_groups RENAME COLUMN zone TO team;
+        ALTER TABLE zone_roster_groups RENAME TO team_roster_groups;
+        ALTER TABLE zone_roster_rows RENAME TO team_roster_rows;
+      END IF;
+    END $$;
   `);
 
-  await pool.query(`CREATE INDEX IF NOT EXISTS people_zone_idx ON people (zone);`);
+  await pool.query(`
+    ALTER TABLE people ADD COLUMN IF NOT EXISTS team_key TEXT NOT NULL DEFAULT '';
+  `);
 
-  // Everything that predates zones came from the one zone the app used to be.
+  await pool.query(`CREATE INDEX IF NOT EXISTS people_team_key_idx ON people (team_key);`);
+
+  // Everything that predates teams came from the one team the app used to be.
   // Asked as two statements rather than one with a NOT EXISTS guard: as a
   // single statement it reads as though it might stop partway once the first
   // row is filed, and being obviously right matters more here than being one
-  // query. Once any person has a zone this never fires again, so someone
+  // query. Once any person has a team this never fires again, so someone
   // deliberately left unassigned stays that way.
-  const zoned = await pool.query("SELECT 1 FROM people WHERE zone <> '' LIMIT 1");
-  if (!zoned.rows[0]) {
-    const filed = await pool.query("UPDATE people SET zone = $1 WHERE zone = ''", [DEFAULT_ZONE]);
+  const filedAlready = await pool.query("SELECT 1 FROM people WHERE team_key <> '' LIMIT 1");
+  if (!filedAlready.rows[0]) {
+    const filed = await pool.query("UPDATE people SET team_key = $1 WHERE team_key = ''", [
+      DEFAULT_TEAM,
+    ]);
     if (filed.rowCount > 0) {
-      console.log(`Filed ${filed.rowCount} people into zone ${DEFAULT_ZONE}.`);
+      console.log(`Filed ${filed.rowCount} people into team ${DEFAULT_TEAM}.`);
     }
   }
 
-  // Which zones an account may edit. A leader can be in several.
+  // Which teams an account may edit. A leader can run several.
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS user_zones (
+    CREATE TABLE IF NOT EXISTS user_teams (
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      zone TEXT NOT NULL,
-      PRIMARY KEY (user_id, zone)
+      team TEXT NOT NULL,
+      PRIMARY KEY (user_id, team)
     );
   `);
 
-  await pool.query(`CREATE INDEX IF NOT EXISTS user_zones_user_id_idx ON user_zones (user_id);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS user_teams_user_id_idx ON user_teams (user_id);`);
 
-  // ---------- Structure, per zone ----------
-  // The structure used to be private to each account. It belongs to the zone
-  // now, so the leaders of a zone work on one shared picture. The old per-user
+  // ---------- Structure, per team ----------
+  // The structure used to be private to each account. It belongs to the team
+  // now, so the leaders of a team work on one shared picture. The old per-user
   // tables are left in place rather than dropped: they are the backup if this
   // migration ever needs looking at.
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS zone_rosters (
-      zone TEXT PRIMARY KEY,
+    CREATE TABLE IF NOT EXISTS team_rosters (
+      team TEXT PRIMARY KEY,
       title TEXT NOT NULL DEFAULT 'Structure',
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS zone_roster_groups (
+    CREATE TABLE IF NOT EXISTS team_roster_groups (
       id SERIAL PRIMARY KEY,
-      zone TEXT NOT NULL REFERENCES zone_rosters(zone) ON DELETE CASCADE,
+      team TEXT NOT NULL REFERENCES team_rosters(team) ON DELETE CASCADE,
       position INTEGER NOT NULL
     );
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS zone_roster_rows (
+    CREATE TABLE IF NOT EXISTS team_roster_rows (
       id SERIAL PRIMARY KEY,
-      group_id INTEGER NOT NULL REFERENCES zone_roster_groups(id) ON DELETE CASCADE,
+      group_id INTEGER NOT NULL REFERENCES team_roster_groups(id) ON DELETE CASCADE,
       position INTEGER NOT NULL,
       role TEXT NOT NULL DEFAULT '',
       name TEXT NOT NULL DEFAULT '',
@@ -354,16 +390,16 @@ async function initSchema() {
   `);
 
   await pool.query(`
-    CREATE INDEX IF NOT EXISTS zone_roster_groups_zone_idx
-      ON zone_roster_groups (zone, position);
+    CREATE INDEX IF NOT EXISTS team_roster_groups_team_idx
+      ON team_roster_groups (team, position);
   `);
 
   await pool.query(`
-    CREATE INDEX IF NOT EXISTS zone_roster_rows_group_id_idx
-      ON zone_roster_rows (group_id, position);
+    CREATE INDEX IF NOT EXISTS team_roster_rows_group_id_idx
+      ON team_roster_rows (group_id, position);
   `);
 
-  await migrateRosterToZone();
+  await migrateRosterToTeam();
 
   // Temporary store for in-flight WebAuthn challenges.
   // A real production app might use Redis for this; a table is fine at this scale.

@@ -5,7 +5,7 @@ const { pool } = require("../db");
 const { requireAuth, requirePermission } = require("../middleware/auth");
 const { PERMISSIONS, DEFAULT_GROUP, isAssignable, publicGroups } = require("../lib/groups");
 const { isOwnerEmail } = require("../lib/owner");
-const { ZONES, ZONE_KEYS, normalizeZone } = require("../lib/zones");
+const { CGS, TEAMS, TEAM_KEYS, normalizeTeam } = require("../lib/teams");
 
 const router = express.Router();
 
@@ -27,7 +27,7 @@ function publicAccount(row) {
     email: row.email,
     group: owner ? "owner" : row.group_key || DEFAULT_GROUP,
     isOwner: owner,
-    zones: row.zones ?? [],
+    teams: row.teams ?? [],
     pinSet: Boolean(row.pin_set),
     faceIdEnabled: Boolean(row.face_id_enabled),
     createdAt: row.created_at,
@@ -39,9 +39,9 @@ const SELECT_ACCOUNTS = `
          (u.pin_hash IS NOT NULL) AS pin_set,
          EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled,
          COALESCE(
-           (SELECT array_agg(z.zone ORDER BY z.zone) FROM user_zones z WHERE z.user_id = u.id),
+           (SELECT array_agg(t.team ORDER BY t.team) FROM user_teams t WHERE t.user_id = u.id),
            '{}'
-         ) AS zones
+         ) AS teams
     FROM users u
 `;
 
@@ -51,7 +51,8 @@ router.get(
     const result = await pool.query(`${SELECT_ACCOUNTS} ORDER BY u.created_at, u.id`);
     res.json({
       groups: publicGroups(),
-      zones: ZONES,
+      cgs: CGS,
+      teams: TEAMS,
       accounts: result.rows.map(publicAccount),
       me: req.userId,
     });
@@ -112,26 +113,26 @@ router.patch(
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ error: "Unknown account." });
 
-    // Group and zones can be changed together or one at a time, so an edit to
-    // someone's zones does not have to restate their group.
+    // Group and teams can be changed together or one at a time, so an edit to
+    // someone's teams does not have to restate their group.
     const changingGroup = req.body?.group !== undefined;
-    const changingZones = req.body?.zones !== undefined;
+    const changingTeams = req.body?.teams !== undefined;
 
     const groupKey = String(req.body?.group || "");
     if (changingGroup && !isAssignable(groupKey)) {
       return res.status(400).json({ error: "That is not a group you can assign." });
     }
 
-    let zones = null;
-    if (changingZones) {
-      if (!Array.isArray(req.body.zones)) {
-        return res.status(400).json({ error: "Zones must be a list." });
+    let teams = null;
+    if (changingTeams) {
+      if (!Array.isArray(req.body.teams)) {
+        return res.status(400).json({ error: "Teams must be a list." });
       }
       // Anything unrecognised is dropped rather than stored, so the table can
-      // never hold a zone that no longer exists.
-      zones = [...new Set(req.body.zones.map(normalizeZone).filter(Boolean))];
-      if (zones.length > ZONE_KEYS.length) {
-        return res.status(400).json({ error: "Too many zones." });
+      // never hold a team that no longer exists.
+      teams = [...new Set(req.body.teams.map(normalizeTeam).filter(Boolean))];
+      if (teams.length > TEAM_KEYS.length) {
+        return res.status(400).json({ error: "Too many teams." });
       }
     }
 
@@ -144,7 +145,7 @@ router.patch(
     }
 
     // Nobody can drop their own access; it would take the last way back in with
-    // it if they happen to be the only one who has it. Zones are not access, so
+    // it if they happen to be the only one who has it. Teams are not access, so
     // changing your own is allowed.
     if (changingGroup && id === req.userId) {
       return res.status(400).json({ error: "You cannot change your own group." });
@@ -162,12 +163,12 @@ router.patch(
         ]);
       }
 
-      if (zones) {
-        await client.query("DELETE FROM user_zones WHERE user_id = $1", [id]);
-        for (const zone of zones) {
-          await client.query("INSERT INTO user_zones (user_id, zone) VALUES ($1, $2)", [
+      if (teams) {
+        await client.query("DELETE FROM user_teams WHERE user_id = $1", [id]);
+        for (const team of teams) {
+          await client.query("INSERT INTO user_teams (user_id, team) VALUES ($1, $2)", [
             id,
-            zone,
+            team,
           ]);
         }
       }

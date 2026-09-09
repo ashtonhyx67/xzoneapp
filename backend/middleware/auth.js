@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 const { pool } = require("../db");
 const { isOwnerEmail } = require("../lib/owner");
 const { getGroup, permissionsFor, DEFAULT_GROUP } = require("../lib/groups");
-const { normalizeZone, editableZones } = require("../lib/zones");
+const { normalizeTeam, editableTeams } = require("../lib/teams");
 
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || "";
@@ -37,7 +37,7 @@ async function loadAccess(userId) {
   const groupKey = isOwnerEmail(row.email) ? "owner" : row.group_key || DEFAULT_GROUP;
 
   const assigned = await pool.query(
-    "SELECT zone FROM user_zones WHERE user_id = $1 ORDER BY zone",
+    "SELECT team FROM user_teams WHERE user_id = $1 ORDER BY team",
     [userId]
   );
 
@@ -47,13 +47,13 @@ async function loadAccess(userId) {
     group: getGroup(groupKey),
     permissions: permissionsFor(groupKey),
     isOwner: isOwnerEmail(row.email),
-    // Zones this account has been put in. A zone that has since been removed
-    // from lib/zones.js drops out here rather than lingering as a dead key.
-    zones: assigned.rows.map((r) => normalizeZone(r.zone)).filter(Boolean),
+    // Teams this account has been put in. A team that has since been removed
+    // from lib/teams.js drops out here rather than lingering as a dead key.
+    teams: assigned.rows.map((r) => normalizeTeam(r.team)).filter(Boolean),
   };
 
-  // Reading is not zoned — a leader can look into any zone. Writing is.
-  access.editableZones = editableZones(access);
+  // Reading is not restricted — a leader can look into any team. Writing is.
+  access.editableTeams = editableTeams(access);
 
   return access;
 }
