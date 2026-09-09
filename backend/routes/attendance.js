@@ -5,7 +5,7 @@ const { requireAuth, requirePermission } = require("../middleware/auth");
 const { PERMISSIONS } = require("../lib/groups");
 const { normalizeTeam, canEditTeam, DEFAULT_TEAM, teamsInCg } = require("../lib/teams");
 const { roleRank } = require("../lib/roles");
-const { resolveWeek, isoWeek } = require("../lib/weeks");
+const { resolveWeek } = require("../lib/weeks");
 const {
   BUILTIN_STATUSES,
   BUILTIN_KEYS,
@@ -77,15 +77,6 @@ function tally(people, allowed) {
   );
 
   return { total, byCategory, byStatus };
-}
-
-// A register that has already been written is not re-seeded, but it should
-// still pick up someone added to the team since. Only for this week and later:
-// a past register is the record of who was actually there, and quietly adding
-// people to it afterwards would rewrite history.
-function isCurrentOrLater(year, week) {
-  const now = isoWeek();
-  return year > now.year || (year === now.year && week >= now.week);
 }
 
 // Brings a register in step with the team as it stands now. Adds anyone missing
@@ -355,8 +346,12 @@ router.get(
       } else {
         record = { team, year, week, people: [], counts: tally([], allowed) };
       }
-    } else if (canEditTeam(req.access, team) && isCurrentOrLater(year, week)) {
+    } else if (canEditTeam(req.access, team)) {
       // Already written, so pick up anyone added to the team since it was.
+      // Every week, not only this one: a register is the team's list with marks
+      // against it, and someone joining should appear on any of them. It cannot
+      // rewrite what happened — an added row carries no marks, so no total
+      // moves, and a row that has marks is never taken away.
       await syncMembers(team, year, week);
       record = await readWeek(team, year, week, allowed);
     }
@@ -396,7 +391,7 @@ router.put(
     // A save replaces the register with what the sender had, so anyone added to
     // the team since they loaded it would be written straight back out. Putting
     // them back here means a register can never end up short of the team.
-    if (isCurrentOrLater(year, week)) await syncMembers(team, year, week);
+    await syncMembers(team, year, week);
 
     res.json({
       ...(await readWeek(team, year, week, allowed)),

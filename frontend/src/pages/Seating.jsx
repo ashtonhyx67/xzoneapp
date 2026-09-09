@@ -3,7 +3,7 @@ import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
 import { SEATING_CGS } from "../lib/teams.js";
-import { isoWeek } from "../lib/weeks.js";
+import { useWeek } from "../lib/useWeek.js";
 import AppShell from "../components/AppShell.jsx";
 import WeekPicker from "../components/WeekPicker.jsx";
 
@@ -20,7 +20,7 @@ export default function Seating() {
   const canView = can(PERMISSIONS.VIEW_DIRECTORY);
 
   const [cg, setCg] = useState("");
-  const [when, setWhen] = useState(() => isoWeek());
+  const [when, setWhen] = useWeek();
   const [record, setRecord] = useState(null);
   const [rows, setRows] = useState([]);
   const [roll, setRoll] = useState([]);

@@ -3,7 +3,7 @@ import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
 import { CGS } from "../lib/teams.js";
-import { isoWeek } from "../lib/weeks.js";
+import { useWeek } from "../lib/useWeek.js";
 import { BUILTIN_STATUSES, CATEGORIES, CATEGORY_KEYS, categoryOf, isPresent } from "../lib/attendance.js";
 import AppShell from "../components/AppShell.jsx";
 import WeekPicker from "../components/WeekPicker.jsx";
@@ -88,7 +88,7 @@ export default function Attendance() {
   const canView = can(PERMISSIONS.VIEW_DIRECTORY);
 
   const [team, setTeam] = useState("");
-  const [when, setWhen] = useState(() => isoWeek());
+  const [when, setWhen] = useWeek();
   const [record, setRecord] = useState(null);
   const [statuses, setStatuses] = useState(BUILTIN_STATUSES);
   const [people, setPeople] = useState([]);
