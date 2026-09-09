@@ -9,7 +9,6 @@ import { CGS, TEAM_KEYS } from "../lib/teams.js";
 const COLUMNS = [
   { field: "name", label: "Name", width: 138, sticky: true },
   { field: "team_key", label: "Team", width: 64, type: "team" },
-  { field: "deployed_to", label: "Deployed", width: 74, type: "team" },
   { field: "role", label: "Role", width: 70, type: "role" },
   { field: "contact", label: "Contact", width: 94 },
   { field: "telegram", label: "Telegram", width: 88 },
@@ -95,13 +94,28 @@ function teamRank(team) {
   return index === -1 ? TEAM_KEYS.length : index;
 }
 
-function byTeamThenRole(a, b) {
-  return (
-    teamRank(a.team_key) - teamRank(b.team_key) ||
-    roleRank(a.role) - roleRank(b.role) ||
-    String(a.name ?? "").localeCompare(String(b.name ?? ""))
-  );
-}
+const byName = (a, b) => String(a.name ?? "").localeCompare(String(b.name ?? ""));
+
+// How the table can be ordered. Team is the default and the only one that
+// groups, since the blocks are teams; the others are a flat list.
+const SORTS = {
+  team: {
+    label: "Team",
+    grouped: true,
+    compare: (a, b) =>
+      teamRank(a.team_key) - teamRank(b.team_key) ||
+      roleRank(a.role) - roleRank(b.role) ||
+      byName(a, b),
+  },
+  role: {
+    label: "Role",
+    grouped: false,
+    compare: (a, b) => roleRank(a.role) - roleRank(b.role) || byName(a, b),
+  },
+  name: { label: "Name", grouped: false, compare: byName },
+};
+
+const byTeamThenRole = SORTS.team.compare;
 
 // Rows in display order, split into one block per team. A new row is held in
 // place until the next reflow, so a half-typed name does not jump around.
@@ -130,6 +144,7 @@ export default function PeopleSheet({ token, people, onSaved }) {
 
   const [rows, setRows] = useState(initial);
   const [query, setQuery] = useState("");
+  const [sortBy, setSortBy] = useState("team");
   const [status, setStatus] = useState("idle"); // idle | saving | error
   const [error, setError] = useState("");
 
@@ -155,7 +170,12 @@ export default function PeopleSheet({ token, people, onSaved }) {
 
   // Whatever is on screen, split into one block per team. Built from `visible`
   // so a search narrows the blocks rather than hiding the grouping.
-  const blocks = useMemo(() => groupRows(visible), [visible]);
+  // Only the team ordering groups; the others are one flat list, so the whole
+  // table becomes a single unlabelled block.
+  const blocks = useMemo(
+    () => (SORTS[sortBy].grouped ? groupRows(visible) : [{ team: null, rows: visible }]),
+    [visible, sortBy]
+  );
 
   // Rows the server has not seen in their current state. A new row is held back
   // until it has a name, since the database will not take it without one.
@@ -211,6 +231,11 @@ export default function PeopleSheet({ token, people, onSaved }) {
 
       for (const row of deletes) delete baseline.current[row._key];
 
+      // A row is put in its place once it has been written, not while it is
+      // being typed. React keys are stable, so the DOM node moves with the row
+      // and a cursor inside it goes along too.
+      setRows((list) => [...list].sort(SORTS[sortRef.current].compare));
+
       setError("");
       setStatus("idle");
       onSaved?.(result.people);
@@ -225,6 +250,11 @@ export default function PeopleSheet({ token, people, onSaved }) {
 
   const flushRef = useRef(flush);
   flushRef.current = flush;
+
+  // The writer reads the sort through a ref for the same reason it reads the
+  // rows that way: so changing it never rebuilds the writer mid-keystroke.
+  const sortRef = useRef(sortBy);
+  sortRef.current = sortBy;
 
   // Every change schedules a write; the timer restarts on each keystroke, so a
   // burst of typing is one request.
@@ -333,27 +363,20 @@ export default function PeopleSheet({ token, people, onSaved }) {
     [focusCell]
   );
 
-  // Reordering is asked for rather than automatic: a row that jumped the moment
-  // its role or team changed would move out from under the cursor mid-edit.
-  function reflow() {
+  function reflow(mode = sortBy) {
     setQuery("");
-    setRows((list) => [...list].sort(byTeamThenRole));
+    setRows((list) => [...list].sort(SORTS[mode].compare));
   }
 
-  // A new row lands at the end of the team it belongs to, already filled in, so
-  // adding someone to X3A does not mean scrolling to the bottom and setting the
-  // team by hand.
-  function addRow(team = "") {
+  // One place to add someone: a blank row at the bottom to type into. Once it
+  // saves it sorts itself into the right team, so there is nothing to file by
+  // hand.
+  function addRow() {
     setQuery("");
-
-    setRows((list) => {
-      const row = { ...blankRow(), team_key: team };
-      if (!team) return [...list, row];
-
-      const last = list.map((r) => r.team_key || "").lastIndexOf(team);
-      if (last === -1) return [...list, row];
-      return [...list.slice(0, last + 1), row, ...list.slice(last + 1)];
-    });
+    const nextIndex = rows.length;
+    setRows((list) => [...list, blankRow()]);
+    // Land in the new row's Name box, ready to type.
+    requestAnimationFrame(() => focusCell(nextIndex, 0));
   }
 
   function toggleDelete(key) {
@@ -464,18 +487,27 @@ export default function PeopleSheet({ token, people, onSaved }) {
               aria-label="Search"
             />
           </div>
-          {/* Arrow function, not a bare reference: passing the click event
-              straight into addRow would set the new row's team to an Event. */}
-          <button className="btn btn-secondary btn-inline" onClick={() => addRow()}>
+          <button className="btn btn-secondary btn-inline" onClick={addRow}>
             Add row
           </button>
-          <button
-            className="btn btn-secondary btn-inline"
-            onClick={reflow}
-            title="Regroup by team and re-sort by role"
-          >
-            Sort
-          </button>
+
+          <label className="sheet-sort">
+            Sort by
+            <select
+              value={sortBy}
+              aria-label="Sort the table by"
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                reflow(e.target.value);
+              }}
+            >
+              {Object.entries(SORTS).map(([key, sort]) => (
+                <option key={key} value={key}>
+                  {sort.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <span
             className={`sheet-status sheet-status-${status}`}
             role="status"
@@ -509,21 +541,19 @@ export default function PeopleSheet({ token, people, onSaved }) {
           <tbody>
             {blocks.map((block) => (
               <React.Fragment key={block.team || "unassigned"}>
-                {/* One heading per team. It spans the whole table, so the grid
-                    reads as blocks rather than one long undifferentiated list. */}
-                <tr className="sheet-group-row">
-                  <td className="sheet-group-cell" colSpan={COLUMNS.length + 2}>
-                    <span className="sheet-group-name">{block.team || "No team"}</span>
-                    <span className="sheet-group-count">{block.rows.length}</span>
-                    <button
-                      className="link-btn"
-                      onClick={() => addRow(block.team)}
-                      title={`Add someone to ${block.team || "no team"}`}
-                    >
-                      + Add
-                    </button>
-                  </td>
-                </tr>
+                {/* One heading per team, so the grid reads as blocks rather
+                    than one long undifferentiated list. Only when the table is
+                    ordered by team — the other orders are a flat list. */}
+                {block.team !== null && (
+                  <tr className="sheet-group-row">
+                    <td className="sheet-group-cell" colSpan={COLUMNS.length + 2}>
+                      <span className="sheet-group-chip">
+                        <span className="sheet-group-name">{block.team || "No team"}</span>
+                        <span className="sheet-group-count">{block.rows.length}</span>
+                      </span>
+                    </td>
+                  </tr>
+                )}
 
                 {block.rows.map((row) => {
                   const rowIndex = visible.indexOf(row);

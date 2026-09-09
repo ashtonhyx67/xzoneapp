@@ -2808,40 +2808,67 @@ button {
   background: var(--surface);
 }
 
-/* A team's heading inside the grid. Sticks under the column headers as the
-   block scrolls past, so it is always clear whose rows are on screen. */
+/* A team's heading inside the grid: a dark block the width of the Name column
+   and a little wider, carrying the team and how many are in it. The row it sits
+   on stays plain, so the block itself is what the eye catches. */
 .sheet-group-row td {
-  background: #eef1f3;
+  background: var(--surface);
+  border-bottom: none;
+  border-right: none;
+  padding: 8px 0 3px !important;
 }
 
 .sheet-group-cell {
   position: sticky;
   left: 0;
-  padding: 5px 8px !important;
-  border-bottom: 1px solid var(--border-strong);
+}
+
+.sheet-group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 160px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: #3c4a52;
+  color: #fff;
 }
 
 .sheet-group-name {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .sheet-group-count {
-  margin-left: 8px;
-  padding: 1px 7px;
+  margin-left: auto;
+  padding: 1px 8px;
   border-radius: 999px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  font-size: 10px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 11px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
   color: var(--text-soft);
 }
 
-.sheet-group-cell .link-btn {
-  margin-left: 10px;
-  font-size: 11px;
+.sheet-sort select {
+  padding: 6px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
 }
 
 /* Zebra striping makes a wide row easy to follow across the screen. */
@@ -2850,7 +2877,7 @@ button {
 }
 
 .sheet tbody tr.sheet-group-row td {
-  background: #eef1f3;
+  background: var(--surface);
 }
 
 .sheet tbody tr:hover td {
@@ -2858,7 +2885,7 @@ button {
 }
 
 .sheet tbody tr.sheet-group-row:hover td {
-  background: #eef1f3;
+  background: var(--surface);
 }
 
 .sheet tbody tr:focus-within td {
