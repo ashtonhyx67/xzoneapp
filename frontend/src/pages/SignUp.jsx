@@ -68,9 +68,15 @@ export default function SignUp() {
           </div>
           <div className="field">
             <label htmlFor="email">Email</label>
+            {/* A browser accepts "a@b" as a valid email; the server wants a
+                domain with a dot in it. Matching the two means the browser
+                catches it first, in its own words, rather than the form being
+                submitted only to come back rejected. */}
             <input
               id="email"
               type="email"
+              pattern="[^\s@]+@[^\s@]+\.[^\s@]+"
+              title="Include an @ and a domain, like name@gmail.com"
               autoComplete="email"
               value={form.email}
               onChange={update("email")}

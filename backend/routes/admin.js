@@ -5,6 +5,7 @@ const { pool } = require("../db");
 const { requireAuth, requirePermission } = require("../middleware/auth");
 const { PERMISSIONS, DEFAULT_GROUP, isAssignable, publicGroups } = require("../lib/groups");
 const { isOwnerEmail } = require("../lib/owner");
+const { normalizeEmail, isValidEmail, EMAIL_ERROR } = require("../lib/email");
 const { CGS, TEAMS, TEAM_KEYS, normalizeTeam } = require("../lib/teams");
 
 const router = express.Router();
@@ -12,10 +13,6 @@ const router = express.Router();
 const route = (handler) => (req, res, next) => handler(req, res, next).catch(next);
 
 router.use(requireAuth, requirePermission(PERMISSIONS.MANAGE_ACCOUNTS));
-
-function normalizeEmail(email) {
-  return String(email || "").trim().toLowerCase();
-}
 
 // The owner's group comes from their email, so it is reported that way here
 // too rather than from whatever the row happens to say.
@@ -69,6 +66,9 @@ router.post(
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: "Name, email, and password are all required." });
+    }
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: EMAIL_ERROR });
     }
     if (String(password).length < 8) {
       return res.status(400).json({ error: "Password must be at least 8 characters." });

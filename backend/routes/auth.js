@@ -12,6 +12,7 @@ const { pool } = require("../db");
 const { requireAuth } = require("../middleware/auth");
 const { isOwnerEmail } = require("../lib/owner");
 const { getGroup, permissionsFor, DEFAULT_GROUP } = require("../lib/groups");
+const { normalizeEmail, isValidEmail, EMAIL_ERROR } = require("../lib/email");
 
 const router = express.Router();
 
@@ -50,10 +51,6 @@ function signToken(userId) {
 
 function publicUser(row) {
   return { id: row.id, name: row.name, email: row.email };
-}
-
-function normalizeEmail(email) {
-  return String(email || "").trim().toLowerCase();
 }
 
 async function saveChallenge(userId, challenge) {
@@ -121,6 +118,11 @@ router.post(
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: "Name, email, and password are all required." });
+    }
+    // Checked here rather than trusting the browser: the input is type="email",
+    // but nothing stops a request being made without one.
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: EMAIL_ERROR });
     }
     if (password.length < 8) {
       return res.status(400).json({ error: "Password must be at least 8 characters." });

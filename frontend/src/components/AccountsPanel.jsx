@@ -146,9 +146,15 @@ export default function AccountsPanel() {
           </div>
           <div className="field">
             <label htmlFor="account-email">Email</label>
+            {/* A browser accepts "a@b" as a valid email; the server wants a
+                domain with a dot in it. Matching the two means the browser
+                catches it first, in its own words, rather than the form being
+                submitted only to come back rejected. */}
             <input
               id="account-email"
               type="email"
+              pattern="[^\s@]+@[^\s@]+\.[^\s@]+"
+              title="Include an @ and a domain, like name@gmail.com"
               value={form.email}
               onChange={update("email")}
               required
