@@ -401,6 +401,59 @@ router.put(
   })
 );
 
+// What a whole CG did that week: each of its teams, and the two added together.
+// A register is kept per team, but the number that gets reported is the CG's, so
+// it is worked out here rather than by whoever is reading two screens.
+router.get(
+  "/cg",
+  requireAuth,
+  canView,
+  route(async (req, res) => {
+    const cg = String(req.query.cg ?? "").trim().toUpperCase();
+    const teams = teamsInCg(cg);
+    const { year, week } = resolveWeek(req.query.year, req.query.week);
+
+    if (teams.length === 0) {
+      return res.json({ cg, year, week, teams: [], counts: tally([], []) });
+    }
+
+    const allowed = await allowedStatuses();
+    const rows = await pool.query(
+      `SELECT w.team, a.statuses, a.category AS own_category, p.role AS person_role
+         FROM attendance_weeks w
+         JOIN attendance_people a ON a.week_id = w.id
+         LEFT JOIN people p ON p.id = a.person_id
+        WHERE w.team = ANY($1::text[]) AND w.year = $2 AND w.week = $3`,
+      [teams, year, week]
+    );
+
+    const shape = (row) => ({
+      statuses: cleanStatuses(row.statuses, allowed),
+      category: row.person_role
+        ? categoryOf({ role: row.person_role })
+        : categoryOf({ role: row.own_category }),
+    });
+
+    const everyone = rows.rows.map(shape);
+
+    res.json({
+      cg,
+      year,
+      week,
+      // Per team as well as combined: the CG number is the one that matters,
+      // but it is no use if you cannot see which team is short.
+      teams: teams.map((team) => ({
+        team,
+        counts: tally(
+          rows.rows.filter((row) => row.team === team).map(shape),
+          allowed
+        ),
+      })),
+      counts: tally(everyone, allowed),
+    });
+  })
+);
+
 // The names a seating arrangement can draw on: the people actually marked as
 // having come, on the registers of that CG's teams for the week. Seats are for
 // people who are there, so someone unmarked is not offered — mark the register

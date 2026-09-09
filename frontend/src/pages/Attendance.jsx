@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
-import { CGS } from "../lib/teams.js";
+import { CGS, cgOf } from "../lib/teams.js";
 import { useWeek } from "../lib/useWeek.js";
 import { BUILTIN_STATUSES, CATEGORIES, CATEGORY_KEYS, categoryOf, isPresent } from "../lib/attendance.js";
 import AppShell from "../components/AppShell.jsx";
@@ -95,6 +95,9 @@ export default function Attendance() {
   const [adding, setAdding] = useState(false);
   const [newStatus, setNewStatus] = useState({ label: "", emoji: "", counts: true });
   const [directory, setDirectory] = useState([]);
+  // The whole CG's numbers, which is what actually gets reported. Kept apart
+  // from the register below, which is one team's.
+  const [cgCounts, setCgCounts] = useState(null);
   const [status, setStatus] = useState("idle"); // idle | saving | error
   const [error, setError] = useState("");
 
@@ -158,6 +161,29 @@ export default function Attendance() {
       controller.abort();
     };
   }, [token, team, when]);
+
+  const cg = cgOf(team);
+
+  // Re-read after every save as well as on load, so the group total follows the
+  // marks being made rather than lagging a screen behind.
+  const savedAt = record?.counts;
+  useEffect(() => {
+    if (!token || !cg) return;
+    const controller = new AbortController();
+    let active = true;
+
+    api
+      .getCgAttendance(token, { cg, ...when }, controller.signal)
+      .then((data) => active && setCgCounts(data))
+      .catch(() => {
+        /* the team's own numbers are still shown */
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [token, cg, when, savedAt]);
 
   const canEdit = Boolean(record?.canEdit);
 
@@ -435,19 +461,46 @@ export default function Attendance() {
           <>
             <div className="tally">
               <div className="tally-total">
-                <span className="tally-total-label">Total attendance</span>
-                <span className="tally-total-value">{total}</span>
+                {/* The CG's number, because that is the one that gets
+                    reported. The register underneath is this team's. */}
+                <span className="tally-total-label">
+                  Total attendance{cg ? ` (${cg})` : ""}
+                </span>
+                <span className="tally-total-value">
+                  {cgCounts ? cgCounts.counts.total : total}
+                </span>
               </div>
+
+              {/* Which team the group's number is made of. No use knowing the
+                  CG is down without seeing which half. */}
+              {cgCounts && cgCounts.teams.length > 1 && (
+                <div className="tally-teams">
+                  {cgCounts.teams.map((entry) => (
+                    <span
+                      className={`tally-team${entry.team === team ? " tally-team-current" : ""}`}
+                      key={entry.team}
+                    >
+                      {entry.team}
+                      <strong>{entry.counts.total}</strong>
+                    </span>
+                  ))}
+                </div>
+              )}
 
               <div className="tally-groups">
                 {CATEGORIES.map((category) => {
+                  const group = cgCounts?.counts.byCategory[category.key];
                   const listed = people.filter((p) => p.category === category.key);
                   const here = listed.filter((p) => isPresent(p.statuses, statuses)).length;
                   return (
                     <div className="tally-group" key={category.key} title={category.description}>
                       <span className="tally-group-name">{category.label}</span>
-                      <span className="tally-group-value">{here}</span>
-                      <span className="tally-group-of">/ {listed.length}</span>
+                      <span className="tally-group-value">
+                        {group ? group.present : here}
+                      </span>
+                      <span className="tally-group-of">
+                        / {group ? group.listed : listed.length}
+                      </span>
                     </div>
                   );
                 })}

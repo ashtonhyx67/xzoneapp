@@ -1467,7 +1467,39 @@ button {
   }
 
   /* The tally never squeezes below something readable. */
-  .tally-groups {
+  /* Which team the group's total is made of, the current one picked out. */
+.tally-teams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tally-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.tally-team strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.tally-team-current {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.tally-groups {
     grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
   }
 
@@ -2204,6 +2236,38 @@ button {
   .tally-total-value {
     font-size: 22px;
   }
+}
+
+/* Which team the group's total is made of, the current one picked out. */
+.tally-teams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tally-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.tally-team strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.tally-team-current {
+  border-color: var(--accent);
+  color: var(--text);
 }
 
 .tally-groups {

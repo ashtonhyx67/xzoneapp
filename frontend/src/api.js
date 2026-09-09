@@ -60,6 +60,13 @@ export const api = {
     }),
   saveAttendance: (token, body) => request("/attendance", { method: "PUT", body, token }),
 
+  // What the whole CG did that week: each team, and the two added together.
+  getCgAttendance: (token, { cg, year, week }, signal) =>
+    request(`/attendance/cg?cg=${encodeURIComponent(cg)}&year=${year}&week=${week}`, {
+      token,
+      signal,
+    }),
+
   // Statuses are zone-wide: a register is read next to other registers, so a
   // status added for one team would not compare.
   addAttendanceStatus: (token, body) =>
