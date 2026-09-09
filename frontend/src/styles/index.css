@@ -1799,13 +1799,17 @@ button {
 }
 
 .pool-person {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px 8px;
+  display: flex;
   align-items: center;
-  padding: 8px;
+  gap: 8px;
+  padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.pool-person .pool-team {
+  margin-left: auto;
 }
 
 .pool-name {
@@ -1820,16 +1824,6 @@ button {
   color: var(--text-soft);
 }
 
-.pool-place {
-  grid-column: 1 / -1;
-  padding: 5px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  font-family: inherit;
-  font-size: 12px;
-  color: inherit;
-}
 
 /* On a narrow screen the pool goes under the plan rather than beside it. */
 @media (max-width: 860px) {
@@ -1840,6 +1834,202 @@ button {
   .attendance-actions {
     margin-left: 0;
   }
+}
+
+/* Week and team in one box: together they decide which register is on screen,
+   so they read as a single control rather than two loose fields. */
+.picker-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.picker-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 4px;
+  background: var(--border);
+}
+
+.picker-team {
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: inherit;
+  cursor: pointer;
+}
+
+.picker-team:hover {
+  background: var(--bg);
+}
+
+.picker-box .week-picker-label {
+  min-width: 132px;
+}
+
+/* The total, with the groups it is made of underneath. */
+.tally {
+  margin: 14px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.tally-total {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.tally-total-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.tally-total-value {
+  margin-left: auto;
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.tally-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+}
+
+.tally-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 6px;
+  border-right: 1px solid var(--border);
+}
+
+.tally-group:last-child {
+  border-right: none;
+}
+
+.tally-group-name {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-soft);
+}
+
+.tally-group-value {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tally-group-of {
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+/* What the marks mean, next to the button that adds another one. */
+.legend-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.legend-chip-emoji {
+  font-size: 14px;
+}
+
+/* A status that does not count reads quieter, so the total is never a mystery. */
+.legend-chip-muted {
+  color: var(--text-soft);
+  border-style: dashed;
+}
+
+.legend-add {
+  margin-left: auto;
+}
+
+/* Seating: a row lights up while something is being carried over it. */
+.seating-row-armed {
+  border-style: dashed;
+}
+
+.seating-row-over {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px rgba(0, 128, 96, 0.18);
+}
+
+.seat {
+  cursor: grab;
+  user-select: none;
+}
+
+.seat:active {
+  cursor: grabbing;
+}
+
+.seat-held,
+.pool-person-held {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.pool-person {
+  cursor: grab;
+  user-select: none;
+}
+
+.pool-person:active {
+  cursor: grabbing;
+}
+
+.seating-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-soft);
 }
 
 /* ---------- Teams and CGs ---------- */

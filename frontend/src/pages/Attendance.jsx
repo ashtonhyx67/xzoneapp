@@ -273,25 +273,31 @@ export default function Attendance() {
       </header>
 
       <div className="panel">
-        <div className="sheet-toolbar attendance-toolbar">
-          <WeekPicker value={when} onChange={setWhen} />
+        <div className="attendance-toolbar">
+          {/* Week and team sit together: they are the two things that decide
+              which register is on screen, so they read as one control. */}
+          <div className="picker-box">
+            <WeekPicker value={when} onChange={setWhen} />
 
-          <select
-            className="roster-team-select"
-            aria-label="Team"
-            value={team}
-            onChange={(e) => setTeam(e.target.value)}
-          >
-            {CGS.map((cg) => (
-              <optgroup key={cg.key} label={cg.key}>
-                {cg.teams.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+            <span className="picker-divider" aria-hidden="true" />
+
+            <select
+              className="picker-team"
+              aria-label="Team"
+              value={team}
+              onChange={(e) => setTeam(e.target.value)}
+            >
+              {CGS.map((cg) => (
+                <optgroup key={cg.key} label={`${cg.key} CG`}>
+                  {cg.teams.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
 
           <span className="sheet-status">
             {status === "saving" ? "Saving…" : status === "error" ? "Not saved" : ""}
@@ -307,17 +313,50 @@ export default function Attendance() {
           <div className="list-empty">Loading…</div>
         ) : (
           <>
-            <div className="register-bar">
-              <span className="register-total-label">Total</span>
-              <span className="register-total-value">{total}</span>
+            <div className="tally">
+              <div className="tally-total">
+                <span className="tally-total-label">Total attendance</span>
+                <span className="tally-total-value">{total}</span>
+              </div>
+
+              <div className="tally-groups">
+                {CATEGORIES.map((category) => {
+                  const listed = people.filter((p) => p.category === category.key);
+                  const here = listed.filter((p) => isPresent(p.statuses, statuses)).length;
+                  return (
+                    <div className="tally-group" key={category.key} title={category.description}>
+                      <span className="tally-group-name">{category.label}</span>
+                      <span className="tally-group-value">{here}</span>
+                      <span className="tally-group-of">/ {listed.length}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* The legend sits with the button that adds to it, so what the
+                marks mean and how to add one are in the same place. */}
+            <div className="legend-bar">
+              <div className="legend-items">
+                {statuses.map((s) => (
+                  <span
+                    className={`legend-chip${s.counts ? "" : " legend-chip-muted"}`}
+                    key={s.key}
+                    title={s.counts ? "Counts towards the total" : "Not counted"}
+                  >
+                    <span className="legend-chip-emoji">{s.emoji || "•"}</span>
+                    {s.label}
+                  </span>
+                ))}
+              </div>
 
               {canEdit && (
                 <button
                   type="button"
-                  className="link-btn register-add-status"
+                  className="btn btn-secondary btn-inline legend-add"
                   onClick={() => setAdding((open) => !open)}
                 >
-                  {adding ? "Cancel" : "+ Add a status"}
+                  {adding ? "Cancel" : "+ Status"}
                 </button>
               )}
             </div>

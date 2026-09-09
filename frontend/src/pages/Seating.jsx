@@ -24,6 +24,10 @@ export default function Seating() {
   const [record, setRecord] = useState(null);
   const [rows, setRows] = useState([]);
   const [roll, setRoll] = useState([]);
+  // What is being moved. Drag carries it on desktop; tapping picks it up on a
+  // phone, where dragging across a scrolling list is close to unusable.
+  const [held, setHeld] = useState(null);
+  const [overRow, setOverRow] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -36,9 +40,9 @@ export default function Seating() {
     api
       .getTeams(token, controller.signal)
       .then((mine) => {
-        const held = mine.editable[0];
+        const myTeam = mine.editable[0];
         setCg(
-          (current) => current || CGS.find((c) => c.teams.includes(held))?.key || CGS[0].key
+          (current) => current || CGS.find((c) => c.teams.includes(myTeam))?.key || CGS[0].key
         );
       })
       .catch((err) => {
@@ -126,17 +130,45 @@ export default function Seating() {
   const updateRow = (index, patch) =>
     setRows((list) => list.map((row, i) => (i === index ? { ...row, ...patch } : row)));
 
-  function place(name, rowIndex) {
-    updateRow(rowIndex, {
-      ...rows[rowIndex],
-      seats: [...rows[rowIndex].seats, { key: newKey(), name }],
+  // Puts a name into a row, taking it out of wherever it was first, so dragging
+  // between rows moves rather than duplicates.
+  function place(item, rowIndex) {
+    if (!item || rowIndex == null) return;
+
+    setRows((list) => {
+      const next = list.map((row) => ({
+        ...row,
+        seats:
+          item.from == null ? row.seats : row.seats.filter((seat) => seat.key !== item.key),
+      }));
+      next[rowIndex] = {
+        ...next[rowIndex],
+        seats: [...next[rowIndex].seats, { key: newKey(), name: item.name }],
+      };
+      return next;
     });
+
+    setHeld(null);
+    setOverRow(null);
   }
 
   function removeSeat(rowIndex, seatKey) {
     updateRow(rowIndex, {
       seats: rows[rowIndex].seats.filter((seat) => seat.key !== seatKey),
     });
+  }
+
+  // The same payload however it was picked up, so drop and tap share one path.
+  function dragStart(event, item) {
+    setHeld(item);
+    event.dataTransfer.effectAllowed = "move";
+    // Some browsers refuse to start a drag without data set on it.
+    event.dataTransfer.setData("text/plain", item.name);
+  }
+
+  function dropOn(event, rowIndex) {
+    event.preventDefault();
+    place(held, rowIndex);
   }
 
   function moveRow(index, delta) {
@@ -169,21 +201,25 @@ export default function Seating() {
       </header>
 
       <div className="panel">
-        <div className="sheet-toolbar attendance-toolbar">
-          <WeekPicker value={when} onChange={setWhen} />
+        <div className="attendance-toolbar">
+          <div className="picker-box">
+            <WeekPicker value={when} onChange={setWhen} />
 
-          <select
-            className="roster-team-select"
-            aria-label="CG"
-            value={cg}
-            onChange={(e) => setCg(e.target.value)}
-          >
-            {CGS.map((group) => (
-              <option key={group.key} value={group.key}>
-                {group.key} CG
-              </option>
-            ))}
-          </select>
+            <span className="picker-divider" aria-hidden="true" />
+
+            <select
+              className="picker-team"
+              aria-label="CG"
+              value={cg}
+              onChange={(e) => setCg(e.target.value)}
+            >
+              {CGS.map((group) => (
+                <option key={group.key} value={group.key}>
+                  {group.key} CG
+                </option>
+              ))}
+            </select>
+          </div>
 
           {canEdit ? (
             <span className="attendance-actions">
@@ -216,7 +252,22 @@ export default function Seating() {
                 </div>
               ) : (
                 rows.map((row, rowIndex) => (
-                  <div className="seating-row" key={row.key}>
+                  <div
+                    className={`seating-row${
+                      overRow === rowIndex ? " seating-row-over" : ""
+                    }${held ? " seating-row-armed" : ""}`}
+                    key={row.key}
+                    onDragOver={(e) => {
+                      if (!canEdit || !held) return;
+                      e.preventDefault();
+                      setOverRow(rowIndex);
+                    }}
+                    onDragLeave={() => setOverRow((r) => (r === rowIndex ? null : r))}
+                    onDrop={(e) => canEdit && dropOn(e, rowIndex)}
+                    // Tapping a row drops whoever is being carried into it, so
+                    // the whole thing works without a drag on a phone.
+                    onClick={() => canEdit && held && place(held, rowIndex)}
+                  >
                     <div className="seating-row-head">
                       {canEdit ? (
                         <input
@@ -267,12 +318,38 @@ export default function Seating() {
 
                     <div className="seating-seats">
                       {row.seats.map((seat) => (
-                        <span className="seat" key={seat.key}>
+                        <span
+                          className={`seat${
+                            held?.key === seat.key ? " seat-held" : ""
+                          }`}
+                          key={seat.key}
+                          draggable={canEdit}
+                          onDragStart={(e) =>
+                            dragStart(e, { name: seat.name, from: rowIndex, key: seat.key })
+                          }
+                          onDragEnd={() => {
+                            setHeld(null);
+                            setOverRow(null);
+                          }}
+                          onClick={(e) => {
+                            if (!canEdit) return;
+                            // Stop the row underneath treating this as a drop.
+                            e.stopPropagation();
+                            setHeld((current) =>
+                              current?.key === seat.key
+                                ? null
+                                : { name: seat.name, from: rowIndex, key: seat.key }
+                            );
+                          }}
+                        >
                           {seat.name}
                           {canEdit && (
                             <button
                               className="seat-remove"
-                              onClick={() => removeSeat(rowIndex, seat.key)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeSeat(rowIndex, seat.key);
+                              }}
                               aria-label={`Take ${seat.name} out of this row`}
                             >
                               ×
@@ -296,6 +373,12 @@ export default function Seating() {
                   <span className="section-count">{unplaced.length}</span>
                 </div>
 
+                <p className="seating-hint">
+                  {held
+                    ? `Carrying ${held.name} — tap a row to put them there.`
+                    : "Drag someone onto a row, or tap them and then tap the row."}
+                </p>
+
                 {roll.length === 0 ? (
                   <div className="list-empty">
                     Nobody on this CG's attendance for week {when.week} yet.
@@ -304,32 +387,28 @@ export default function Seating() {
                   <div className="list-empty">Everyone has a seat.</div>
                 ) : (
                   <div className="seating-pool-list">
-                    {unplaced.map((person) => (
-                      <div className="pool-person" key={`${person.team}-${person.name}`}>
-                        <span className="pool-name">{person.name}</span>
-                        <span className="pool-team">{person.team}</span>
-                        {/* Placing into a named row rather than dragging: it
-                            works the same on a phone, which is where this is
-                            most likely to be done. */}
-                        <select
-                          className="pool-place"
-                          value=""
-                          aria-label={`Place ${person.name}`}
-                          disabled={rows.length === 0}
-                          onChange={(e) => {
-                            if (e.target.value === "") return;
-                            place(person.name, Number(e.target.value));
+                    {unplaced.map((person) => {
+                      const item = { name: person.name, from: null, key: null };
+                      const picked = held?.from === null && held?.name === person.name;
+                      return (
+                        <div
+                          className={`pool-person${picked ? " pool-person-held" : ""}`}
+                          key={`${person.team}-${person.name}`}
+                          draggable
+                          onDragStart={(e) => dragStart(e, item)}
+                          onDragEnd={() => {
+                            setHeld(null);
+                            setOverRow(null);
                           }}
+                          // Drag on a desktop, tap here then tap a row on a
+                          // phone — the same move either way.
+                          onClick={() => setHeld(picked ? null : item)}
                         >
-                          <option value="">Place…</option>
-                          {rows.map((row, index) => (
-                            <option key={row.key} value={index}>
-                              {row.label || `Row ${index + 1}`}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
+                          <span className="pool-name">{person.name}</span>
+                          <span className="pool-team">{person.team}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </aside>
