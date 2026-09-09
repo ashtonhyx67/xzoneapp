@@ -10,12 +10,14 @@ const router = express.Router();
 
 const route = (handler) => (req, res, next) => handler(req, res, next).catch(next);
 
-// Every field on a person, in the order the source spreadsheet used.
+// Every field on a person, in the order the source spreadsheet used. The single
+// letter it kept alongside these ("A" in XIII A) is gone: the team key says it
+// already, and X3A cannot disagree with itself the way two columns could. The
+// column is left in the database rather than dropped.
 const FIELDS = [
   "name",
   "photo_url",
   "role",
-  "team",
   "contact",
   "telegram",
   "instagram",

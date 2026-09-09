@@ -71,7 +71,7 @@ export default function Members() {
     const q = query.trim().toLowerCase();
     if (!q) return people;
     return people.filter((p) =>
-      [p.name, p.role, p.team, p.school, p.ministry]
+      [p.name, p.role, p.team_key, p.school, p.ministry]
         .map((v) => String(v ?? "").toLowerCase())
         .some((v) => v.includes(q))
     );
@@ -147,7 +147,7 @@ export default function Members() {
                 <MemberRow
                   key={person.id}
                   person={person}
-                  detail={[person.team && `Team ${person.team}`, person.school]
+                  detail={[person.team_key, person.school]
                     .filter(Boolean)
                     .join(" · ")}
                   onClick={() => select(person.id)}

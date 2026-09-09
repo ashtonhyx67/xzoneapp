@@ -74,10 +74,10 @@ router.get(
 
     const result = scope.length
       ? await pool.query(
-          "SELECT id, name, birthday, follow_up, role, team, team_key FROM people WHERE team_key = ANY($1::text[])",
+          "SELECT id, name, birthday, follow_up, role, team_key FROM people WHERE team_key = ANY($1::text[])",
           [scope]
         )
-      : await pool.query("SELECT id, name, birthday, follow_up, role, team, team_key FROM people");
+      : await pool.query("SELECT id, name, birthday, follow_up, role, team_key FROM people");
 
     const people = result.rows;
     const today = new Date();
@@ -93,7 +93,6 @@ router.get(
           daysAway,
           turning: turningAge(p.birthday, daysAway, today),
           role: p.role,
-          team: p.team,
           teamKey: p.team_key,
         };
       })
@@ -107,7 +106,6 @@ router.get(
         name: p.name,
         status: p.follow_up || "Not set",
         role: p.role,
-        team: p.team,
         teamKey: p.team_key,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));

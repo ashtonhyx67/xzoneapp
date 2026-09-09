@@ -10,7 +10,6 @@ const COLUMNS = [
   { field: "name", label: "Name", width: 138, sticky: true },
   { field: "team_key", label: "Team", width: 64, type: "team" },
   { field: "role", label: "Role", width: 70, type: "role" },
-  { field: "team", label: "Letter", width: 46 },
   { field: "contact", label: "Contact", width: 94 },
   { field: "telegram", label: "Telegram", width: 88 },
   { field: "instagram", label: "Instagram", width: 88 },

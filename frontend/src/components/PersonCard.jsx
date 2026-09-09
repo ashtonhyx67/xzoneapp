@@ -16,7 +16,6 @@ const PERSONAL = [
 
 const GENERAL = [
   ["role", "Status"],
-  ["team", "Team"],
   ["ministry", "Ministry"],
   ["follow_up", "Followup"],
   ["came_church", "Came Church"],
@@ -155,11 +154,7 @@ export default function PersonCard({
           <div className="person-name">{person.name}</div>
           <div className="person-tags">
             {person.role && <span className={roleClass(person.role)}>{person.role}</span>}
-            {person.team_key ? (
-              <span className="team-pill">{person.team_key}</span>
-            ) : (
-              person.team && <span className="team-pill">Team {person.team}</span>
-            )}
+            {person.team_key && <span className="team-pill">{person.team_key}</span>}
           </div>
         </div>
 

@@ -176,7 +176,7 @@ export default function Dashboard() {
             count={followUps.length}
             people={followUps}
             empty="Everyone is marked Done"
-            renderDetail={(person) => (person.team ? `Team ${person.team}` : "")}
+            renderDetail={(person) => person.teamKey ?? ""}
             renderBadge={(person) => ({ text: person.status, tone: "off" })}
           />
         </>
