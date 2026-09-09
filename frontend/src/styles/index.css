@@ -1699,18 +1699,49 @@ button {
   align-items: start;
 }
 
+/* Rows run down the screen, not across it — a row of seats is a column here,
+   the way it looks from the front of the room. The plan scrolls sideways when
+   there are more rows than fit. */
+.seating-plan {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.seating-plan::-webkit-scrollbar {
+  height: 10px;
+}
+
+.seating-plan::-webkit-scrollbar-track {
+  background: var(--bg);
+  border-radius: 999px;
+}
+
+.seating-plan::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 2px solid var(--bg);
+  border-radius: 999px;
+}
+
 .seating-row {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 168px;
+  min-height: 140px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  margin-bottom: 10px;
   overflow: hidden;
 }
 
 .seating-row-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: 6px;
+  padding: 8px;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
@@ -1721,9 +1752,11 @@ button {
   min-width: 0;
   font-size: 13px;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .seating-row-label {
+  width: 100%;
   padding: 5px 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1747,26 +1780,29 @@ button {
   gap: 2px;
 }
 
+/* The seats themselves, stacked down the row. */
 .seating-seats {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px;
-  min-height: 46px;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  padding: 8px;
 }
 
 .seat {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
-  border-radius: 999px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
   background: var(--card-head);
   font-size: 13px;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .seat-remove {
+  margin-left: auto;
   border: none;
   background: transparent;
   color: var(--text-soft);
@@ -1829,6 +1865,15 @@ button {
 @media (max-width: 860px) {
   .seating-layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .seating-plan {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .seating-row {
+    flex: 1 1 150px;
   }
 
   .attendance-actions {

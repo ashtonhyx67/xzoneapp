@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
-import { CGS } from "../lib/teams.js";
+import { SEATING_CGS } from "../lib/teams.js";
 import { isoWeek } from "../lib/weeks.js";
 import AppShell from "../components/AppShell.jsx";
 import WeekPicker from "../components/WeekPicker.jsx";
@@ -14,7 +14,7 @@ const emptyRow = () => ({ key: newKey(), label: "", seats: [] });
 
 // Seating is arranged by hand, one leader per CG, from the names on that week's
 // attendance. So this page is a layout tool, not a second register: it offers
-// the roll and gets out of the way.
+// the roll and gets out of the way. X3 and X2 arrange seating; X1 does not.
 export default function Seating() {
   const { token, can } = useAuth();
   const canView = can(PERMISSIONS.VIEW_DIRECTORY);
@@ -42,7 +42,10 @@ export default function Seating() {
       .then((mine) => {
         const myTeam = mine.editable[0];
         setCg(
-          (current) => current || CGS.find((c) => c.teams.includes(myTeam))?.key || CGS[0].key
+          (current) =>
+            current ||
+            SEATING_CGS.find((c) => c.teams.includes(myTeam))?.key ||
+            SEATING_CGS[0].key
         );
       })
       .catch((err) => {
@@ -213,7 +216,7 @@ export default function Seating() {
               value={cg}
               onChange={(e) => setCg(e.target.value)}
             >
-              {CGS.map((group) => (
+              {SEATING_CGS.map((group) => (
                 <option key={group.key} value={group.key}>
                   {group.key} CG
                 </option>

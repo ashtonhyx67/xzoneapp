@@ -3,7 +3,7 @@ const express = require("express");
 const { pool } = require("../db");
 const { requireAuth, requirePermission } = require("../middleware/auth");
 const { PERMISSIONS } = require("../lib/groups");
-const { CGS, teamsInCg, editableTeams } = require("../lib/teams");
+const { SEATING_CGS, teamsInCg, editableTeams } = require("../lib/teams");
 const { resolveWeek } = require("../lib/weeks");
 
 const router = express.Router();
@@ -16,14 +16,16 @@ const MAX_FIELD = 120;
 
 const clean = (value) => String(value ?? "").slice(0, MAX_FIELD).trim();
 
-// Seating is done per CG, so the CG has to be settled first. Falling back to
-// the CG of a team the caller runs means the page opens on their own.
+// Seating is done per CG, so the CG has to be settled first. Only the CGs that
+// actually arrange seating count — asking for one that does not falls back the
+// same way a missing one does. Falling back to the CG of a team the caller runs
+// means the page opens on their own.
 function cgFor(req) {
   const asked = String(req.query.cg ?? req.body?.cg ?? "").trim().toUpperCase();
-  if (CGS.some((cg) => cg.key === asked)) return asked;
+  if (SEATING_CGS.some((cg) => cg.key === asked)) return asked;
 
   const mine = editableTeams(req.access)[0];
-  return CGS.find((cg) => cg.teams.includes(mine))?.key ?? CGS[0].key;
+  return SEATING_CGS.find((cg) => cg.teams.includes(mine))?.key ?? SEATING_CGS[0].key;
 }
 
 // One leader per CG does the arrangement, and they are a leader of that CG —

@@ -18,6 +18,9 @@ export const CGS = [
   { key: "X1", label: "X1", teams: ["X1"] },
 ];
 
+// The CGs that do a seating arrangement. X1 does not, so it is not offered.
+export const SEATING_CGS = CGS.filter((cg) => cg.key !== "X1");
+
 export const TEAMS = CGS.flatMap((cg) => cg.teams.map((key) => ({ key, cg: cg.key })));
 
 export const TEAM_KEYS = TEAMS.map((team) => team.key);

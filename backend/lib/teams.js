@@ -19,6 +19,11 @@ const CGS = [
   { key: "X1", label: "X1", teams: ["X1"] },
 ];
 
+// The CGs that do a seating arrangement. X1 does not, so it is not offered and
+// not accepted — a seating week filed under it would be a record of something
+// that never happens.
+const SEATING_CGS = CGS.filter((cg) => cg.key !== "X1");
+
 const TEAMS = CGS.flatMap((cg) =>
   cg.teams.map((key) => ({ key, label: key, cg: cg.key }))
 );
@@ -74,6 +79,7 @@ function canEditTeam(access, team) {
 
 module.exports = {
   CGS,
+  SEATING_CGS,
   TEAMS,
   TEAM_KEYS,
   DEFAULT_TEAM,
