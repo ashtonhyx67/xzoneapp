@@ -812,29 +812,18 @@ button {
   color: var(--text-soft);
 }
 
-/* A tinted row is a leader; it carries the group's colour and reads bolder. */
-.roster-row[class*="roster-tint-"] .roster-role,
-.roster-row[class*="roster-tint-"] .roster-name,
-.roster-row[class*="roster-tint-"] .roster-year,
-.roster-row[class*="roster-tint-"] .roster-school {
+/* A coloured row is someone with a known role; it reads a shade bolder. */
+.roster-row[style*="--role-tint"] .roster-role,
+.roster-row[style*="--role-tint"] .roster-name,
+.roster-row[style*="--role-tint"] .roster-year,
+.roster-row[style*="--role-tint"] .roster-school {
   font-weight: 600;
   color: var(--text);
 }
 
-.roster-tint-green {
-  background: #cdebd6;
-}
-.roster-tint-red {
-  background: #fbd5d5;
-}
-.roster-tint-yellow {
-  background: #fdf1ae;
-}
-.roster-tint-purple {
-  background: #ded5f0;
-}
-.roster-tint-blue {
-  background: #d2e9f8;
+/* A structure row wears its role's colour, set from the same place. */
+.roster-row[style*="--role-tint"] {
+  background: var(--role-tint);
 }
 
 /* ---------- Roster: edit mode ---------- */
@@ -1507,35 +1496,13 @@ button {
   }
 }
 
-/* ---------- Role and group colours ---------- */
+/* ---------- Role colours ---------- */
 
-/* One pastel set per leader tier, shared by role pills, the role cell in the
-   database grid, and whole rows of the structure.
-   frontend/src/lib/roles.js decides which role wears which. */
-.tint-green {
-  background: #cdebd6;
-}
-.tint-red {
-  background: #fbd5d5;
-}
-.tint-yellow {
-  background: #fdf1ae;
-}
-.tint-purple {
-  background: #ded5f0;
-}
-.tint-blue {
-  background: #d2e9f8;
-}
-/* The member roles — R, GI, I, G, NF — are not a leader tier, so they wear one
-   neutral colour rather than competing with the four ranks. */
-.tint-slate {
-  background: #e2e6ea;
-}
-.tint-none {
-  background: var(--bg);
-  border: 1px solid var(--border);
-}
+/* Every role has its own colour, and it arrives as --role-tint from
+   frontend/src/lib/roles.js. There is deliberately no class per role here:
+   one place defines them, and adding a role never means editing this file.
+   The fallback is for a role no longer on the list, which stays visible and
+   uncoloured so it is easy to spot and tidy up. */
 
 .role-pill {
   display: inline-flex;
@@ -1544,10 +1511,13 @@ button {
   min-width: 42px;
   padding: 3px 10px;
   border-radius: 999px;
+  background: var(--role-tint, var(--bg));
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: #33413c;
+  /* One dark ink for all twenty: every colour is light enough to carry it, so
+     a role never has to be read against its own background. */
+  color: #26303a;
   white-space: nowrap;
 }
 
@@ -1648,10 +1618,14 @@ button {
   overflow-wrap: anywhere;
 }
 
-/* Untinted — an unknown role, or the School cell, which has no colour of its
+.roster-linked[style*="--role-tint"] {
+  background: var(--role-tint);
+  color: #26303a;
+}
+
+/* Uncoloured — an unknown role, or the School cell, which has no colour of its
    own — still needs an edge so it does not look like a missing box. */
-.roster-linked:not([class*="tint-"]),
-.roster-linked.tint-none {
+.roster-linked:not([style*="--role-tint"]) {
   border: 1px dashed var(--border-strong);
   background: var(--bg);
   color: var(--text-soft);
@@ -3493,6 +3467,7 @@ button {
 .sheet-select {
   appearance: none;
   -webkit-appearance: none;
+  background: var(--role-tint, var(--bg));
   margin: 2px 5px;
   width: calc(100% - 10px);
   padding: 2px 6px;
@@ -3500,7 +3475,7 @@ button {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: #33413c;
+  color: #26303a;
   cursor: pointer;
   line-height: 16px;
 }

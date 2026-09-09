@@ -380,7 +380,8 @@ export default function Seating() {
 
                 {roll.length === 0 ? (
                   <div className="list-empty">
-                    Nobody on this CG's attendance for week {when.week} yet.
+                    Nobody is marked present for week {when.week} yet. Mark the
+                    register and they will appear here.
                   </div>
                 ) : unplaced.length === 0 ? (
                   <div className="list-empty">Everyone has a seat.</div>

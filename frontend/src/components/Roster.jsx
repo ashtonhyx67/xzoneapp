@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
-import { ROLES, roleTint } from "../lib/roles.js";
+import { ROLES, roleStyle } from "../lib/roles.js";
 import { CGS } from "../lib/teams.js";
 
 const emptyRow = () => ({ role: "", name: "", year: "", school: "" });
@@ -297,16 +297,14 @@ export default function Roster({ token, people = [] }) {
               const row = fromDatabase(raw, byName, roster?.team);
               return editing ? (
                 <div
-                  className={`roster-row roster-row-edit${
-                    roleTint(row.role) ? ` roster-tint-${roleTint(row.role)}` : ""
-                  }`}
+                  className="roster-row roster-row-edit"
+                  style={roleStyle(row.role)}
                   key={rowIndex}
                 >
                   {row.linked ? (
                     <span
-                      className={`roster-linked${
-                        roleTint(row.role) ? ` tint-${roleTint(row.role)}` : ""
-                      }`}
+                      className="roster-linked"
+                      style={roleStyle(row.role)}
                       title="From this person's record"
                     >
                       {row.role || "—"}
@@ -400,9 +398,8 @@ export default function Roster({ token, people = [] }) {
                 </div>
               ) : (
                 <div
-                  className={`roster-row${
-                    roleTint(row.role) ? ` roster-tint-${roleTint(row.role)}` : ""
-                  }`}
+                  className="roster-row"
+                  style={roleStyle(row.role)}
                   key={raw.id ?? rowIndex}
                 >
                   <span className="roster-role">{row.role}</span>

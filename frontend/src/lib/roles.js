@@ -4,46 +4,48 @@
 // recolour here and the whole app follows: the dropdown in the database grid,
 // the coloured pill on a person's card, and the rows of the structure.
 //
-// Every role here is a leadership role, and the colour is the rank, not a
-// per-row choice — the four leader tiers each wear one colour, so the structure
-// can be read at a glance without anyone having to keep the colouring
-// consistent by hand.
+// Every role has its own colour. They are grouped by rank — zone greens, group
+// leaders warm, prospective ambers, team leaders violets, prospective blues,
+// and the member roles their own set — so a tier still reads at a glance while
+// no two roles look alike.
 //
-// `tint` must be one of the names in TINTS below.
+// The colour travels as a CSS custom property rather than a class per role, so
+// this file is genuinely the only place they are written down; there is no
+// stylesheet to keep in step with it.
 
 export const ROLES = [
-  // Zone
-  { value: "ZL", label: "ZL", tint: "green" },
-  { value: "ZM", label: "ZM", tint: "green" },
-  { value: "SCGL", label: "SCGL", tint: "green" },
+  // Zone — greens
+  { value: "ZL", label: "ZL", color: "#a8dfb4" },
+  { value: "ZM", label: "ZM", color: "#c3e9c9" },
+  { value: "SCGL", label: "SCGL", color: "#a9e0cf" },
 
-  // Group leaders
-  { value: "CGL", label: "CGL", tint: "red" },
-  { value: "OGL", label: "OGL", tint: "red" },
-  { value: "MGL", label: "MGL", tint: "red" },
+  // Group leaders — warm
+  { value: "CGL", label: "CGL", color: "#f9c2be" },
+  { value: "OGL", label: "OGL", color: "#fbcfb5" },
+  { value: "MGL", label: "MGL", color: "#f6c3ce" },
 
-  // Prospective group leaders
-  { value: "PCGL", label: "PCGL", tint: "yellow" },
-  { value: "POGL", label: "POGL", tint: "yellow" },
-  { value: "PMGL", label: "PMGL", tint: "yellow" },
+  // Prospective group leaders — ambers
+  { value: "PCGL", label: "PCGL", color: "#fbdda6" },
+  { value: "POGL", label: "POGL", color: "#f7e9a8" },
+  { value: "PMGL", label: "PMGL", color: "#e5e4a9" },
 
-  // Team leaders
-  { value: "TL", label: "TL", tint: "purple" },
-  { value: "OTL", label: "OTL", tint: "purple" },
-  { value: "ML", label: "ML", tint: "purple" },
+  // Team leaders — violets
+  { value: "TL", label: "TL", color: "#d5c8ee" },
+  { value: "OTL", label: "OTL", color: "#e8c9ed" },
+  { value: "ML", label: "ML", color: "#c7c4f0" },
 
-  // Prospective team leaders
-  { value: "PTL", label: "PTL", tint: "blue" },
-  { value: "POTL", label: "POTL", tint: "blue" },
-  { value: "PMTL", label: "PMTL", tint: "blue" },
+  // Prospective team leaders — blues
+  { value: "PTL", label: "PTL", color: "#bcd9f6" },
+  { value: "POTL", label: "POTL", color: "#b1e4f2" },
+  { value: "PMTL", label: "PMTL", color: "#c6d3f4" },
 
-  // Everyone else. These are the same column — a leader keeps their own role,
-  // and is only *counted* under R when a register is tallied.
-  { value: "R", label: "R", tint: "slate" },
-  { value: "GI", label: "GI", tint: "slate" },
-  { value: "I", label: "I", tint: "slate" },
-  { value: "G", label: "G", tint: "slate" },
-  { value: "NF", label: "NF", tint: "slate" },
+  // Everyone else. The same column — a leader keeps their own role, and is only
+  // *counted* under R when a register is tallied.
+  { value: "R", label: "R", color: "#dbe0e6" },
+  { value: "GI", label: "GI", color: "#c3e3da" },
+  { value: "I", label: "I", color: "#ecdcc3" },
+  { value: "G", label: "G", color: "#e0d6cc" },
+  { value: "NF", label: "NF", color: "#f2cfe0" },
 ];
 
 // The roles that make someone a leader, as opposed to a member. A leader is
@@ -59,26 +61,29 @@ export function roleRank(value) {
   return index === -1 ? ROLE_ORDER.length : index;
 }
 
-// The colours a role can wear. Each one has a matching `.tint-<name>` rule in
-// the stylesheet, and a `.roster-tint-<name>` rule for a whole structure row.
-export const TINTS = ["green", "red", "yellow", "purple", "blue", "slate"];
-
 const BY_VALUE = new Map(ROLES.map((role) => [role.value.toLowerCase(), role]));
 
 export function findRole(value) {
   return BY_VALUE.get(String(value ?? "").trim().toLowerCase()) || null;
 }
 
-// A role that isn't on the standard list still gets shown — it just wears the
-// neutral colour, which makes it easy to spot and tidy up. Roles retired from
-// the list keep working this way rather than vanishing off records.
-export function roleTint(value) {
-  return findRole(value)?.tint || "";
+// A role that isn't on the standard list still gets shown — it just wears no
+// colour, which makes it easy to spot and tidy up. Roles retired from the list
+// keep working this way rather than vanishing off records.
+export function roleColor(value) {
+  return findRole(value)?.color || "";
+}
+
+// Handed to `style`. Everything that shows a role reads `--role-tint`, so the
+// colour comes from this file rather than from a class the stylesheet has to
+// define for every role.
+export function roleStyle(value) {
+  const color = roleColor(value);
+  return color ? { "--role-tint": color } : undefined;
 }
 
 export function roleClass(value) {
-  const tint = roleTint(value);
-  return `role-pill${tint ? ` tint-${tint}` : " tint-none"}`;
+  return `role-pill${roleColor(value) ? "" : " tint-none"}`;
 }
 
 export function isStandardRole(value) {

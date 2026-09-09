@@ -406,8 +406,10 @@ router.put(
   })
 );
 
-// The names a seating arrangement can draw on: everyone on the registers of
-// that CG's teams for the week, and whether they were actually there.
+// The names a seating arrangement can draw on: the people actually marked as
+// having come, on the registers of that CG's teams for the week. Seats are for
+// people who are there, so someone unmarked is not offered — mark the register
+// first and they appear.
 router.get(
   "/roll",
   requireAuth,
@@ -432,12 +434,14 @@ router.get(
     res.json({
       year,
       week,
-      names: rows.rows.map((row) => ({
-        name: row.name,
-        team: row.team,
-        statuses: parseStatuses(row.statuses),
-        present: isPresent(row.statuses, allowed),
-      })),
+      names: rows.rows
+        .map((row) => ({
+          name: row.name,
+          team: row.team,
+          statuses: parseStatuses(row.statuses),
+          present: isPresent(row.statuses, allowed),
+        }))
+        .filter((person) => person.present),
     });
   })
 );

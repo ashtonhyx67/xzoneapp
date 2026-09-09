@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { photoSrc, initials } from "../lib/photo.js";
-import { ROLES, findRole, roleClass } from "../lib/roles.js";
+import { ROLES, findRole, roleClass, roleStyle } from "../lib/roles.js";
 
 // One white card: the photo and who they are on the left, the two field tables
 // beside it, and the long-text rows running full width underneath so no corner
@@ -96,7 +96,9 @@ function FieldTable({ title, fields, person, editing, onChange }) {
                 onChange={(e) => onChange(field, e.target.value)}
               />
             ) : field === "role" && person.role ? (
-              <span className={roleClass(person.role)}>{person.role}</span>
+              <span className={roleClass(person.role)} style={roleStyle(person.role)}>
+                {person.role}
+              </span>
             ) : (
               display(person, field) || <span className="card-empty">—</span>
             )}
@@ -153,7 +155,9 @@ export default function PersonCard({
         <div className="person-heading">
           <div className="person-name">{person.name}</div>
           <div className="person-tags">
-            {person.role && <span className={roleClass(person.role)}>{person.role}</span>}
+            {person.role && <span className={roleClass(person.role)} style={roleStyle(person.role)}>
+                {person.role}
+              </span>}
             {person.team_key && <span className="team-pill">{person.team_key}</span>}
             {person.deployed_to && (
               <span className="team-pill team-pill-loan" title="Deployed here, still counted under their own team">

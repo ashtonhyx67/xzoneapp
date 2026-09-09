@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
-import { ROLES, findRole, roleTint, roleRank } from "../lib/roles.js";
+import { ROLES, findRole, roleStyle, roleRank } from "../lib/roles.js";
 import { CGS, TEAM_KEYS } from "../lib/teams.js";
 
 // The columns of the people table, in spreadsheet order. `type` picks the kind
@@ -437,14 +437,14 @@ export default function PeopleSheet({ token, people, onSaved }) {
 
     if (column.type === "role") {
       const value = row.role ?? "";
-      const tint = roleTint(value);
       // A role that isn't on the standard list is kept and shown, so nothing is
       // silently rewritten just because the list has moved on.
       const custom = value && !findRole(value);
       return (
         <select
           {...shared}
-          className={`sheet-input sheet-select${tint ? ` tint-${tint}` : ""}`}
+          className="sheet-input sheet-select"
+          style={roleStyle(value)}
           value={value}
           onChange={(e) => setCell(row._key, "role", e.target.value)}
         >
