@@ -554,7 +554,7 @@ export default function PeopleSheet({ token, people, onSaved }) {
                     ordered by team — the other orders are a flat list. */}
                 {block.team !== null && (
                   <tr className="sheet-group-row">
-                    <td className="sheet-group-cell" colSpan={COLUMNS.length + 2}>
+                    <td colSpan={COLUMNS.length + 2}>
                       <span className="sheet-group-chip">
                         <span className="sheet-group-name">{block.team || "No team"}</span>
                         <span className="sheet-group-count">{block.rows.length}</span>
