@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
-import { ROLES, findRole, roleTint } from "../lib/roles.js";
-import { CGS } from "../lib/teams.js";
+import { ROLES, findRole, roleTint, roleRank } from "../lib/roles.js";
+import { CGS, TEAM_KEYS } from "../lib/teams.js";
 
 // The columns of the people table, in spreadsheet order. `type` picks the kind
 // of cell: a plain box, the standard-role dropdown, or a date picker. `readOnly`
@@ -86,12 +86,47 @@ function coerceDate(value) {
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
+// Grouped by team, and inside a team by role then name — the same order the
+// server hands the table back in, so a reflow never fights it. TEAM_KEYS is
+// already in CG order, so the teams of a CG end up next to each other.
+function teamRank(team) {
+  const index = TEAM_KEYS.indexOf(String(team ?? "").trim().toUpperCase());
+  // Anyone not filed into a team yet sits at the end, where they are obvious.
+  return index === -1 ? TEAM_KEYS.length : index;
+}
+
+function byTeamThenRole(a, b) {
+  return (
+    teamRank(a.team_key) - teamRank(b.team_key) ||
+    roleRank(a.role) - roleRank(b.role) ||
+    String(a.name ?? "").localeCompare(String(b.name ?? ""))
+  );
+}
+
+// Rows in display order, split into one block per team. A new row is held in
+// place until the next reflow, so a half-typed name does not jump around.
+function groupRows(rows) {
+  const blocks = [];
+  let current = null;
+
+  for (const row of rows) {
+    const team = row.team_key || "";
+    if (!current || current.team !== team) {
+      current = { team, rows: [] };
+      blocks.push(current);
+    }
+    current.rows.push(row);
+  }
+
+  return blocks;
+}
+
 function baselineOf(rows) {
   return Object.fromEntries(rows.map((row) => [row._key, fingerprint(row)]));
 }
 
 export default function PeopleSheet({ token, people, onSaved }) {
-  const initial = useMemo(() => people.map(toRow), [people]);
+  const initial = useMemo(() => people.map(toRow).sort(byTeamThenRole), [people]);
 
   const [rows, setRows] = useState(initial);
   const [query, setQuery] = useState("");
@@ -117,6 +152,10 @@ export default function PeopleSheet({ token, people, onSaved }) {
       COLUMNS.some((c) => String(row[c.field] ?? "").toLowerCase().includes(q))
     );
   }, [rows, query]);
+
+  // Whatever is on screen, split into one block per team. Built from `visible`
+  // so a search narrows the blocks rather than hiding the grouping.
+  const blocks = useMemo(() => groupRows(visible), [visible]);
 
   // Rows the server has not seen in their current state. A new row is held back
   // until it has a name, since the database will not take it without one.
@@ -294,12 +333,27 @@ export default function PeopleSheet({ token, people, onSaved }) {
     [focusCell]
   );
 
-  function addRow() {
+  // Reordering is asked for rather than automatic: a row that jumped the moment
+  // its role or team changed would move out from under the cursor mid-edit.
+  function reflow() {
     setQuery("");
-    const nextIndex = rows.length;
-    setRows((list) => [...list, blankRow()]);
-    // Land in the new row's Name box, ready to type.
-    requestAnimationFrame(() => focusCell(nextIndex, 0));
+    setRows((list) => [...list].sort(byTeamThenRole));
+  }
+
+  // A new row lands at the end of the team it belongs to, already filled in, so
+  // adding someone to X3A does not mean scrolling to the bottom and setting the
+  // team by hand.
+  function addRow(team = "") {
+    setQuery("");
+
+    setRows((list) => {
+      const row = { ...blankRow(), team_key: team };
+      if (!team) return [...list, row];
+
+      const last = list.map((r) => r.team_key || "").lastIndexOf(team);
+      if (last === -1) return [...list, row];
+      return [...list.slice(0, last + 1), row, ...list.slice(last + 1)];
+    });
   }
 
   function toggleDelete(key) {
@@ -410,8 +464,17 @@ export default function PeopleSheet({ token, people, onSaved }) {
               aria-label="Search"
             />
           </div>
-          <button className="btn btn-secondary btn-inline" onClick={addRow}>
+          {/* Arrow function, not a bare reference: passing the click event
+              straight into addRow would set the new row's team to an Event. */}
+          <button className="btn btn-secondary btn-inline" onClick={() => addRow()}>
             Add row
+          </button>
+          <button
+            className="btn btn-secondary btn-inline"
+            onClick={reflow}
+            title="Regroup by team and re-sort by role"
+          >
+            Sort
           </button>
           <span
             className={`sheet-status sheet-status-${status}`}
@@ -444,7 +507,27 @@ export default function PeopleSheet({ token, people, onSaved }) {
             </tr>
           </thead>
           <tbody>
-            {visible.map((row, rowIndex) => (
+            {blocks.map((block) => (
+              <React.Fragment key={block.team || "unassigned"}>
+                {/* One heading per team. It spans the whole table, so the grid
+                    reads as blocks rather than one long undifferentiated list. */}
+                <tr className="sheet-group-row">
+                  <td className="sheet-group-cell" colSpan={COLUMNS.length + 2}>
+                    <span className="sheet-group-name">{block.team || "No team"}</span>
+                    <span className="sheet-group-count">{block.rows.length}</span>
+                    <button
+                      className="link-btn"
+                      onClick={() => addRow(block.team)}
+                      title={`Add someone to ${block.team || "no team"}`}
+                    >
+                      + Add
+                    </button>
+                  </td>
+                </tr>
+
+                {block.rows.map((row) => {
+                  const rowIndex = visible.indexOf(row);
+                  return (
               <tr key={row._key} className={row._deleted ? "sheet-row-deleted" : undefined}>
                 <td className="sheet-rownum">{rowIndex + 1}</td>
                 {COLUMNS.map((column, colIndex) => (
@@ -467,6 +550,9 @@ export default function PeopleSheet({ token, people, onSaved }) {
                   </button>
                 </td>
               </tr>
+                  );
+                })}
+              </React.Fragment>
             ))}
           </tbody>
         </table>

@@ -2573,13 +2573,57 @@ button {
   background: var(--surface);
 }
 
+/* A team's heading inside the grid. Sticks under the column headers as the
+   block scrolls past, so it is always clear whose rows are on screen. */
+.sheet-group-row td {
+  background: #eef1f3;
+}
+
+.sheet-group-cell {
+  position: sticky;
+  left: 0;
+  padding: 5px 8px !important;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.sheet-group-name {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sheet-group-count {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+.sheet-group-cell .link-btn {
+  margin-left: 10px;
+  font-size: 11px;
+}
+
 /* Zebra striping makes a wide row easy to follow across the screen. */
 .sheet tbody tr:nth-child(even) td {
   background: #fafbfb;
 }
 
+.sheet tbody tr.sheet-group-row td {
+  background: #eef1f3;
+}
+
 .sheet tbody tr:hover td {
   background: #fdf6f6;
+}
+
+.sheet tbody tr.sheet-group-row:hover td {
+  background: #eef1f3;
 }
 
 .sheet tbody tr:focus-within td {

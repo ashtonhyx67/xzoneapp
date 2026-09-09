@@ -3,7 +3,7 @@ const express = require("express");
 const { pool } = require("../db");
 const { requireAuth, requirePermission } = require("../middleware/auth");
 const { PERMISSIONS } = require("../lib/groups");
-const { normalizeTeam, canEditTeam } = require("../lib/teams");
+const { normalizeTeam, canEditTeam, TEAM_KEYS } = require("../lib/teams");
 const { roleRank } = require("../lib/roles");
 
 const router = express.Router();
@@ -125,11 +125,22 @@ router.use(requireAuth);
 const canView = requirePermission(PERMISSIONS.VIEW_DIRECTORY);
 const canEdit = requirePermission(PERMISSIONS.EDIT_DATABASE);
 
-// Ordered by role — leaders down to NF — then by name inside each role, which
-// is how a list of people is actually read. Sorted here rather than in SQL
-// because the ranking lives in lib/roles.js, so there is one place to change it.
-function byRoleThenName(a, b) {
-  return roleRank(a.role) - roleRank(b.role) || a.name.localeCompare(b.name);
+// Grouped by team, and inside a team ordered by role — leaders down to NF —
+// then by name. TEAM_KEYS is already in CG order, so sorting by it puts the
+// teams of a CG next to each other for free. Sorted here rather than in SQL
+// because both rankings live in lib/, so there is one place to change them.
+function teamRank(team) {
+  const index = TEAM_KEYS.indexOf(String(team ?? "").trim().toUpperCase());
+  // Anyone not filed into a team yet sits at the end, where they are obvious.
+  return index === -1 ? TEAM_KEYS.length : index;
+}
+
+function byTeamThenRole(a, b) {
+  return (
+    teamRank(a.team_key) - teamRank(b.team_key) ||
+    roleRank(a.role) - roleRank(b.role) ||
+    a.name.localeCompare(b.name)
+  );
 }
 
 router.get(
@@ -137,7 +148,7 @@ router.get(
   canView,
   route(async (req, res) => {
     const result = await pool.query(SELECT_PERSON);
-    res.json({ people: result.rows.sort(byRoleThenName) });
+    res.json({ people: result.rows.sort(byTeamThenRole) });
   })
 );
 
@@ -312,7 +323,7 @@ router.put(
     // Hand back the saved table so the grid shows server truth (new ids,
     // recomputed ages) rather than what the browser hoped it wrote.
     const result = await pool.query(SELECT_PERSON);
-    res.json({ created, updated, deleted, people: result.rows.sort(byRoleThenName) });
+    res.json({ created, updated, deleted, people: result.rows.sort(byTeamThenRole) });
   })
 );
 
