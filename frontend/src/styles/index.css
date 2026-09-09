@@ -370,7 +370,16 @@ button {
   flex: 1;
   min-width: 0;
   padding: 32px 40px;
+  /* A comfortable measure for a page of prose-width panels. Pages that are
+     really a table or a two-pane layout opt out below — 1040px on a wide screen
+     left the scorecard cramped with empty desk either side of it. */
   max-width: 1040px;
+}
+
+.main-content:has(.members-layout),
+.main-content:has(.sheet-panel),
+.main-content:has(.seating-layout) {
+  max-width: none;
 }
 
 .page-head {
@@ -1225,6 +1234,39 @@ button {
   color: var(--text);
   outline: none;
   resize: vertical;
+}
+
+/* Wider still: the three long-text rows sit beside each other instead of
+   stacking, so a scorecard fills the width it has been given rather than
+   running down the page with empty desk either side. */
+@media (min-width: 1400px) {
+  .person-card {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+
+  .card-notes {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .card-note {
+    grid-template-columns: minmax(0, 1fr);
+    border-bottom: none;
+    border-right: 1px solid var(--border-strong);
+  }
+
+  .card-note:last-child {
+    border-right: none;
+  }
+
+  .card-note-label {
+    border-right: none;
+    border-bottom: 1px solid var(--border-strong);
+  }
+
+  .card-note-value textarea {
+    min-height: 132px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -2743,6 +2785,63 @@ button {
   margin-left: auto;
 }
 
+/* Filtering by CG or by team. A CG chip sits against its own teams so the two
+   read as one choice rather than two lists of the same thing. */
+.scope-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.scope-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.scope-chip {
+  min-width: 28px;
+  padding: 4px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.scope-chip:hover:not(.scope-on) {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.scope-cg {
+  background: var(--bg);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.scope-all {
+  border-color: var(--border);
+}
+
+.scope-on {
+  background: var(--text);
+  border-color: var(--text);
+  color: #fff;
+}
+
 .member-list {
   display: flex;
   flex-direction: column;
@@ -2834,7 +2933,7 @@ button {
 .members-layout {
   display: grid;
   grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
-  gap: 16px;
+  gap: 20px;
   margin-top: 20px;
   align-items: start;
 }

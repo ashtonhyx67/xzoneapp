@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -7,6 +7,7 @@ import AppShell from "../components/AppShell.jsx";
 import PersonCard from "../components/PersonCard.jsx";
 import MemberRow from "../components/MemberRow.jsx";
 import Roster from "../components/Roster.jsx";
+import { CGS, cgOf } from "../lib/teams.js";
 
 // The member list and the scorecard side by side: pick anyone on the left, read
 // or edit their record on the right. Both are the same database rows the
@@ -21,6 +22,9 @@ export default function Members() {
   const [selectedId, setSelectedId] = useState(null);
   const [draft, setDraft] = useState(null);
   const [query, setQuery] = useState("");
+  // "" is everyone; otherwise a CG key or a team key. One control does both,
+  // because picking X3 and picking X3A are the same kind of decision.
+  const [scope, setScope] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -67,15 +71,26 @@ export default function Members() {
 
   const shown = draft ?? selected;
 
+  // A CG matches every team inside it; a team matches only itself.
+  const inScope = useCallback(
+    (person) => {
+      if (!scope) return true;
+      if (CGS.some((cg) => cg.key === scope)) return cgOf(person.team_key) === scope;
+      return person.team_key === scope;
+    },
+    [scope]
+  );
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return people;
-    return people.filter((p) =>
-      [p.name, p.role, p.team_key, p.school, p.ministry]
+    return people.filter((p) => {
+      if (!inScope(p)) return false;
+      if (!q) return true;
+      return [p.name, p.role, p.team_key, p.school, p.ministry]
         .map((v) => String(v ?? "").toLowerCase())
-        .some((v) => v.includes(q))
-    );
-  }, [people, query]);
+        .some((v) => v.includes(q));
+    });
+  }, [people, query, inScope]);
 
   function select(id) {
     setSelectedId(id);
@@ -118,7 +133,7 @@ export default function Members() {
     <AppShell>
       <header className="page-head">
         <h1 className="page-title">Members</h1>
-        <span className="page-count">{people.length}</span>
+        <span className="page-count">{visible.length}</span>
       </header>
 
       {error && <div className="error-banner">{error}</div>}
@@ -142,6 +157,44 @@ export default function Members() {
               placeholder="Search"
               aria-label="Search members"
             />
+            <div className="scope-filter" role="group" aria-label="Filter by CG or team">
+              <button
+                type="button"
+                className={`scope-chip scope-all${scope === "" ? " scope-on" : ""}`}
+                onClick={() => setScope("")}
+              >
+                All
+              </button>
+
+              {CGS.map((cg) => (
+                <span className="scope-group" key={cg.key}>
+                  {/* The CG takes its teams with it, so a whole group is one
+                      tap rather than two. */}
+                  <button
+                    type="button"
+                    className={`scope-chip scope-cg${scope === cg.key ? " scope-on" : ""}`}
+                    onClick={() => setScope(scope === cg.key ? "" : cg.key)}
+                  >
+                    {cg.key}
+                  </button>
+                  {/* A CG of one team needs no team chip: it would repeat the
+                      chip beside it. */}
+                  {cg.teams.length > 1 &&
+                    cg.teams.map((t) => (
+                      <button
+                        type="button"
+                        key={t}
+                        className={`scope-chip${scope === t ? " scope-on" : ""}`}
+                        onClick={() => setScope(scope === t ? "" : t)}
+                      >
+                        {/* The CG is already on the chip beside it. */}
+                        {t.replace(cg.key, "")}
+                      </button>
+                    ))}
+                </span>
+              ))}
+            </div>
+
             <div className="member-list">
               {visible.map((person) => (
                 <MemberRow

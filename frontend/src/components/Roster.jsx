@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
-import { ROLES, roleStyle } from "../lib/roles.js";
+import { LEADER_ROLES, ROLES, roleStyle } from "../lib/roles.js";
 import { CGS } from "../lib/teams.js";
 
 const emptyRow = () => ({ role: "", name: "", year: "", school: "" });
@@ -58,6 +58,16 @@ function countPeople(groups) {
 }
 
 const key = (name) => String(name ?? "").trim().toLowerCase();
+
+// The structure is a picture of who leads what, so colour is reserved for the
+// leadership roles. Everyone else sits on white — their role still shows as
+// text, it simply does not compete with the ranks around it. Only here: the
+// database and a scorecard still colour every role.
+function structureStyle(role) {
+  return LEADER_ROLES.includes(String(role ?? "").trim().toUpperCase())
+    ? roleStyle(role)
+    : undefined;
+}
 
 // Role and School belong to the person, not to the structure, so the structure
 // only stores who is where and reads the rest back out of the database. Editing
@@ -298,13 +308,13 @@ export default function Roster({ token, people = [] }) {
               return editing ? (
                 <div
                   className="roster-row roster-row-edit"
-                  style={roleStyle(row.role)}
+                  style={structureStyle(row.role)}
                   key={rowIndex}
                 >
                   {row.linked ? (
                     <span
                       className="roster-linked"
-                      style={roleStyle(row.role)}
+                      style={structureStyle(row.role)}
                       title="From this person's record"
                     >
                       {row.role || "—"}
@@ -399,7 +409,7 @@ export default function Roster({ token, people = [] }) {
               ) : (
                 <div
                   className="roster-row"
-                  style={roleStyle(row.role)}
+                  style={structureStyle(row.role)}
                   key={raw.id ?? rowIndex}
                 >
                   <span className="roster-role">{row.role}</span>
