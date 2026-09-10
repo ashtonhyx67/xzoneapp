@@ -89,8 +89,9 @@ export const api = {
   getAccounts: (token, signal) => request("/admin/accounts", { token, signal }),
   createAccount: (token, account) =>
     request("/admin/accounts", { method: "POST", body: account, token }),
-  setAccountGroup: (token, id, group) =>
-    request(`/admin/accounts/${id}`, { method: "PATCH", body: { group }, token }),
+  // Role, admin flag and teams all patch the same account; any subset is fine.
+  updateAccount: (token, id, body) =>
+    request(`/admin/accounts/${id}`, { method: "PATCH", body, token }),
   setAccountTeams: (token, id, teams) =>
     request(`/admin/accounts/${id}`, { method: "PATCH", body: { teams }, token }),
   deleteAccount: (token, id) => request(`/admin/accounts/${id}`, { method: "DELETE", token }),

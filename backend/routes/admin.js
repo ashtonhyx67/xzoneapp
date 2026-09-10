@@ -23,6 +23,8 @@ function publicAccount(row) {
     name: row.name,
     email: row.email,
     group: owner ? "owner" : row.group_key || DEFAULT_GROUP,
+    // The owner is always an admin, whatever the row says.
+    isAdmin: owner || row.is_admin === true,
     isOwner: owner,
     teams: row.teams ?? [],
     pinSet: Boolean(row.pin_set),
@@ -32,7 +34,7 @@ function publicAccount(row) {
 }
 
 const SELECT_ACCOUNTS = `
-  SELECT u.id, u.name, u.email, u.group_key, u.created_at,
+  SELECT u.id, u.name, u.email, u.group_key, u.is_admin, u.created_at,
          (u.pin_hash IS NOT NULL) AS pin_set,
          EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled,
          COALESCE(
@@ -91,7 +93,9 @@ router.post(
           email,
           passwordHash,
           groupKey,
-          groupKey === "owner" || groupKey === "admin",
+          // Admin is granted afterwards, deliberately: a new account should not
+          // arrive holding it because of how its role was spelled.
+          groupKey === "owner",
         ]
       );
       const result = await pool.query(`${SELECT_ACCOUNTS} WHERE u.id = $1`, [
@@ -113,9 +117,10 @@ router.patch(
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ error: "Unknown account." });
 
-    // Group and teams can be changed together or one at a time, so an edit to
-    // someone's teams does not have to restate their group.
+    // Role, admin and teams can be changed together or one at a time, so an
+    // edit to one does not have to restate the others.
     const changingGroup = req.body?.group !== undefined;
+    const changingAdmin = req.body?.isAdmin !== undefined;
     const changingTeams = req.body?.teams !== undefined;
 
     const groupKey = String(req.body?.group || "");
@@ -148,7 +153,10 @@ router.patch(
     // it if they happen to be the only one who has it. Teams are not access, so
     // changing your own is allowed.
     if (changingGroup && id === req.userId) {
-      return res.status(400).json({ error: "You cannot change your own group." });
+      return res.status(400).json({ error: "You cannot change your own role." });
+    }
+    if (changingAdmin && id === req.userId) {
+      return res.status(400).json({ error: "You cannot remove your own admin access." });
     }
 
     const client = await pool.connect();
@@ -156,9 +164,14 @@ router.patch(
       await client.query("BEGIN");
 
       if (changingGroup) {
-        await client.query("UPDATE users SET group_key = $1, is_admin = $2 WHERE id = $3", [
-          groupKey,
-          groupKey === "admin",
+        await client.query("UPDATE users SET group_key = $1 WHERE id = $2", [groupKey, id]);
+      }
+
+      // Deliberately separate from the role: an admin is a job, not a rank, so
+      // a Member can hold it without being given a Leader's access.
+      if (changingAdmin) {
+        await client.query("UPDATE users SET is_admin = $1 WHERE id = $2", [
+          req.body.isAdmin === true,
           id,
         ]);
       }

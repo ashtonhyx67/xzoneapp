@@ -182,13 +182,26 @@ async function initSchema() {
 
   await pool.query(`UPDATE users SET group_key = 'owner' WHERE lower(email) = $1;`, [OWNER_EMAIL]);
 
-  // Access tiers are gone: being in the app is the permission. Anyone left on
-  // one of the old keys becomes a member, so nobody is stranded on a group that
-  // no longer means anything.
+  // Roles are back: Leader and Member, with admin a separate flag on top.
+  // While there were no tiers every account was marked admin, which would now
+  // hand the whole app to everyone — so that is undone for all but the owner,
+  // and anyone on a key that no longer exists becomes a Leader, which is the
+  // access they actually had before tiers were removed.
   await pool.query(`
-    UPDATE users SET group_key = 'member', is_admin = true
-     WHERE group_key NOT IN ('owner', 'member');
+    UPDATE users SET group_key = 'leader'
+     WHERE group_key NOT IN ('owner', 'leader', 'member');
   `);
+
+  // The oldest account is spared as well as the owner. If the owner's email has
+  // never signed up, clearing every flag would leave nobody able to reach the
+  // Admin page and no way to grant it back.
+  await pool.query(
+    `UPDATE users SET is_admin = false
+      WHERE is_admin
+        AND lower(email) <> $1
+        AND id <> (SELECT MIN(id) FROM users);`,
+    [OWNER_EMAIL]
+  );
 
   // ---------- PIN ----------
   // A 4-digit PIN is the everyday way back in: the session ends when the app is
@@ -553,6 +566,13 @@ async function initSchema() {
       position INTEGER NOT NULL,
       name TEXT NOT NULL DEFAULT ''
     );
+  `);
+
+  // A plan is worked on until it is done, and only then is it anyone else's to
+  // read. Members see a finalised arrangement and nothing before it, so the
+  // half-built version is never mistaken for where to sit.
+  await pool.query(`
+    ALTER TABLE seating_weeks ADD COLUMN IF NOT EXISTS finalised BOOLEAN NOT NULL DEFAULT false;
   `);
 
   await pool.query(`

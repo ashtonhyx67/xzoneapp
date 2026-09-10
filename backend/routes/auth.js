@@ -96,6 +96,7 @@ function sessionPayload(row) {
   const owner = isOwnerEmail(row.email);
   const groupKey = owner ? "owner" : row.group_key || DEFAULT_GROUP;
   const group = getGroup(groupKey);
+  const isAdmin = owner || row.is_admin === true;
 
   return {
     token: signToken(row.id),
@@ -104,7 +105,8 @@ function sessionPayload(row) {
     isOwner: owner,
     pinSet: Boolean(row.pin_hash),
     group: { key: group.key, label: group.label },
-    permissions: permissionsFor(groupKey),
+    isAdmin,
+    permissions: permissionsFor(groupKey, isAdmin),
   };
 }
 
@@ -140,7 +142,7 @@ router.post(
         `INSERT INTO users (name, email, password_hash, is_admin, group_key)
          VALUES ($1, $2, $3, $4 OR NOT EXISTS (SELECT 1 FROM users),
                  CASE WHEN $4 OR NOT EXISTS (SELECT 1 FROM users) THEN $5 ELSE $6 END)
-         RETURNING id, name, email, group_key, pin_hash`,
+         RETURNING id, name, email, group_key, is_admin, pin_hash`,
         [
           String(name).trim(),
           email,
@@ -175,7 +177,7 @@ router.post(
     }
 
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.password_hash, u.group_key, u.pin_hash,
+      `SELECT u.id, u.name, u.email, u.password_hash, u.group_key, u.is_admin, u.pin_hash,
               EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled
          FROM users u
         WHERE u.email = $1`,
@@ -198,7 +200,7 @@ router.get(
     // One round trip for the profile and whether Face ID is already enrolled,
     // so the dashboard never has to guess.
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.group_key, u.pin_hash,
+      `SELECT u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash,
               EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled
          FROM users u
         WHERE u.id = $1`,
@@ -361,7 +363,7 @@ router.post(
 
     const credResult = await pool.query(
       `SELECT c.id, c.credential_id, c.public_key, c.counter,
-              u.id AS user_id, u.name, u.email, u.group_key, u.pin_hash
+              u.id AS user_id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash
          FROM webauthn_credentials c
          JOIN users u ON u.id = c.user_id
         WHERE c.credential_id = $1 AND c.user_id = $2`,
@@ -402,6 +404,7 @@ router.post(
         name: saved.name,
         email: saved.email,
         group_key: saved.group_key,
+        is_admin: saved.is_admin,
         pin_hash: saved.pin_hash,
         face_id_enabled: true,
       })
@@ -477,7 +480,7 @@ router.post(
     }
 
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.group_key, u.pin_hash, u.pin_attempts, u.pin_locked_until,
+      `SELECT u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash, u.pin_attempts, u.pin_locked_until,
               EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled
          FROM users u
         WHERE u.email = $1`,

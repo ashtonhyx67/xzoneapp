@@ -11,6 +11,7 @@ export default function AccountsPanel() {
   const { token, user } = useAuth();
 
   const [accounts, setAccounts] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -29,6 +30,7 @@ export default function AccountsPanel() {
       .then((data) => {
         if (!active) return;
         setAccounts(data.accounts);
+        setGroups(data.groups.filter((group) => group.assignable));
       })
       .catch((err) => {
         if (active && err.name !== "AbortError") setError(err.message);
@@ -57,6 +59,21 @@ export default function AccountsPanel() {
           ? `${saved.name} works on ${saved.teams.join(", ")}.`
           : `${saved.name} is not on any team yet.`
       );
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function patch(account, body, describe) {
+    setBusyId(account.id);
+    setError("");
+    setNotice("");
+    try {
+      const { account: saved } = await api.updateAccount(token, account.id, body);
+      setAccounts((list) => list.map((a) => (a.id === saved.id ? saved : a)));
+      setNotice(describe(saved));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -198,9 +215,50 @@ export default function AccountsPanel() {
                 {account.faceIdEnabled && <span className="badge badge-off">Face ID</span>}
               </span>
 
-              {/* There is no tier to choose. Having an account is the access,
-                  so the only thing to say is who owns the app. */}
-              {account.isOwner && <span className="group-pill group-pill-owner">Owner</span>}
+              {account.isOwner ? (
+                <span className="group-pill group-pill-owner">Owner</span>
+              ) : (
+                <span className="account-access">
+                  <select
+                    className="account-role"
+                    value={account.group}
+                    disabled={busyId === account.id || account.id === user?.id}
+                    aria-label={`Role for ${account.name}`}
+                    onChange={(e) =>
+                      patch(account, { group: e.target.value }, (saved) =>
+                        `${saved.name} is now a ${
+                          groups.find((g) => g.key === saved.group)?.label ?? saved.group
+                        }.`
+                      )
+                    }
+                  >
+                    {groups.map((group) => (
+                      <option key={group.key} value={group.key} title={group.description}>
+                        {group.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Separate from the role on purpose: an admin is a job, not
+                      a rank, so a Member can hold it without being handed a
+                      Leader's access to the database. */}
+                  <label className="account-admin" title="Runs the accounts and the seating">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(account.isAdmin)}
+                      disabled={busyId === account.id || account.id === user?.id}
+                      onChange={(e) =>
+                        patch(account, { isAdmin: e.target.checked }, (saved) =>
+                          saved.isAdmin
+                            ? `${saved.name} can now run the accounts and the seating.`
+                            : `${saved.name} is no longer an admin.`
+                        )
+                      }
+                    />
+                    Admin
+                  </label>
+                </span>
+              )}
 
               {/* Which teams this account works on, laid out by CG. An admin
                   already reaches the whole zone, so there is nothing to
@@ -276,10 +334,17 @@ export default function AccountsPanel() {
         </div>
       )}
 
-      <p className="panel-note">
-        Anyone with an account can use the whole app. Teams decide whose members
-        someone works on, not what they are allowed to do.
-      </p>
+      <div className="panel-note">
+        <p>
+          <strong>Leader</strong> — the database, the registers and the structure.
+          <br />
+          <strong>Member</strong> — the dashboard, and the seating once it is finalised.
+          <br />
+          <strong>Admin</strong> — this page, and arranging the seating. A job rather
+          than a rank, so a Member can hold it too.
+        </p>
+        <p>Teams decide whose members someone works on, not what they may do.</p>
+      </div>
 
     </section>
   );

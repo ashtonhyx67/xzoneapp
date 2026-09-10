@@ -2526,6 +2526,50 @@ button {
 
 /* Which teams an account works on, laid out CG by CG. The CG chip is the
    heavier one: it owns the teams beside it, so it reads as their heading. */
+/* Role and the admin flag, side by side: two separate decisions about the same
+   account, which is exactly what they are. */
+.account-access {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.account-role {
+  height: var(--control-h);
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.account-role:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.account-admin {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.account-admin input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .account-teams {
   display: flex;
   flex-wrap: wrap;
@@ -3087,6 +3131,7 @@ button {
 
   /* Each of these takes a line of its own. */
   .account-signin,
+  .account-access,
   .account-teams,
   .account-actions {
     flex: 1 0 100%;

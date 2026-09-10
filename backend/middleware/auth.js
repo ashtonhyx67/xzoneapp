@@ -27,7 +27,7 @@ function requireAuth(req, res, next) {
 // their token happens to expire.
 async function loadAccess(userId) {
   const result = await pool.query(
-    "SELECT id, name, email, group_key FROM users WHERE id = $1",
+    "SELECT id, name, email, group_key, is_admin FROM users WHERE id = $1",
     [userId]
   );
   const row = result.rows[0];
@@ -35,6 +35,8 @@ async function loadAccess(userId) {
 
   // The owner's group comes from their email, so it survives any edit.
   const groupKey = isOwnerEmail(row.email) ? "owner" : row.group_key || DEFAULT_GROUP;
+  // The owner is always an admin; for everyone else it is the flag on the row.
+  const isAdmin = isOwnerEmail(row.email) || row.is_admin === true;
 
   const assigned = await pool.query(
     "SELECT team FROM user_teams WHERE user_id = $1 ORDER BY team",
@@ -45,7 +47,8 @@ async function loadAccess(userId) {
     user: row,
     groupKey,
     group: getGroup(groupKey),
-    permissions: permissionsFor(groupKey),
+    permissions: permissionsFor(groupKey, isAdmin),
+    isAdmin,
     isOwner: isOwnerEmail(row.email),
     // Teams this account has been put in. A team that has since been removed
     // from lib/teams.js drops out here rather than lingering as a dead key.

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
@@ -11,6 +11,8 @@ let counter = 0;
 const newKey = () => `k-${(counter += 1)}`;
 
 const emptyRow = () => ({ key: newKey(), label: "", seats: [] });
+
+const SAVE_DELAY = 700;
 
 // Seating is arranged by hand, one leader per CG, from the names on that week's
 // attendance. So this page is a layout tool, not a second register: it offers
@@ -28,9 +30,13 @@ export default function Seating() {
   // phone, where dragging across a scrolling list is close to unusable.
   const [held, setHeld] = useState(null);
   const [overRow, setOverRow] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const [finalised, setFinalised] = useState(false);
+  const [status, setStatus] = useState("idle"); // idle | saving | error
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+
+  const timer = useRef(null);
+  const inFlight = useRef(false);
+  const dirty = useRef(false);
 
   // Which CG to open on: the one containing a team this account runs.
   useEffect(() => {
@@ -61,13 +67,12 @@ export default function Seating() {
     let active = true;
 
     setRecord(null);
-    Promise.all([
-      api.getSeating(token, { cg, ...when }, controller.signal),
-      api.getAttendanceRoll(token, { cg, ...when }, controller.signal),
-    ])
-      .then(([plan, names]) => {
+    api
+      .getSeating(token, { cg, ...when }, controller.signal)
+      .then((plan) => {
         if (!active) return;
         setRecord(plan);
+        setFinalised(Boolean(plan.finalised));
         setRows(
           plan.rows.map((row) => ({
             key: `r-${row.id}`,
@@ -75,8 +80,22 @@ export default function Seating() {
             seats: row.seats.map((seat) => ({ key: `s-${seat.id}`, name: seat.name })),
           }))
         );
-        setRoll(names.names);
+        dirty.current = false;
         setError("");
+
+        // The roll comes from the registers, which a member cannot read — and
+        // has no use for, since they are not arranging anything.
+        if (!plan.canEdit) {
+          setRoll([]);
+          return;
+        }
+
+        return api
+          .getAttendanceRoll(token, { cg, ...when }, controller.signal)
+          .then((names) => active && setRoll(names.names))
+          .catch(() => {
+            /* the plan is still readable without the list to add from */
+          });
       })
       .catch((err) => {
         if (active && err.name !== "AbortError") setError(err.message);
@@ -107,31 +126,72 @@ export default function Seating() {
     [roll, seated]
   );
 
-  async function save() {
-    setSaving(true);
-    setError("");
-    setNotice("");
+  // Saved as it is arranged, like the register and the database grid. The same
+  // guards those use: cleared before sending so a change made mid-request is
+  // not wiped by the answer to one that predates it, and a save that finds more
+  // waiting schedules another.
+  const stateRef = useRef({ rows, finalised });
+  stateRef.current = { rows, finalised };
+
+  const flush = useCallback(async () => {
+    if (!record?.canEdit) return;
+    if (inFlight.current) return;
+    if (!dirty.current) return;
+
+    dirty.current = false;
+    const { rows: plan, finalised: done } = stateRef.current;
+
+    inFlight.current = true;
+    setStatus("saving");
     try {
-      const saved = await api.saveSeating(token, {
+      await api.saveSeating(token, {
         cg,
         year: when.year,
         week: when.week,
-        rows: rows.map((row) => ({
+        finalised: done,
+        rows: plan.map((row) => ({
           label: row.label,
           seats: row.seats.filter((seat) => seat.name.trim()).map((seat) => ({ name: seat.name })),
         })),
       });
-      setRecord(saved);
-      setNotice("Saved.");
+      setStatus("idle");
+      setError("");
     } catch (err) {
+      dirty.current = true;
       setError(err.message);
+      setStatus("error");
     } finally {
-      setSaving(false);
+      inFlight.current = false;
+      if (dirty.current) setTimeout(() => flushRef.current(), 200);
     }
-  }
+  }, [cg, record, token, when]);
 
-  const updateRow = (index, patch) =>
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+
+  const schedule = useCallback(() => {
+    dirty.current = true;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      flushRef.current();
+    }, SAVE_DELAY);
+  }, []);
+
+  // A pending write must not be lost on the way out. Empty deps: unmount only.
+  useEffect(() => {
+    return () => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+        flushRef.current();
+      }
+    };
+  }, []);
+
+  const updateRow = (index, patch) => {
     setRows((list) => list.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+    schedule();
+  };
 
   // Puts a name into a row, taking it out of wherever it was first, so dragging
   // between rows moves rather than duplicates.
@@ -153,12 +213,22 @@ export default function Seating() {
 
     setHeld(null);
     setOverRow(null);
+    schedule();
   }
 
   function removeSeat(rowIndex, seatKey) {
     updateRow(rowIndex, {
       seats: rows[rowIndex].seats.filter((seat) => seat.key !== seatKey),
     });
+  }
+
+  // Finalising is what makes the plan visible to everyone else, so it saves at
+  // once rather than waiting for the pause an edit waits for.
+  function toggleFinalised() {
+    setFinalised((done) => !done);
+    dirty.current = true;
+    if (timer.current) clearTimeout(timer.current);
+    setTimeout(() => flushRef.current(), 0);
   }
 
   // The same payload however it was picked up, so drop and tap share one path.
@@ -183,6 +253,7 @@ export default function Seating() {
       [next[index], next[target]] = [next[target], next[index]];
       return next;
     });
+    schedule();
   }
 
   if (!canView) {
@@ -229,21 +300,41 @@ export default function Seating() {
             <span className="attendance-actions">
               <button
                 className="btn btn-secondary btn-inline"
-                onClick={() => setRows((list) => [...list, emptyRow()])}
+                onClick={() => {
+                  setRows((list) => [...list, emptyRow()]);
+                  schedule();
+                }}
               >
                 + Row
               </button>
-              <button className="btn btn-primary btn-inline" onClick={save} disabled={saving}>
-                {saving ? "Saving…" : "Save"}
+
+              {/* What makes the plan everyone else's to read. Until it is on,
+                  a member sees nothing — a half-built arrangement is not
+                  somewhere to go and sit. */}
+              <button
+                className={`btn btn-inline ${finalised ? "btn-secondary" : "btn-primary"}`}
+                onClick={toggleFinalised}
+                title={
+                  finalised
+                    ? "Everyone can see this. Press to take it back."
+                    : "Nobody else can see this yet."
+                }
+              >
+                {finalised ? "Finalised ✓" : "Finalise"}
               </button>
+
+              <span className="sheet-status">
+                {status === "saving" ? "Saving…" : status === "error" ? "Not saved" : ""}
+              </span>
             </span>
           ) : (
-            <span className="roster-readonly-note">Read-only — not your CG</span>
+            <span className="roster-readonly-note">
+              {record?.finalised ? "Read-only" : ""}
+            </span>
           )}
         </div>
 
         {error && <div className="error-banner panel-notice">{error}</div>}
-        {notice && <div className="panel-notice list-empty">{notice}</div>}
 
         {!record ? (
           <div className="list-empty">Loading…</div>
@@ -309,9 +400,10 @@ export default function Seating() {
                           </button>
                           <button
                             className="icon-btn icon-btn-danger"
-                            onClick={() =>
-                              setRows((list) => list.filter((_, i) => i !== rowIndex))
-                            }
+                            onClick={() => {
+                              setRows((list) => list.filter((_, i) => i !== rowIndex));
+                              schedule();
+                            }}
                             aria-label="Delete row"
                           >
                             ×

@@ -30,20 +30,18 @@ function cgFor(req) {
   return SEATING_CGS.find((cg) => cg.teams.includes(mine))?.key ?? SEATING_CGS[0].key;
 }
 
-// One leader per CG does the arrangement, and they are a leader of that CG —
-// so holding any team inside it is what grants the write.
-function canEditCg(access, cg) {
-  if (access.permissions.includes(PERMISSIONS.MANAGE_ACCOUNTS)) return true;
-  const teams = teamsInCg(cg);
-  return teams.some((team) => (access.teams ?? []).includes(team));
+// Arranging seating is an admin's job, so the flag is what grants it. There is
+// no per-CG narrowing: whoever sorts the seating sorts all of it.
+function canEditCg(access) {
+  return access.permissions.includes(PERMISSIONS.EDIT_SEATING);
 }
 
 async function readWeek(cg, year, week) {
   const meta = await pool.query(
-    "SELECT id FROM seating_weeks WHERE cg = $1 AND year = $2 AND week = $3",
+    "SELECT id, finalised FROM seating_weeks WHERE cg = $1 AND year = $2 AND week = $3",
     [cg, year, week]
   );
-  if (!meta.rows[0]) return { cg, year, week, rows: [] };
+  if (!meta.rows[0]) return { cg, year, week, finalised: false, rows: [] };
 
   const result = await pool.query(
     `SELECT r.id AS row_id, r.label, s.id AS seat_id, s.name
@@ -67,19 +65,21 @@ async function readWeek(cg, year, week) {
     if (record.seat_id !== null) row.seats.push({ id: record.seat_id, name: record.name });
   }
 
-  return { cg, year, week, rows };
+  return { cg, year, week, finalised: meta.rows[0].finalised, rows };
 }
 
-async function writeWeek(cg, year, week, rows) {
+async function writeWeek(cg, year, week, rows, finalised) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
     const meta = await client.query(
-      `INSERT INTO seating_weeks (cg, year, week, updated_at) VALUES ($1, $2, $3, now())
-       ON CONFLICT (cg, year, week) DO UPDATE SET updated_at = now()
+      `INSERT INTO seating_weeks (cg, year, week, finalised, updated_at)
+       VALUES ($1, $2, $3, $4, now())
+       ON CONFLICT (cg, year, week)
+       DO UPDATE SET finalised = $4, updated_at = now()
        RETURNING id`,
-      [cg, year, week]
+      [cg, year, week, finalised === true]
     );
     const weekId = meta.rows[0].id;
 
@@ -109,8 +109,10 @@ async function writeWeek(cg, year, week, rows) {
   }
 }
 
-const canView = requirePermission(PERMISSIONS.VIEW_DIRECTORY);
-const canEdit = requirePermission(PERMISSIONS.EDIT_DATABASE);
+// Seeing a plan and building one are different jobs: a member is here to read
+// where they sit, and only an admin arranges it.
+const canView = requirePermission(PERMISSIONS.VIEW_SEATING);
+const canEdit = requirePermission(PERMISSIONS.EDIT_SEATING);
 
 router.get(
   "/",
@@ -121,7 +123,16 @@ router.get(
     const { year, week } = resolveWeek(req.query.year, req.query.week);
 
     const record = await readWeek(cg, year, week);
-    res.json({ ...record, canEdit: canEditCg(req.access, cg) });
+    const canEdit = canEditCg(req.access);
+
+    // A plan being worked on is not anyone else's to read yet. Someone who
+    // cannot edit sees it only once it has been finalised — never a half-built
+    // arrangement they might sit down by.
+    if (!canEdit && !record.finalised) {
+      return res.json({ cg, year, week, finalised: false, rows: [], canEdit: false });
+    }
+
+    res.json({ ...record, canEdit });
   })
 );
 
@@ -133,8 +144,8 @@ router.put(
     const cg = cgFor(req);
     const { year, week } = resolveWeek(req.body?.year, req.body?.week);
 
-    if (!canEditCg(req.access, cg)) {
-      return res.status(403).json({ error: `${cg} is not one of your CGs.` });
+    if (!canEditCg(req.access)) {
+      return res.status(403).json({ error: "Only an admin arranges the seating." });
     }
 
     const rows = Array.isArray(req.body?.rows) ? req.body.rows : null;
@@ -148,7 +159,7 @@ router.put(
       return res.status(400).json({ error: `At most ${MAX_SEATS_PER_ROW} seats in a row.` });
     }
 
-    await writeWeek(cg, year, week, rows);
+    await writeWeek(cg, year, week, rows, req.body?.finalised);
     res.json({ ...(await readWeek(cg, year, week)), canEdit: true });
   })
 );

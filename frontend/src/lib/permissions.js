@@ -3,5 +3,7 @@
 export const PERMISSIONS = {
   VIEW_DIRECTORY: "viewDirectory",
   EDIT_DATABASE: "editDatabase",
+  VIEW_SEATING: "viewSeating",
+  EDIT_SEATING: "editSeating",
   MANAGE_ACCOUNTS: "manageAccounts",
 };

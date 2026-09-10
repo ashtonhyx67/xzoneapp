@@ -1,67 +1,89 @@
-// Account groups, and what each one can do.
+// Who can do what.
 //
-// This is the single place access is defined. Add a group or move a permission
-// between groups here, and both the API and the app follow — the API because
-// every protected route asks for a named permission, and the app because the
-// session payload carries the caller's permission list.
+// Two things decide it, and they are deliberately separate. An account has a
+// *role* — Leader or Member — which says what kind of work they do. On top of
+// that it may be marked *admin*, which is a job rather than a rank: running the
+// accounts, and doing the seating arrangement.
 //
-// Everything not listed is universal: signing in, the dashboard, a PIN, and
-// managing your own account are available to every group.
+// Keeping them apart is what makes "an admin who is only a member" possible,
+// which is the point: someone can be trusted to sort the seating without being
+// given the member database.
+//
+// This is the single place access is defined. Every protected route asks for a
+// named permission, and the session payload carries the caller's list, so the
+// API and the app both follow from here.
 
 const PERMISSIONS = {
-  // See the member directory and the scorecard, and the dashboard reminders
-  // built from it.
+  // See the member directory and the scorecards, the registers, the structure,
+  // and the dashboard reminders built from them.
   VIEW_DIRECTORY: "viewDirectory",
-  // Edit the people database itself.
+  // Edit the people database, the registers, and the structure.
   EDIT_DATABASE: "editDatabase",
-  // Add, remove, and regroup the accounts that can sign in.
+  // See a seating arrangement. Everyone can, but a member only sees one that
+  // has been finalised — see routes/seating.js.
+  VIEW_SEATING: "viewSeating",
+  // Build and rearrange a seating plan.
+  EDIT_SEATING: "editSeating",
+  // Add, remove and set access on the accounts that can sign in.
   MANAGE_ACCOUNTS: "manageAccounts",
 };
 
 const ALL = Object.values(PERMISSIONS);
 
-// Being in the app is the whole of the permission model. There is no tier to
-// promote someone into: an account exists because someone was given it, and
-// that is the decision — so everyone who can sign in can do everything.
-//
-// The permissions above are kept rather than deleted. Every protected route
-// asks for one by name, so leaving them in place means the gate is still there
-// to close if this ever needs tiers again; today every group holds all of them.
+// What being marked admin adds, whatever the role underneath is.
+const ADMIN_PERMISSIONS = [
+  PERMISSIONS.MANAGE_ACCOUNTS,
+  PERMISSIONS.VIEW_SEATING,
+  PERMISSIONS.EDIT_SEATING,
+];
+
 const GROUPS = [
   {
     key: "owner",
     label: "Owner",
-    description: "Runs the app. Cannot be removed.",
+    description: "Runs the app. Everything, and cannot be removed.",
     permissions: ALL,
+  },
+  {
+    key: "leader",
+    label: "Leader",
+    description: "The database, the registers and the structure.",
+    permissions: [
+      PERMISSIONS.VIEW_DIRECTORY,
+      PERMISSIONS.EDIT_DATABASE,
+      PERMISSIONS.VIEW_SEATING,
+    ],
   },
   {
     key: "member",
     label: "Member",
-    description: "Everyone else with an account.",
-    permissions: ALL,
+    description: "The dashboard, and the seating once it is finalised.",
+    permissions: [PERMISSIONS.VIEW_SEATING],
   },
 ];
 
 const BY_KEY = new Map(GROUPS.map((group) => [group.key, group]));
 
-// Where a new account lands, which is also where it stays.
+// A new account starts here. Someone who manages accounts moves it up.
 const DEFAULT_GROUP = "member";
 
-// The owner's group is decided by their email, so it is never handed out.
+// The owner's role is decided by their email, so it is never handed out.
 const ASSIGNABLE_GROUPS = GROUPS.filter((group) => group.key !== "owner");
 
 function getGroup(key) {
   return BY_KEY.get(String(key || "").trim()) || BY_KEY.get(DEFAULT_GROUP);
 }
 
-// Everyone gets everything, whatever their row happens to say — an account
-// left on a group key from before this changed is not locked out by it.
-function permissionsFor() {
-  return ALL;
+// The role's permissions, plus the admin ones if the account carries the flag.
+// Deduplicated, because a leader who is also an admin would otherwise hold
+// VIEW_SEATING twice.
+function permissionsFor(key, isAdmin = false) {
+  const own = getGroup(key).permissions;
+  return isAdmin ? [...new Set([...own, ...ADMIN_PERMISSIONS])] : own;
 }
 
-function can(key, permission) {
-  return permissionsFor(key).includes(permission);
+function can(key, permission, isAdmin = false) {
+  return permissionsFor(key, isAdmin).includes(permission);
 }
 
 function isAssignable(key) {
@@ -82,6 +104,7 @@ function publicGroups() {
 module.exports = {
   PERMISSIONS,
   GROUPS,
+  ADMIN_PERMISSIONS,
   DEFAULT_GROUP,
   getGroup,
   permissionsFor,

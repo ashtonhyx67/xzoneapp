@@ -47,7 +47,7 @@ export default function AppShell({ children }) {
               <span className="nav-label">Attendance</span>
             </NavLink>
           )}
-          {can(PERMISSIONS.VIEW_DIRECTORY) && (
+          {can(PERMISSIONS.VIEW_SEATING) && (
             <NavLink to="/seating" className={navClass}>
               <span className="nav-icon" aria-hidden="true">🪑</span>
               <span className="nav-label">Seating</span>
@@ -59,6 +59,8 @@ export default function AppShell({ children }) {
               <span className="nav-label">Database</span>
             </NavLink>
           )}
+          {/* Everyone needs somewhere to set a PIN and sign out, so Admin is
+              always reachable; what it contains is gated inside it. */}
           <NavLink to="/admin" className={navClass}>
             <span className="nav-icon" aria-hidden="true">⚙️</span>
             <span className="nav-label">Admin</span>
