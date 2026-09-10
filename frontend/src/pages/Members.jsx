@@ -151,43 +151,33 @@ export default function Members() {
         <div className="members-layout">
           <aside className="panel member-list-panel">
             <SearchBox value={query} onChange={setQuery} label="Search members" />
-            <div className="scope-filter" role="group" aria-label="Filter by CG or team">
-              <button
-                type="button"
-                className={`scope-chip scope-all${scope === "" ? " scope-on" : ""}`}
-                onClick={() => setScope("")}
+            {/* A dropdown rather than a row of chips: it is one choice, it
+                sits beside the search box at the same size, and it does not
+                take a line of its own to offer nine options. */}
+            <label className="scope-filter">
+              <span className="scope-filter-label">Show</span>
+              <select
+                className="scope-select"
+                value={scope}
+                aria-label="Filter by CG or team"
+                onChange={(e) => setScope(e.target.value)}
               >
-                All
-              </button>
-
-              {CGS.map((cg) => (
-                <span className="scope-group" key={cg.key}>
-                  {/* The CG takes its teams with it, so a whole group is one
-                      tap rather than two. */}
-                  <button
-                    type="button"
-                    className={`scope-chip scope-cg${scope === cg.key ? " scope-on" : ""}`}
-                    onClick={() => setScope(scope === cg.key ? "" : cg.key)}
-                  >
-                    {cg.key}
-                  </button>
-                  {/* A CG of one team needs no team chip: it would repeat the
-                      chip beside it. */}
-                  {cg.teams.length > 1 &&
-                    cg.teams.map((t) => (
-                      <button
-                        type="button"
-                        key={t}
-                        className={`scope-chip${scope === t ? " scope-on" : ""}`}
-                        onClick={() => setScope(scope === t ? "" : t)}
-                      >
-                        {/* The CG is already on the chip beside it. */}
-                        {t.replace(cg.key, "")}
-                      </button>
-                    ))}
-                </span>
-              ))}
-            </div>
+                <option value="">Everyone</option>
+                {CGS.map((cg) => (
+                  <optgroup key={cg.key} label={`${cg.key} CG`}>
+                    {/* The whole CG first, then its teams — picking a group and
+                        picking one of its teams are the same kind of choice. */}
+                    <option value={cg.key}>All of {cg.key}</option>
+                    {cg.teams.length > 1 &&
+                      cg.teams.map((team) => (
+                        <option key={team} value={team}>
+                          {team}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
 
             <div className="member-list">
               {visible.map((person) => (

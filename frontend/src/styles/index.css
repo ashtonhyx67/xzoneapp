@@ -2965,68 +2965,42 @@ button {
   margin-left: auto;
 }
 
-/* Filtering by CG or by team. A CG chip sits against its own teams so the two
-   read as one choice rather than two lists of the same thing. */
+/* Filtering by CG or by team. One control, the same height as the search box
+   above it, rather than a row of chips taking a line of its own. */
 .scope-filter {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin: 10px 0 6px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
 }
 
-.scope-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-}
-
-.scope-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.scope-chip {
-  min-width: 30px;
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: transparent;
-  font-family: inherit;
+.scope-filter-label {
   font-size: 12px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-weight: 600;
   color: var(--text-soft);
-  cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
 }
 
-.scope-chip:hover:not(.scope-on) {
-  background: var(--bg);
+.scope-select {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-h);
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text);
+  cursor: pointer;
 }
 
-.scope-cg {
-  background: var(--bg);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-}
-
-.scope-all {
-  border-color: var(--border);
-}
-
-.scope-on {
-  background: var(--text);
-  border-color: var(--text);
-  color: #fff;
+.scope-select:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 128, 96, 0.12);
 }
 
 .member-list {
