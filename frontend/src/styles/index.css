@@ -1441,34 +1441,70 @@ button {
   margin-top: 20px;
 }
 
+/* One box rather than a field with a button next to it: the whole thing is the
+   control, and it lights up as one when the cursor is in it. */
 .ask-form {
   display: flex;
+  align-items: center;
   gap: 8px;
+  padding: 5px 5px 5px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.ask-form:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 128, 96, 0.12);
+}
+
+.ask-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-soft);
 }
 
 .ask-input {
   flex: 1;
   min-width: 0;
-  height: var(--control-h);
-  padding: 0 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
+  height: 34px;
+  border: none;
+  background: transparent;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text);
   outline: none;
 }
 
-.ask-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0, 128, 96, 0.12);
+.ask-input::placeholder {
+  color: var(--text-soft);
 }
 
-.ask-btn {
-  height: var(--control-h);
-  padding: 0 18px;
+.ask-send {
   flex-shrink: 0;
+  height: 34px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.ask-send:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+/* Nothing typed yet, so there is nothing to send. */
+.ask-send:disabled {
+  background: var(--border-strong);
+  cursor: default;
 }
 
 .ask-suggestions {
@@ -1518,15 +1554,15 @@ button {
 
 @media (max-width: 560px) {
   .ask-form {
-    flex-wrap: wrap;
+    padding-left: 12px;
   }
 
   .ask-input {
-    flex: 1 0 100%;
+    font-size: 16px; /* no iOS zoom on focus */
   }
 
-  .ask-btn {
-    flex: 1;
+  .ask-send {
+    padding: 0 14px;
   }
 }
 
