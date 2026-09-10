@@ -783,10 +783,10 @@ button {
 
 .roster-row {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 72px 92px;
+  grid-template-columns: 60px minmax(0, 1fr) 56px 84px;
   align-items: center;
   gap: 8px;
-  padding: 7px 12px;
+  padding: 4px 12px;
   font-size: 13px;
 }
 
@@ -954,9 +954,9 @@ button {
 /* Phones: the four-column grid stops working, so edit rows become cards. */
 @media (max-width: 768px) {
   .roster-row {
-    grid-template-columns: 52px minmax(0, 1fr) 56px 72px;
+    grid-template-columns: 50px minmax(0, 1fr) 36px 68px;
     gap: 6px;
-    padding: 7px 10px;
+    padding: 4px 10px;
     font-size: 12px;
   }
 
@@ -1680,11 +1680,14 @@ button {
     grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
   }
 
-  /* A structure row is four columns on a desktop; on a phone that is too many
-     to fit, so it becomes two. */
+  /* A structure row stays one line even here: wrapping it to two made every
+     person twice as tall, which read as a stack of thick blocks. The columns
+     narrow instead, and each cell still ellipses when it runs out of room. */
   .roster-row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    row-gap: 2px;
+    grid-template-columns: 44px minmax(0, 1fr) 28px 60px;
+    gap: 6px;
+    padding: 5px 8px;
+    font-size: 11px;
   }
 
   .roster-row-edit {
