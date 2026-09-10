@@ -13,6 +13,7 @@ const adminRoutes = require("./routes/admin");
 const teamRoutes = require("./routes/teams");
 const attendanceRoutes = require("./routes/attendance");
 const seatingRoutes = require("./routes/seating");
+const askRoutes = require("./routes/ask");
 
 if (!process.env.JWT_SECRET) {
   console.error(
@@ -57,6 +58,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/seating", seatingRoutes);
+app.use("/api/ask", askRoutes);
 
 app.use("/api/dashboard", dashboardRoutes);
 

@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
 import AppShell from "../components/AppShell.jsx";
+import AskPanel from "../components/AskPanel.jsx";
 import MemberRow from "../components/MemberRow.jsx";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -165,6 +166,10 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
+          {/* Above the reminders: a question is usually why someone opened the
+              dashboard, and the reminders are what they scroll to otherwise. */}
+          <AskPanel />
+
           <MemberSection
             title="Birthdays"
             count={birthdays.length}

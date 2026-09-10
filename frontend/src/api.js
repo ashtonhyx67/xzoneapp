@@ -53,6 +53,9 @@ export const api = {
 
   getTeams: (token, signal) => request("/teams", { token, signal }),
 
+  // A question about the records, answered from them.
+  ask: (token, question) => request("/ask", { method: "POST", body: { question }, token }),
+
   getAttendance: (token, { team, year, week }, signal) =>
     request(`/attendance?team=${encodeURIComponent(team)}&year=${year}&week=${week}`, {
       token,
