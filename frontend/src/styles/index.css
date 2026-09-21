@@ -3931,3 +3931,604 @@ button {
   font-size: 13px;
   color: var(--text-soft);
 }
+
+/* ---------- Split: shared expenses ---------- */
+/* Money is read down a column, so every amount in here is tabular and every
+   row lines its figure up on the right. Up is the accent green and down is the
+   danger red, used consistently enough that the colour alone answers "am I
+   owed, or do I owe" before any of the words are read. */
+
+.split-net,
+.split-total,
+.split-person-owes,
+.split-expense-you,
+.split-tally {
+  font-variant-numeric: tabular-nums;
+}
+
+.split-net-up,
+.split-total-up {
+  color: var(--accent);
+}
+
+.split-net-down,
+.split-total-down {
+  color: var(--danger);
+}
+
+.split-net-level,
+.split-total-level {
+  color: var(--text-soft);
+}
+
+/* Where you stand, in a band across the top of a group. */
+.split-standing {
+  margin-top: 16px;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: 15px;
+}
+
+.split-standing strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.split-standing-up {
+  border-left: 4px solid var(--accent);
+}
+
+.split-standing-down {
+  border-left: 4px solid var(--danger);
+}
+
+.split-standing-level {
+  color: var(--text-soft);
+}
+
+.split-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-top: 16px;
+  font-size: 15px;
+}
+
+.split-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.split-head-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ---- the list of groups ---- */
+
+.split-groups {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.split-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  text-decoration: none;
+  color: var(--text);
+  box-shadow: var(--shadow-card);
+}
+
+.split-group:hover {
+  border-color: var(--border-strong);
+}
+
+.split-group-archived {
+  opacity: 0.6;
+}
+
+.split-group-emoji {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.split-group-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.split-group-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.split-group-sub,
+.split-expense-sub {
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+/* ---- balances ---- */
+
+.split-debts,
+.split-member-list,
+.split-expenses,
+.split-activity,
+.split-comments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.split-debt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.split-debt-text {
+  font-size: 14px;
+}
+
+.split-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.split-member-row:last-child {
+  border-bottom: none;
+}
+
+.split-you {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+/* ---- the expense list ---- */
+
+.split-month {
+  margin-top: 18px;
+}
+
+.split-month-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-soft);
+}
+
+.split-expense {
+  border-bottom: 1px solid var(--border);
+}
+
+.split-expense-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 4px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.split-expense-row:hover {
+  background: var(--bg);
+}
+
+.split-expense-date {
+  width: 46px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.split-expense-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.split-expense-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.split-expense-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.split-repeat {
+  margin-left: 6px;
+  color: var(--text-soft);
+}
+
+.split-expense-you {
+  font-size: 13px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.split-expense-detail {
+  padding: 4px 4px 16px 62px;
+}
+
+.split-comment {
+  padding: 6px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.split-comment-form {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.split-comment-form input {
+  flex: 1;
+  height: var(--control-h);
+  padding: 0 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+}
+
+.split-comment-form input:focus {
+  border-color: var(--accent);
+}
+
+/* ---- activity ---- */
+
+.split-activity-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.split-activity-row:last-child {
+  border-bottom: none;
+}
+
+.split-activity-group,
+.split-activity-when {
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+/* ---- pickers ---- */
+
+.split-emoji-picker,
+.split-people-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.split-emoji,
+.split-pick {
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.split-emoji {
+  font-size: 18px;
+  padding: 4px 8px;
+}
+
+.split-emoji-on,
+.split-pick-on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.split-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 0;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.split-toggle span {
+  display: block;
+}
+
+/* ---- the expense form ---- */
+/* A dialog rather than a page of its own: adding an expense is something you
+   do while looking at the list you are adding it to. */
+
+.split-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(26, 26, 26, 0.45);
+}
+
+.split-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  max-height: 100%;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(26, 26, 26, 0.25);
+  overflow: hidden;
+}
+
+.split-modal-narrow {
+  max-width: 420px;
+}
+
+.split-modal-head,
+.split-modal-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.split-modal-head {
+  border-bottom: 1px solid var(--border);
+}
+
+.split-modal-foot {
+  border-top: 1px solid var(--border);
+  justify-content: space-between;
+}
+
+.split-modal-foot-right {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.split-modal-title {
+  font-size: 17px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.split-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.split-row {
+  display: flex;
+  gap: 12px;
+}
+
+.split-row .field {
+  flex: 1;
+}
+
+.split-field-narrow {
+  max-width: 130px;
+}
+
+.split-modal-body select,
+.split-payer,
+.split-settle-line select {
+  width: 100%;
+  height: var(--control-h);
+  padding: 0 10px;
+  font-size: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.split-block {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.split-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.split-block-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.split-methods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.split-method {
+  padding: 6px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.split-method-on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.split-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.split-person-off {
+  opacity: 0.5;
+}
+
+.split-person-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.split-person-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.split-person-input {
+  width: 84px;
+  height: var(--control-h);
+  padding: 0 8px;
+  font-size: 14px;
+  text-align: right;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+}
+
+.split-person-input:focus {
+  border-color: var(--accent);
+}
+
+.split-person-owes {
+  width: 72px;
+  text-align: right;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+/* The running total under a split: it is the line that says whether what has
+   been typed adds up, so it turns red the moment it stops adding up. */
+.split-tally {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.split-tally-off {
+  color: var(--danger);
+  font-weight: 500;
+}
+
+.split-settle-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.split-settle-arrow {
+  color: var(--text-soft);
+}
+
+.split-settle-note {
+  margin: 10px 0 16px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+@media (max-width: 560px) {
+  .split-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .split-field-narrow {
+    max-width: none;
+  }
+
+  .split-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  /* On a phone the form is the screen, so it fills it rather than floating in
+     the middle of a dimmed page with nowhere to go. */
+  .split-modal {
+    max-width: none;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .split-expense-detail {
+    padding-left: 16px;
+  }
+
+  .split-person-owes {
+    width: 64px;
+  }
+}

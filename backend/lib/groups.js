@@ -26,6 +26,10 @@ const PERMISSIONS = {
   EDIT_SEATING: "editSeating",
   // Add, remove and set access on the accounts that can sign in.
   MANAGE_ACCOUNTS: "manageAccounts",
+  // Split what the team spends. Everyone has this: a member who is owed money
+  // needs to see it as much as the leader who paid. It is a named permission
+  // all the same, so it can be taken away without inventing a new role.
+  USE_EXPENSES: "useExpenses",
 };
 
 const ALL = Object.values(PERMISSIONS);
@@ -52,13 +56,14 @@ const GROUPS = [
       PERMISSIONS.VIEW_DIRECTORY,
       PERMISSIONS.EDIT_DATABASE,
       PERMISSIONS.VIEW_SEATING,
+      PERMISSIONS.USE_EXPENSES,
     ],
   },
   {
     key: "member",
     label: "Member",
-    description: "The dashboard, and the seating once it is finalised.",
-    permissions: [PERMISSIONS.VIEW_SEATING],
+    description: "The dashboard, the seating once it is finalised, and shared expenses.",
+    permissions: [PERMISSIONS.VIEW_SEATING, PERMISSIONS.USE_EXPENSES],
   },
 ];
 

@@ -16,6 +16,8 @@ const Database = lazy(() => import("./pages/Database.jsx"));
 const Attendance = lazy(() => import("./pages/Attendance.jsx"));
 const Seating = lazy(() => import("./pages/Seating.jsx"));
 const Admin = lazy(() => import("./pages/Admin.jsx"));
+const Split = lazy(() => import("./pages/Split.jsx"));
+const SplitGroup = lazy(() => import("./pages/SplitGroup.jsx"));
 
 // A signed-out visitor whose device already knows them goes to the PIN screen,
 // not to the sign-up card.
@@ -85,6 +87,24 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Seating />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/split"
+        element={
+          <ProtectedRoute>
+            <Split />
+          </ProtectedRoute>
+        }
+      />
+      {/* A group is its own address, so a link to one can be shared and the
+          back button steps out of it rather than out of the app. */}
+      <Route
+        path="/split/:groupId"
+        element={
+          <ProtectedRoute>
+            <SplitGroup />
           </ProtectedRoute>
         }
       />

@@ -53,6 +53,12 @@ export default function AppShell({ children }) {
               <span className="nav-label">Seating</span>
             </NavLink>
           )}
+          {can(PERMISSIONS.USE_EXPENSES) && (
+            <NavLink to="/split" className={navClass}>
+              <span className="nav-icon" aria-hidden="true">💰</span>
+              <span className="nav-label">Split</span>
+            </NavLink>
+          )}
           {can(PERMISSIONS.EDIT_DATABASE) && (
             <NavLink to="/database" className={navClass}>
               <span className="nav-icon" aria-hidden="true">🗂️</span>

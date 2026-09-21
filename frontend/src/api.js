@@ -89,6 +89,50 @@ export const api = {
     request(`/seating?cg=${encodeURIComponent(cg)}&year=${year}&week=${week}`, { token, signal }),
   saveSeating: (token, body) => request("/seating", { method: "PUT", body, token }),
 
+  // ---- Shared expenses ----
+  // Every write answers with the whole group — the expenses, the balances and
+  // the debts are worked out together on the server, so sending them back in
+  // one piece is what keeps the page from showing a new expense next to an old
+  // balance.
+  splitPeople: (token, signal) => request("/split/people", { token, signal }),
+  splitGroups: (token, signal) => request("/split/groups", { token, signal }),
+  splitGroup: (token, id, signal) => request(`/split/groups/${id}`, { token, signal }),
+  createSplitGroup: (token, body) => request("/split/groups", { method: "POST", body, token }),
+  updateSplitGroup: (token, id, body) =>
+    request(`/split/groups/${id}`, { method: "PATCH", body, token }),
+  deleteSplitGroup: (token, id) => request(`/split/groups/${id}`, { method: "DELETE", token }),
+
+  addSplitMember: (token, id, body) =>
+    request(`/split/groups/${id}/members`, { method: "POST", body, token }),
+  removeSplitMember: (token, id, memberId) =>
+    request(`/split/groups/${id}/members/${memberId}`, { method: "DELETE", token }),
+
+  addExpense: (token, id, body) =>
+    request(`/split/groups/${id}/expenses`, { method: "POST", body, token }),
+  updateExpense: (token, expenseId, body) =>
+    request(`/split/expenses/${expenseId}`, { method: "PUT", body, token }),
+  deleteExpense: (token, expenseId) =>
+    request(`/split/expenses/${expenseId}`, { method: "DELETE", token }),
+  settleUp: (token, id, body) =>
+    request(`/split/groups/${id}/settle`, { method: "POST", body, token }),
+
+  expenseComments: (token, expenseId, signal) =>
+    request(`/split/expenses/${expenseId}/comments`, { token, signal }),
+  addExpenseComment: (token, expenseId, body) =>
+    request(`/split/expenses/${expenseId}/comments`, { method: "POST", body: { body }, token }),
+
+  splitActivity: (token, signal) => request("/split/activity", { token, signal }),
+
+  // A file rather than JSON, so this goes around request() instead of through
+  // it — the caller turns the text into a download.
+  exportSplitCsv: async (token, id) => {
+    const res = await fetch(`${BASE}/split/groups/${id}/export`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error("That group could not be exported.");
+    return res.text();
+  },
+
   getAccounts: (token, signal) => request("/admin/accounts", { token, signal }),
   createAccount: (token, account) =>
     request("/admin/accounts", { method: "POST", body: account, token }),

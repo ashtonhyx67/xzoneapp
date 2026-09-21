@@ -593,6 +593,162 @@ async function initSchema() {
     );
   `);
 
+  // ---------- Shared expenses ----------
+  // Splitting what the team spends: a group of people, the expenses they put
+  // on it, and who ends up owing whom. The arithmetic lives in lib/split.js;
+  // this is only where it is kept.
+  //
+  // An account signs in, but an *expense* belongs to a person in the directory,
+  // because most of the people a cost is shared with are in there whether or
+  // not they have a login. So an account is linked to its person record, and
+  // everything below is keyed on the person.
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS person_id INTEGER REFERENCES people(id) ON DELETE SET NULL;
+  `);
+
+  // Link by name, which is what the two records actually share, and only where
+  // it is unambiguous: people.name is unique, so a match is a match. An account
+  // whose name is not in the directory stays unlinked and is asked to pick.
+  await pool.query(`
+    UPDATE users u SET person_id = p.id
+      FROM people p
+     WHERE u.person_id IS NULL AND lower(p.name) = lower(u.name);
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS split_groups (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      emoji TEXT NOT NULL DEFAULT '🧾',
+      currency TEXT NOT NULL DEFAULT 'SGD',
+      -- Whether the group is shown the netted-down list of payments rather
+      -- than every individual debt. Per group, because a trip wants it and a
+      -- flat's monthly bills usually do not.
+      simplify_debts BOOLEAN NOT NULL DEFAULT false,
+      archived BOOLEAN NOT NULL DEFAULT false,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  // Who is in the group. The name is copied in rather than only referenced:
+  // removing someone from the directory must not blank out a year of expenses
+  // that were settled against their name.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS split_members (
+      id SERIAL PRIMARY KEY,
+      group_id INTEGER NOT NULL REFERENCES split_groups(id) ON DELETE CASCADE,
+      person_id INTEGER REFERENCES people(id) ON DELETE SET NULL,
+      name TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS split_members_group_idx ON split_members (group_id);
+  `);
+
+  // The same person cannot be in one group twice — that would split a bill
+  // between two copies of them and net to nonsense.
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS split_members_group_person_idx
+      ON split_members (group_id, person_id) WHERE person_id IS NOT NULL;
+  `);
+
+  // An expense, or a payment between two people. A settlement is the same
+  // shape — one person pays, one person receives — which is what lets the
+  // balances be one sum over one table instead of two that have to agree.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS split_expenses (
+      id SERIAL PRIMARY KEY,
+      group_id INTEGER NOT NULL REFERENCES split_groups(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL DEFAULT 'expense',
+      description TEXT NOT NULL DEFAULT '',
+      amount_cents INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'SGD',
+      category TEXT NOT NULL DEFAULT 'general',
+      split_method TEXT NOT NULL DEFAULT 'equally',
+      notes TEXT NOT NULL DEFAULT '',
+      spent_on DATE NOT NULL DEFAULT CURRENT_DATE,
+      -- '' for a one-off. Anything else and the next one is filed
+      -- automatically, from recurrence_next, whenever the group is opened.
+      recurrence TEXT NOT NULL DEFAULT '',
+      recurrence_next DATE,
+      -- Deleted rather than removed, so an expense someone deletes by accident
+      -- is still there, and so the activity feed can still name it.
+      deleted_at TIMESTAMPTZ,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS split_expenses_group_idx
+      ON split_expenses (group_id, spent_on DESC, id DESC);
+  `);
+
+  // One row per member per expense: what they put in, and what they owe for
+  // it. Both on the same row because every balance in the app is the
+  // difference between them, and splitting them across two tables would mean
+  // every read is a join that can half-fail.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS split_shares (
+      id SERIAL PRIMARY KEY,
+      expense_id INTEGER NOT NULL REFERENCES split_expenses(id) ON DELETE CASCADE,
+      member_id INTEGER NOT NULL REFERENCES split_members(id) ON DELETE CASCADE,
+      paid_cents INTEGER NOT NULL DEFAULT 0,
+      owed_cents INTEGER NOT NULL DEFAULT 0,
+      -- What was typed in to get owed_cents: the percentage, the share count,
+      -- the adjustment. Kept so reopening an expense shows what was entered
+      -- rather than what it worked out to.
+      input_value INTEGER NOT NULL DEFAULT 0,
+      UNIQUE (expense_id, member_id)
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS split_shares_member_idx ON split_shares (member_id);
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS split_comments (
+      id SERIAL PRIMARY KEY,
+      expense_id INTEGER NOT NULL REFERENCES split_expenses(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      author TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS split_comments_expense_idx
+      ON split_comments (expense_id, created_at);
+  `);
+
+  // What happened, in order. Written as prose at the time of the change,
+  // because an entry has to keep reading correctly after the expense it
+  // describes has been edited again or deleted.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS split_activity (
+      id SERIAL PRIMARY KEY,
+      group_id INTEGER NOT NULL REFERENCES split_groups(id) ON DELETE CASCADE,
+      expense_id INTEGER REFERENCES split_expenses(id) ON DELETE SET NULL,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      action TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS split_activity_group_idx
+      ON split_activity (group_id, created_at DESC);
+  `);
+
   console.log("Database schema ready.");
 }
 
