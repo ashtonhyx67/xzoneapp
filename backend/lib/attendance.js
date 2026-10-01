@@ -11,9 +11,9 @@
 // alongside these and applies everywhere, because one register is read next to
 // another.
 const BUILTIN_STATUSES = [
-  { key: "S1", emoji: "1⃣", label: "Service 1", counts: true, builtin: true },
-  { key: "S2", emoji: "2⃣", label: "Service 2", counts: true, builtin: true },
-  { key: "S3", emoji: "3⃣", label: "Service 3", counts: true, builtin: true },
+  { key: "S1", emoji: "1️⃣", label: "Service 1", counts: true, builtin: true },
+  { key: "S2", emoji: "2️⃣", label: "Service 2", counts: true, builtin: true },
+  { key: "S3", emoji: "3️⃣", label: "Service 3", counts: true, builtin: true },
   { key: "REPLAY", emoji: "💻", label: "Service Replay", counts: true, builtin: true },
   { key: "HANGOUT", emoji: "🍁", label: "Hangout", counts: false, builtin: true },
 ];

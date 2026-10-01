@@ -2487,6 +2487,49 @@ button {
   color: var(--text-soft);
 }
 
+/* The week as it will read in the chat. Monospaced and left as plain text:
+   what is on screen is exactly what gets pasted, emoji and all. */
+.export-box {
+  margin: 12px 0 16px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.export-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.export-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-soft);
+  margin-right: auto;
+}
+
+.export-text {
+  width: 100%;
+  min-height: 320px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  /* A register runs long; wrapping a name would make the post look different
+     from the one that gets sent. */
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+  resize: vertical;
+}
+
 /* What the marks mean, next to the button that adds another one. */
 .legend-bar {
   display: flex;

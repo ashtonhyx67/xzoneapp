@@ -4,7 +4,15 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
 import { CGS, cgOf } from "../lib/teams.js";
 import { useWeek } from "../lib/useWeek.js";
-import { BUILTIN_STATUSES, CATEGORIES, CATEGORY_KEYS, categoryOf, isPresent } from "../lib/attendance.js";
+import {
+  BUILTIN_STATUSES,
+  CATEGORIES,
+  CATEGORY_KEYS,
+  categoryOf,
+  defaultTitle,
+  isPresent,
+  toTelegram,
+} from "../lib/attendance.js";
 import AppShell from "../components/AppShell.jsx";
 import WeekPicker from "../components/WeekPicker.jsx";
 
@@ -100,6 +108,14 @@ export default function Attendance() {
   const [cgCounts, setCgCounts] = useState(null);
   const [status, setStatus] = useState("idle"); // idle | saving | error
   const [error, setError] = useState("");
+  // The post for the chat, once the marking is done. Closed until asked for:
+  // it is the last thing in the week, not part of marking.
+  const [exporting, setExporting] = useState(false);
+  // The post once it has been typed over — the heading usually, since "BF Week
+  // 1" is a term's wording and not something the register knows. Null while it
+  // has not been touched, so until then it follows the marks being made.
+  const [draft, setDraft] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const timer = useRef(null);
   const inFlight = useRef(false);
@@ -161,6 +177,13 @@ export default function Attendance() {
       controller.abort();
     };
   }, [token, team, when]);
+
+  // A different week or team is a different post, so anything typed into the
+  // last one belongs to the one that has gone.
+  useEffect(() => {
+    setDraft(null);
+    setCopied(false);
+  }, [team, when]);
 
   const cg = cgOf(team);
 
@@ -399,6 +422,33 @@ export default function Attendance() {
     [people, statuses]
   );
 
+  // Rebuilt as marks are made, so the post is never a snapshot of the register
+  // as it was when the panel was opened. A nameless row is still being typed.
+  const post = useMemo(
+    () =>
+      toTelegram({
+        title: defaultTitle({ team, ...when }),
+        people: people.filter((person) => person.name.trim()),
+        statuses,
+      }),
+    [team, when, people, statuses]
+  );
+
+  const text = draft ?? post;
+
+  async function copyPost() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // No clipboard permission, or an http origin on a phone. Selecting it is
+      // then the only thing left, so the text is held open and selected rather
+      // than the copy silently doing nothing.
+      setError("Could not copy — the text is selected, so copy it by hand.");
+    }
+  }
+
   if (!canView) {
     return (
       <AppShell>
@@ -448,11 +498,51 @@ export default function Attendance() {
           <span className="sheet-status">
             {status === "saving" ? "Saving…" : status === "error" ? "Not saved" : ""}
           </span>
+
+          <div className="attendance-actions">
+            <button
+              type="button"
+              className="btn btn-secondary btn-inline"
+              onClick={() => setExporting((open) => !open)}
+            >
+              {exporting ? "Close" : "Export for Telegram"}
+            </button>
+          </div>
         </div>
 
         {error && <div className="error-banner panel-notice">{error}</div>}
         {!canEdit && record && (
           <div className="panel-notice list-empty">Read-only — not your team</div>
+        )}
+
+        {/* The register as the chat wants it. Editable before it is copied —
+            the heading carries a term and its week, which is wording this app
+            has no way to know. */}
+        {exporting && record && (
+          <div className="export-box">
+            <div className="export-head">
+              <span className="export-title">Paste this into Telegram</span>
+              <button
+                type="button"
+                className="btn btn-primary btn-inline"
+                onClick={copyPost}
+              >
+                {copied ? "Copied" : "Copy"}
+              </button>
+              {draft !== null && (
+                <button type="button" className="link-btn" onClick={() => setDraft(null)}>
+                  Reset
+                </button>
+              )}
+            </div>
+            <textarea
+              className="export-text"
+              aria-label="The post for Telegram"
+              spellCheck={false}
+              value={text}
+              onChange={(e) => setDraft(e.target.value)}
+            />
+          </div>
         )}
 
         {!record ? (
