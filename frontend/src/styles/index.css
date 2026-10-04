@@ -650,13 +650,21 @@ button {
     display: none;
   }
 
+  /* Seven links for an owner, five for most people. Rather than sizing for
+     the common case and letting the rest run off the end of the pill, the
+     row scrolls as a last resort — nothing is ever unreachable. */
   .sidebar-nav {
     flex: 1;
     flex-direction: row;
     align-items: center;
     justify-content: space-around;
     gap: 2px;
-    overflow: visible;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .sidebar-nav::-webkit-scrollbar {
+    display: none;
   }
 
   /* A circle each, until one is the page you are on. */
@@ -778,55 +786,11 @@ button {
   }
 }
 
-/* Roomier once there is width for it: the two field tables sit side by side
-   rather than stacked, so the card fills out instead of running long. */
-@media (min-width: 1100px) {
-  .person-card {
-    grid-template-columns: 280px minmax(0, 1fr);
-    gap: 32px;
-    padding: 24px;
-  }
 
-  /* The two field tables side by side. The long-text rows are a sibling of
-     this block and already span the card, so they are unaffected. */
-  .person-main {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 20px;
-    align-items: start;
-  }
-}
 
-/* Phones: stack anything still sitting side by side. */
-@media (max-width: 480px) {
-  .auth-shell {
-    padding: 16px;
-    justify-content: flex-start;
-    padding-top: 48px;
-  }
 
-  .auth-card {
-    padding: 24px 20px;
-  }
-
-  .panel-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .btn-inline {
-    width: 100%;
-  }
-
-  .page-title {
-    font-size: 20px;
-  }
-
-  .stat-value {
-    font-size: 22px;
-  }
-}
+/* Small phones: the bottom bar carries up to seven links, so below this the
+   current page is named by its colour alone and every link is its icon. The
 
 /* Respect a reduced-motion preference. */
 @media (prefers-reduced-motion: reduce) {
@@ -1378,51 +1342,6 @@ button {
   }
 }
 
-@media (max-width: 768px) {
-  .person-card {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  /* Centred rather than pinned to one side, so the space beside it is even
-     instead of a gap on the right. */
-  .person-side {
-    max-width: 260px;
-    margin-left: auto;
-    margin-right: auto;
-    align-items: stretch;
-    text-align: center;
-  }
-
-  .person-heading,
-  .person-tags {
-    justify-content: center;
-  }
-
-  .person-tags {
-    display: flex;
-    flex-wrap: wrap;
-  }
-
-  .card-field {
-    grid-template-columns: 104px minmax(0, 1fr);
-  }
-
-  .card-note {
-    grid-template-columns: 1fr;
-  }
-
-  .card-note-label {
-    border-right: none;
-    border-bottom: 1px solid var(--border-strong);
-  }
-
-  .person-picker,
-  .card-field-value input,
-  .card-note-value textarea {
-    font-size: 16px; /* no iOS zoom on focus */
-  }
-}
 
 /* ---------- Home-screen app (standalone) ---------- */
 
@@ -1680,106 +1599,6 @@ button {
 
 /* ---------- Narrow screens: nothing runs off the side ---------- */
 
-/* Long unbroken strings — an email, a Telegram handle, a pasted note — are the
-   usual reason a phone gets a sideways scroll it never asked for. */
-@media (max-width: 560px) {
-  .page-title,
-  .panel-title,
-  .section-title,
-  .register-name-text,
-  .pool-name,
-  .seat,
-  .legend-chip,
-  .member-name,
-  .member-detail {
-    overflow-wrap: anywhere;
-  }
-
-  /* The width comes from an inline style on the header cell, so overriding it
-     here has to outrank that. Narrower on a phone, where the name column was
-     taking a third of the screen before a single other column was reached. */
-  .sheet-sticky-col {
-    min-width: 92px !important;
-  }
-
-  .sheet .sheet-input {
-    font-size: 11px;
-  }
-
-  /* Rows of controls stack instead of squeezing. */
-  .attendance-toolbar,
-  .sheet-toolbar,
-  .roster-header,
-  .page-head {
-    flex-wrap: wrap;
-  }
-
-  .picker-box {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .picker-box .week-picker-label {
-    min-width: 0;
-  }
-
-  .picker-team {
-    flex-shrink: 0;
-  }
-
-  .sheet-status,
-  .attendance-actions,
-  .legend-add {
-    margin-left: 0;
-  }
-
-  /* A register row: the name takes what is left, and the marks wrap under it
-     rather than pushing the row wider than the screen. */
-  .register-row {
-    flex-wrap: wrap;
-  }
-
-  .register-name,
-  .register-name-text {
-    flex: 1 1 100%;
-  }
-
-  .register-marks {
-    flex-wrap: wrap;
-  }
-
-  /* The tally never squeezes below something readable. */
-  .tally-groups {
-    grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
-  }
-
-  /* A structure row stays one line even here: wrapping it to two made every
-     person twice as tall, which read as a stack of thick blocks. The columns
-     narrow instead, and each cell still ellipses when it runs out of room. */
-  .roster-row {
-    grid-template-columns: 44px minmax(0, 1fr) 28px 60px;
-    gap: 6px;
-    padding: 5px 8px;
-    font-size: 11px;
-  }
-
-  .roster-row-edit {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .roster-tools {
-    justify-content: flex-end;
-  }
-
-  .status-form {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .status-form-emoji {
-    width: 100%;
-  }
-}
 
 /* ---------- Role colours ---------- */
 
@@ -2470,10 +2289,15 @@ button {
 .tally-total {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 4px 12px;
   padding: 16px 20px;
   background: var(--ink);
   color: #fff;
+}
+
+.tally-total-label {
+  min-width: 0;
 }
 
 .tally-total-label {
@@ -2577,6 +2401,7 @@ button {
   color: var(--text-soft);
 }
 
+
 /* The week as it will read in the chat. Monospaced and left as plain text:
    what is on screen is exactly what gets pasted, emoji and all. */
 .export-box {
@@ -2589,8 +2414,15 @@ button {
 .export-head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px 10px;
   margin-bottom: 8px;
+}
+
+/* Copy and Reset stay side by side on a phone: they are short, and a
+   full-width Copy would push Reset onto a line of its own. */
+.export-head .btn-inline {
+  width: auto;
 }
 
 .export-title {
@@ -3348,97 +3180,6 @@ button {
    Flex rather than named grid areas. Every child would need an area assigned,
    and the one that had not been — the owner pill — dropped into whichever cell
    was free and pushed the rest out of shape. This cannot fall out of step with
-   the markup. */
-@media (max-width: 700px) {
-  .account-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 0;
-  }
-
-  .account-row .member-avatar {
-    flex: 0 0 auto;
-    width: 30px;
-    height: 30px;
-    font-size: 11px;
-  }
-
-  .account-row .member-identity {
-    flex: 1 1 0;
-    min-width: 0;
-  }
-
-  .account-row .member-name {
-    font-size: 14px;
-    overflow-wrap: anywhere;
-  }
-
-  .account-row .member-detail {
-    font-size: 12px;
-    overflow-wrap: anywhere;
-  }
-
-  /* Each of these takes a line of its own. */
-  .account-signin,
-  .account-access,
-  .account-teams,
-  .account-actions {
-    flex: 1 0 100%;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .account-signin:empty,
-  .account-actions:empty {
-    display: none;
-  }
-
-  /* Smaller: eight chips at desktop size wrap into four cramped lines. */
-  .cg-group {
-    gap: 2px;
-    padding: 1px;
-  }
-
-  .cg-chip {
-    padding: 3px 8px;
-    font-size: 10px;
-  }
-
-  .team-chip {
-    padding: 3px 7px;
-    font-size: 11px;
-  }
-
-  .account-actions .btn {
-    flex: 1 1 auto;
-    padding: 8px 12px;
-    font-size: 13px;
-  }
-
-  /* A column of full-width fields rather than a row wrapping into fragments. */
-  .account-form {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .account-form .btn,
-  .account-panel .btn {
-    width: 100%;
-    margin-left: 0;
-  }
-
-  /* Every panel on the page, not only the account list. */
-  .panel-row {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .panel-row-actions {
-    margin-left: auto;
-  }
-}
 
 .btn-danger {
   background: var(--danger);
@@ -4668,5 +4409,384 @@ button {
 
   .split-person-owes {
     width: 64px;
+  }
+}
+
+/* ---------- Responsive overrides ---------- */
+
+/* These live at the foot of the stylesheet on purpose. A media query adds no
+   specificity, so a breakpoint rule only wins if it comes after the base rule
+   it overrides — and written next to the component they belonged to, a dozen
+   of them sat above their own base rule and silently did nothing: the
+   scorecard never collapsed to one column on a phone, the register name never
+   took the full width, the wide-screen scorecard never widened. A new
+   breakpoint rule goes at the end of this section, not next to the component.
+   Order within the section matters too: wider breakpoints first, so the
+   narrower ones below can override them. */
+
+/* Roomier once there is width for it: the two field tables sit side by side
+   rather than stacked, so the card fills out instead of running long. */
+@media (min-width: 1100px) {
+  .person-card {
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 32px;
+    padding: 24px;
+  }
+
+  /* The two field tables side by side. The long-text rows are a sibling of
+     this block and already span the card, so they are unaffected. */
+  .person-main {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    align-items: start;
+  }
+}
+
+@media (max-width: 768px) {
+  .person-card {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* Centred rather than pinned to one side, so the space beside it is even
+     instead of a gap on the right. */
+  .person-side {
+    max-width: 260px;
+    margin-left: auto;
+    margin-right: auto;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .person-heading,
+  .person-tags {
+    justify-content: center;
+  }
+
+  .person-tags {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .card-field {
+    grid-template-columns: 104px minmax(0, 1fr);
+  }
+
+  .card-note {
+    grid-template-columns: 1fr;
+  }
+
+  .card-note-label {
+    border-right: none;
+    border-bottom: 1px solid var(--border-strong);
+  }
+
+  .person-picker,
+  .card-field-value input,
+  .card-note-value textarea {
+    font-size: 16px; /* no iOS zoom on focus */
+  }
+}
+
+/* Phones: stack anything still sitting side by side. */
+/* The display sizes step down with the screen rather than jumping straight
+   from the desktop setting to the phone one. */
+@media (max-width: 700px) {
+  .page-title {
+    font-size: 30px;
+  }
+
+  .section-title {
+    font-size: 20px;
+  }
+
+  .auth-title {
+    font-size: 23px;
+  }
+
+  .stat-value {
+    font-size: 27px;
+  }
+
+  .register-group-title {
+    font-size: 18px;
+  }
+}
+
+   the markup. */
+@media (max-width: 700px) {
+  .account-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0;
+  }
+
+  .account-row .member-avatar {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
+  }
+
+  .account-row .member-identity {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .account-row .member-name {
+    font-size: 14px;
+    overflow-wrap: anywhere;
+  }
+
+  .account-row .member-detail {
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+
+  /* Each of these takes a line of its own. */
+  .account-signin,
+  .account-access,
+  .account-teams,
+  .account-actions {
+    flex: 1 0 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .account-signin:empty,
+  .account-actions:empty {
+    display: none;
+  }
+
+  /* Smaller: eight chips at desktop size wrap into four cramped lines. */
+  .cg-group {
+    gap: 2px;
+    padding: 1px;
+  }
+
+  .cg-chip {
+    padding: 3px 8px;
+    font-size: 10px;
+  }
+
+  .team-chip {
+    padding: 3px 7px;
+    font-size: 11px;
+  }
+
+  .account-actions .btn {
+    flex: 1 1 auto;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  /* A column of full-width fields rather than a row wrapping into fragments. */
+  .account-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .account-form .btn,
+  .account-panel .btn {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  /* Every panel on the page, not only the account list. */
+  .panel-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .panel-row-actions {
+    margin-left: auto;
+  }
+}
+
+/* Long unbroken strings — an email, a Telegram handle, a pasted note — are the
+   usual reason a phone gets a sideways scroll it never asked for. */
+@media (max-width: 560px) {
+  .page-title,
+  .panel-title,
+  .section-title,
+  .register-name-text,
+  .register-group-title,
+  .pool-name,
+  .seat,
+  .legend-chip,
+  .member-name,
+  .member-detail,
+  .user-name,
+  .user-email,
+  .tally-total-label,
+  .export-title,
+  .account-row,
+  .split-expense-name,
+  .person-name {
+    overflow-wrap: anywhere;
+  }
+
+  /* The width comes from an inline style on the header cell, so overriding it
+     here has to outrank that. Narrower on a phone, where the name column was
+     taking a third of the screen before a single other column was reached. */
+  .sheet-sticky-col {
+    min-width: 92px !important;
+  }
+
+  .sheet .sheet-input {
+    font-size: 11px;
+  }
+
+  /* Rows of controls stack instead of squeezing. */
+  .attendance-toolbar,
+  .sheet-toolbar,
+  .roster-header,
+  .page-head {
+    flex-wrap: wrap;
+  }
+
+  .picker-box {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .picker-box .week-picker-label {
+    min-width: 0;
+  }
+
+  .picker-team {
+    flex-shrink: 0;
+  }
+
+  .sheet-status,
+  .attendance-actions,
+  .legend-add {
+    margin-left: 0;
+  }
+
+  /* A register row: the name takes what is left, and the marks wrap under it
+     rather than pushing the row wider than the screen. */
+  .register-row {
+    flex-wrap: wrap;
+  }
+
+  .register-name,
+  .register-name-text {
+    flex: 1 1 100%;
+  }
+
+  .register-marks {
+    flex-wrap: wrap;
+  }
+
+  /* Five groups stay one row of five however narrow it gets: the tally is
+     read across, and a column wrapping to a second line reads as a sixth
+     group that does not exist. */
+  .tally-groups {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .tally-group {
+    padding: 10px 2px;
+  }
+
+  .tally-group-value {
+    font-size: 20px;
+  }
+
+  .tally-group-name,
+  .tally-group-of {
+    font-size: 11px;
+  }
+
+  /* A textarea taller than the screen hides the Copy button above it. */
+  .export-text {
+    min-height: 220px;
+    font-size: 12px;
+  }
+
+  /* A structure row stays one line even here: wrapping it to two made every
+     person twice as tall, which read as a stack of thick blocks. The columns
+     narrow instead, and each cell still ellipses when it runs out of room. */
+  .roster-row {
+    grid-template-columns: 44px minmax(0, 1fr) 28px 60px;
+    gap: 6px;
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  .roster-row-edit {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .roster-tools {
+    justify-content: flex-end;
+  }
+
+  .status-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .status-form-emoji {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Pinned to the top rather than centred: on a short screen a centred card
+     ends up under the keyboard the moment a field is focused. The padding is
+     the 768px block's, insets and all. */
+  .auth-shell {
+    justify-content: flex-start;
+  }
+
+  .auth-card {
+    padding: 24px 20px;
+  }
+
+  .panel-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .btn-inline {
+    width: 100%;
+  }
+
+  .page-title {
+    font-size: 25px;
+  }
+
+  .section-title {
+    font-size: 19px;
+  }
+
+  .stat-value {
+    font-size: 23px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+}
+
+   yellow pill says which one you are on without needing the word. */
+@media (max-width: 430px) {
+  .nav-item {
+    min-width: 38px;
+    padding: 0 8px;
+  }
+
+  .nav-item.active {
+    padding: 0 8px;
+  }
+
+  .nav-item.active .nav-label {
+    display: none;
   }
 }
