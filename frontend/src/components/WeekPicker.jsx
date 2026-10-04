@@ -37,7 +37,7 @@ export default function WeekPicker({ value, onChange }) {
       <div className="week-picker-label">
         <span className="week-picker-week">Week {value.week}</span>
         <span className="week-picker-range">
-          {weekRange(value)} · {value.year}
+          {weekRange(value)}, {value.year}
         </span>
       </div>
 

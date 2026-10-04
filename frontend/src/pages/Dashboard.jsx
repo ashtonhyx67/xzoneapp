@@ -175,7 +175,7 @@ export default function Dashboard() {
             count={birthdays.length}
             people={birthdays}
             empty="Nothing in the next 30 days"
-            renderDetail={(person) => `${formatDay(person.birthday)} · turning ${person.turning}`}
+            renderDetail={(person) => `${formatDay(person.birthday)} — turning ${person.turning}`}
             renderBadge={(person) => ({
               text: whenLabel(person.daysAway),
               tone: person.daysAway <= 1 ? "on" : "off",

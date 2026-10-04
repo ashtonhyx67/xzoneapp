@@ -1,23 +1,44 @@
 :root {
-  --bg: #f6f6f7;
+  /* Paper and marker. The one thing everybody does in here is mark a
+     register, so the single accent is a highlighter and it is spent only
+     where something has actually been marked. Everything else is ink on
+     paper, and depth comes from tint and shadow rather than from drawing a
+     box around each thing. */
+  --ink: #241f47;
+  --ink-lift: #322b61;
+  --ink-deep: #191535;
+  --mark: #ffcf47;
+  --mark-soft: #fff4d4;
+  --mark-edge: #e8ae1b;
+
+  /* The old names, kept because the whole stylesheet is written in them. */
+  --bg: #f1f0f6;
   --surface: #ffffff;
-  --border: #e3e3e3;
-  --border-strong: #c9cccf;
-  --text: #1a1a1a;
-  --text-soft: #6d7175;
-  --accent: #008060;
-  --accent-hover: #004c3f;
-  --danger: #d72c0d;
-  --danger-bg: #fdeceb;
-  --card-head: #f6cccc;
+  --border: #e5e3ef;
+  --border-strong: #cbc7dd;
+  --text: #241f47;
+  --text-soft: #6f6a8d;
+  --accent: #4b3fa8;
+  --accent-hover: #362c85;
+  --danger: #b3203b;
+  --danger-bg: #fdeef1;
+  --good: #1a7a5e;
+  --good-bg: #e6f4ee;
+  /* The scorecard's header band. Lavender rather than pink: it belongs to the
+     ink now instead of being the one warm thing on the page. */
+  --card-head: #e7e3f6;
+
   /* One height for every control that sits in a row with another: search
      boxes, selects, inline buttons. Without it each was sized by its own
      padding and no two lined up. */
-  --control-h: 34px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --shadow-card: 0 1px 2px rgba(26, 26, 26, 0.06), 0 1px 0 rgba(26, 26, 26, 0.03);
+  --control-h: 36px;
+  --radius-sm: 9px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  /* Two weights, so a working surface and a thing resting on it do not read
+     as the same object. */
+  --shadow-card: 0 1px 2px rgba(36, 31, 71, 0.04), 0 4px 16px -6px rgba(36, 31, 71, 0.1);
+  --shadow-lift: 0 2px 4px rgba(36, 31, 71, 0.06), 0 14px 32px -12px rgba(36, 31, 71, 0.22);
 }
 
 * {
@@ -35,6 +56,8 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
 }
@@ -50,6 +73,41 @@ button {
   font-family: inherit;
 }
 
+/* The app is mostly numbers — a week, a total, a count per group — so the one
+   face with any personality is spent on those and on the headings over them.
+   Everything that is read rather than glanced at stays in Inter.
+   SOFT and WONK are what give Fraunces its character; the optical size is left
+   to the browser, which sets it from whatever size the rule below asks for. */
+.page-title,
+.auth-title,
+.auth-wordmark,
+.sidebar-wordmark,
+.section-title,
+.stat-value,
+.week-eyebrow,
+.week-number,
+.week-day,
+.tally-total-value,
+.tally-group-value,
+.register-group-title {
+  font-family: "Fraunces", Georgia, serif;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 40, "WONK" 1;
+}
+
+/* Keyboard focus is visible everywhere, and on the ink surfaces it switches to
+   the marker yellow — indigo on indigo is a ring nobody can see. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sidebar :where(a, button):focus-visible,
+.week-banner :where(a, button):focus-visible,
+.tally :where(a, button):focus-visible {
+  outline-color: var(--mark);
+}
+
 /* ---------- Layout: auth pages ---------- */
 
 .auth-shell {
@@ -62,27 +120,26 @@ button {
 }
 
 .auth-wordmark {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   margin-bottom: 28px;
-  color: var(--text);
+  color: var(--ink);
 }
 
 .auth-card {
   width: 100%;
   max-width: 380px;
   background: var(--surface);
-  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-lift);
   padding: 32px;
 }
 
 .auth-title {
-  font-size: 20px;
+  font-size: 25px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   margin-bottom: 24px;
 }
 
@@ -141,7 +198,7 @@ button {
 
 .field input {
   width: 100%;
-  padding: 9px 12px;
+  padding: 10px 13px;
   font-size: 14px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -153,7 +210,7 @@ button {
 
 .field input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0, 128, 96, 0.12);
+  box-shadow: 0 0 0 3px rgba(75, 63, 168, 0.14);
 }
 
 /* Text input with a control sitting inside its right edge. */
@@ -192,13 +249,20 @@ button {
 
 .btn {
   width: 100%;
-  padding: 10px 16px;
+  padding: 10px 18px;
   font-size: 14px;
   font-weight: 600;
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+  transition: background 0.14s ease, border-color 0.14s ease, opacity 0.14s ease,
+    transform 0.08s ease;
+}
+
+/* A press you can feel. Small enough that it reads as the button giving, not
+   as an animation. */
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .btn:disabled {
@@ -207,22 +271,24 @@ button {
 }
 
 .btn-primary {
-  background: var(--text);
+  background: var(--ink);
   color: #fff;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #000;
+  background: var(--ink-lift);
 }
 
 .btn-secondary {
   background: var(--surface);
   color: var(--text);
-  border-color: var(--border-strong);
+  border-color: var(--border);
+  box-shadow: 0 1px 2px rgba(36, 31, 71, 0.04);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  border-color: var(--text);
+  border-color: var(--border-strong);
+  background: #fbfbfe;
 }
 
 /* Buttons are full-width by default; this is the one that sits inline. */
@@ -243,8 +309,8 @@ button {
 }
 
 .success-banner {
-  background: #e3f5ef;
-  color: var(--accent-hover);
+  background: var(--good-bg);
+  color: var(--good);
   font-size: 13px;
   padding: 10px 12px;
   border-radius: var(--radius-sm);
@@ -259,52 +325,71 @@ button {
   display: flex;
 }
 
+/* An ink rail rather than another white column: it frames the page, so the
+   working surface reads as something laid on a desk instead of one more panel
+   in a stack of identical ones. */
 .sidebar {
-  width: 232px;
+  width: 236px;
   flex-shrink: 0;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  padding: 20px 16px;
+  background: var(--ink);
+  color: #fff;
+  padding: 22px 14px;
   display: flex;
   flex-direction: column;
 }
 
 .sidebar-wordmark {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  padding: 0 8px;
-  margin-bottom: 24px;
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  padding: 0 10px;
+  margin-bottom: 26px;
+  color: #fff;
 }
 
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 9px 12px;
   border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-soft);
+  color: rgba(255, 255, 255, 0.62);
   text-decoration: none;
   cursor: pointer;
   margin-bottom: 2px;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 
 .nav-item:hover {
-  background: var(--bg);
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
 }
 
 .nav-item.active {
-  background: var(--bg);
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* The page you are on is marked, in the same yellow that marks a register. */
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 17px;
+  margin-top: -8.5px;
+  border-radius: 0 3px 3px 0;
+  background: var(--mark);
 }
 
 .sidebar-footer {
   margin-top: auto;
   padding-top: 16px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .user-chip {
@@ -316,11 +401,11 @@ button {
 }
 
 .user-avatar {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 999px;
-  background: var(--text);
-  color: #fff;
+  background: var(--mark);
+  color: var(--ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -349,7 +434,7 @@ button {
 
 .user-email {
   font-size: 12px;
-  color: var(--text-soft);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .signout-btn {
@@ -358,22 +443,22 @@ button {
   text-align: left;
   background: none;
   border: none;
-  padding: 6px 8px;
+  padding: 7px 10px;
   font-size: 13px;
-  color: var(--text-soft);
+  color: rgba(255, 255, 255, 0.55);
   cursor: pointer;
   border-radius: var(--radius-sm);
 }
 
 .signout-btn:hover {
-  background: var(--bg);
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 
 .main-content {
   flex: 1;
   min-width: 0;
-  padding: 32px 40px;
+  padding: 36px 44px 56px;
   /* A comfortable measure for a page of prose-width panels. Pages that are
      really a table or a two-pane layout opt out below — 1040px on a wide screen
      left the scorecard cramped with empty desk either side of it. */
@@ -395,20 +480,21 @@ button {
 }
 
 .page-title {
-  font-size: 34px;
-  line-height: 1.15;
-  font-weight: 700;
+  font-size: 38px;
+  line-height: 1.1;
+  font-weight: 600;
   letter-spacing: -0.025em;
   overflow-wrap: anywhere;
 }
 
 .page-count {
-  padding: 3px 10px;
+  padding: 4px 11px;
   border-radius: 999px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
   font-size: 13px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--text-soft);
 }
 
@@ -427,21 +513,23 @@ button {
 
 .stat-card {
   background: var(--surface);
-  border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
   padding: 16px 18px;
 }
 
 .stat-label {
   font-size: 13px;
   color: var(--text-soft);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .stat-value {
-  font-size: 26px;
+  font-size: 32px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
 }
 
 .sidebar-nav {
@@ -455,17 +543,30 @@ button {
   display: none;
 }
 
+/* A working surface: a sheet resting on the desk, lifted by its shadow
+   rather than outlined. The border is gone because a shadow and the page
+   tint already say where it ends, and an outline on every box was what made
+   the app read as a stack of identical cards. */
 .panel {
   background: var(--surface);
-  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 20px;
+  box-shadow: var(--shadow-card);
+  padding: 22px;
   margin-top: 20px;
 }
 
 .panel-title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* Something grouped *inside* a sheet. Tinted rather than outlined, so nesting
+   reads as depth instead of as two boxes that happen to touch. */
+.inset {
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
 }
 
 .panel-row {
@@ -491,8 +592,8 @@ button {
 }
 
 .badge-on {
-  background: #e3f5ef;
-  color: var(--accent-hover);
+  background: var(--good-bg);
+  color: var(--good);
 }
 
 .spinner {
@@ -533,13 +634,13 @@ button {
     justify-content: center;
     gap: 0;
     padding: 6px;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.82);
+    background: rgba(32, 27, 63, 0.9);
     /* Frosted where it is supported; the flat colour above is the fallback. */
     backdrop-filter: blur(14px) saturate(1.4);
     -webkit-backdrop-filter: blur(14px) saturate(1.4);
-    box-shadow: 0 6px 24px rgba(26, 26, 26, 0.16), 0 1px 2px rgba(26, 26, 26, 0.08);
+    box-shadow: 0 10px 30px -8px rgba(25, 21, 53, 0.45), 0 2px 6px rgba(25, 21, 53, 0.2);
   }
 
   /* The wordmark and the account belong to a rail, not to a pill; the account
@@ -581,8 +682,8 @@ button {
     line-height: 1;
     /* Monotone: on a bar this size the shapes are what is read, and a row of
        full-colour emoji would shout louder than the page under it. */
-    filter: grayscale(1);
-    opacity: 0.5;
+    filter: grayscale(1) invert(1) brightness(1.7);
+    opacity: 0.6;
   }
 
   /* Only the page you are on says its name; the rest are their shape alone,
@@ -597,16 +698,22 @@ button {
     background: transparent;
   }
 
+  .nav-item.active::before {
+    display: none;
+  }
+
+  /* The page you are on is marked in the register's own yellow, so the bar
+     and the ticks on the page agree about what "this one" looks like. */
   .nav-item.active {
-    background: var(--text);
-    color: #fff;
+    background: var(--mark);
+    color: var(--ink);
     padding: 0 14px;
   }
 
   .nav-item.active .nav-icon {
     opacity: 1;
-    /* Inverted so a dark pill does not swallow a dark glyph. */
-    filter: grayscale(1) invert(1) brightness(1.6);
+    /* Back to a dark glyph: the active pill is light. */
+    filter: grayscale(1);
   }
 
   .nav-item.active .nav-label {
@@ -618,7 +725,7 @@ button {
   .nav-home {
     margin-right: 4px;
     padding-right: 12px;
-    border-right: 1px solid var(--border);
+    border-right: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 999px 0 0 999px;
   }
 
@@ -799,10 +906,8 @@ button {
 .roster-head {
   background: var(--bg);
   border-bottom: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--text-soft);
 }
 
@@ -1644,39 +1749,7 @@ button {
   }
 
   /* The tally never squeezes below something readable. */
-  /* Which team the group's total is made of, the current one picked out. */
-.tally-teams {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.tally-team {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-soft);
-}
-
-.tally-team strong {
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
-
-.tally-team-current {
-  border-color: var(--accent);
-  color: var(--text);
-}
-
-.tally-groups {
+  .tally-groups {
     grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
   }
 
@@ -1729,7 +1802,7 @@ button {
   letter-spacing: 0.03em;
   /* One dark ink for all twenty: every colour is light enough to carry it, so
      a role never has to be read against its own background. */
-  color: #26303a;
+  color: var(--ink);
   white-space: nowrap;
 }
 
@@ -1749,7 +1822,7 @@ button {
   display: inline-flex;
   padding: 3px 10px;
   border-radius: 999px;
-  background: #eef1f0;
+  background: var(--bg);
   border: 1px solid var(--border);
   font-size: 11px;
   font-weight: 700;
@@ -1759,9 +1832,9 @@ button {
 }
 
 .group-pill-owner {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--mark);
+  border-color: var(--mark);
+  color: var(--ink);
 }
 
 .you-tag {
@@ -1804,10 +1877,8 @@ button {
   align-items: baseline;
   gap: 8px;
   margin: 14px 0 4px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--text-soft);
 }
 
@@ -1832,7 +1903,7 @@ button {
 
 .roster-linked[style*="--role-tint"] {
   background: var(--role-tint);
-  color: #26303a;
+  color: var(--ink);
 }
 
 /* Uncoloured — an unknown role, or the School cell, which has no colour of its
@@ -1931,10 +2002,8 @@ button {
 }
 
 .register-total-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--text-soft);
 }
 
@@ -2001,7 +2070,7 @@ button {
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border: 1px solid var(--border);
+  background: var(--bg);
   border-radius: 999px;
   font-size: 12px;
   color: var(--text-soft);
@@ -2017,24 +2086,25 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-bottom: 6px;
-  border-bottom: 2px solid var(--border);
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border);
 }
 
 .register-group-title {
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .register-group-count {
   min-width: 24px;
-  padding: 2px 8px;
+  padding: 2px 9px;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--ink);
   color: #fff;
   font-size: 12px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
@@ -2057,7 +2127,7 @@ button {
   align-items: center;
   gap: 8px;
   padding: 3px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #f0eef7;
 }
 
 .register-row:last-child {
@@ -2075,14 +2145,22 @@ button {
 .register-name-text {
   flex: 1;
   min-width: 0;
-  padding: 5px 6px;
+  padding: 6px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
   font-family: inherit;
-  font-size: 13px;
-  color: inherit;
+  font-size: 14px;
+  color: var(--text-soft);
   overflow-wrap: anywhere;
+  transition: color 0.12s ease;
+}
+
+/* Someone who came reads in full ink; everyone else stays faded, so the gaps
+   are what the eye finds going down the column. */
+.register-row-present .register-name,
+.register-row-present .register-name-text {
+  color: var(--text);
 }
 
 .register-name:hover,
@@ -2100,30 +2178,37 @@ button {
 }
 
 .mark {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--bg);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1;
   color: var(--text-soft);
   cursor: pointer;
-  opacity: 0.45;
-  transition: opacity 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+  opacity: 0.4;
+  transition: opacity 0.12s ease, background 0.12s ease, border-color 0.12s ease,
+    transform 0.1s ease;
 }
 
-.mark:hover:not(:disabled) {
-  opacity: 0.8;
-  border-color: var(--border-strong);
+.mark:hover:not(:disabled):not(.mark-on) {
+  opacity: 0.75;
+  background: #e8e6f2;
 }
 
+.mark:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+/* Marked, in the sense a register is marked: the box is highlighted. */
 .mark-on {
   opacity: 1;
-  background: #e8f4ee;
-  border-color: var(--accent);
+  background: var(--mark);
+  border-color: var(--mark-edge);
+  box-shadow: 0 1px 2px rgba(36, 31, 71, 0.12);
 }
 
 .mark:disabled {
@@ -2340,8 +2425,7 @@ button {
   min-height: var(--control-h);
   gap: 4px;
   padding: 3px 6px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
+  border-radius: 999px;
   background: var(--surface);
   box-shadow: var(--shadow-card);
 }
@@ -2373,95 +2457,101 @@ button {
   min-width: 132px;
 }
 
-/* The total, with the groups it is made of underneath. */
+/* The number this page exists to produce, with the groups it is made of
+   underneath. Set on ink, because it is the one thing here worth looking at
+   twice — everything else on the page is in service of it. */
 .tally {
-  margin: 14px 0;
-  border: 1px solid var(--border);
+  margin: 16px 0 20px;
   border-radius: var(--radius-md);
   overflow: hidden;
+  box-shadow: var(--shadow-card);
 }
 
 .tally-total {
   display: flex;
   align-items: baseline;
   gap: 12px;
-  padding: 12px 16px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  padding: 16px 20px;
+  background: var(--ink);
+  color: #fff;
 }
 
-/* The label carries the header at the same weight as the number it labels,
-   rather than being a caption above it. */
 .tally-total-label {
-  font-size: 22px;
-  line-height: 1.1;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  text-transform: none;
-  color: var(--text);
+  font-size: 15px;
+  line-height: 1.2;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .tally-total-value {
   margin-left: auto;
-  font-size: 26px;
-  line-height: 1.1;
-  font-weight: 800;
+  font-size: 42px;
+  line-height: 0.95;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
 }
 
 @media (max-width: 560px) {
-  .tally-total-label {
-    font-size: 18px;
+  .tally-total {
+    padding: 14px 16px;
   }
 
   .tally-total-value {
-    font-size: 22px;
+    font-size: 34px;
   }
 }
 
 /* Which team the group's total is made of, the current one picked out. */
+/* Still on the ink band: the split is part of the headline number, not a
+   footnote under it. */
 .tally-teams {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
+  padding: 0 20px 16px;
+  background: var(--ink);
 }
 
 .tally-team {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px;
-  border: 1px solid var(--border);
+  padding: 3px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 999px;
-  background: var(--surface);
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-soft);
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .tally-team strong {
   font-variant-numeric: tabular-nums;
-  color: var(--text);
+  color: #fff;
 }
 
+/* The team whose register is on screen. */
 .tally-team-current {
-  border-color: var(--accent);
-  color: var(--text);
+  border-color: var(--mark);
+  color: var(--mark);
+}
+
+.tally-team-current strong {
+  color: var(--mark);
 }
 
 .tally-groups {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+  background: var(--surface);
 }
 
 .tally-group {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 10px 6px;
+  gap: 1px;
+  padding: 12px 6px;
   border-right: 1px solid var(--border);
 }
 
@@ -2470,16 +2560,16 @@ button {
 }
 
 .tally-group-name {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--text-soft);
 }
 
 .tally-group-value {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 23px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  line-height: 1.15;
 }
 
 .tally-group-of {
@@ -2491,8 +2581,7 @@ button {
    what is on screen is exactly what gets pasted, emoji and all. */
 .export-box {
   margin: 12px 0 16px;
-  padding: 10px;
-  border: 1px solid var(--border);
+  padding: 12px;
   border-radius: var(--radius-md);
   background: var(--bg);
 }
@@ -2536,9 +2625,8 @@ button {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
+  margin-bottom: 18px;
+  padding: 9px 11px;
   border-radius: var(--radius-md);
   background: var(--bg);
 }
@@ -2553,10 +2641,10 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 9px;
+  padding: 4px 10px;
   border-radius: 999px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(36, 31, 71, 0.05);
   font-size: 12px;
   font-weight: 600;
   color: var(--text);
@@ -2569,7 +2657,8 @@ button {
 /* A status that does not count reads quieter, so the total is never a mystery. */
 .legend-chip-muted {
   color: var(--text-soft);
-  border-style: dashed;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
 .legend-add {
@@ -2592,7 +2681,7 @@ button {
   border-radius: 999px;
   background: var(--text);
   color: #fff;
-  box-shadow: 0 8px 28px rgba(26, 26, 26, 0.28);
+  box-shadow: 0 8px 28px rgba(25, 21, 53, 0.3);
 }
 
 @media (min-width: 769px) {
@@ -2640,7 +2729,7 @@ button {
    one — dragging precisely on a touch screen is the thing that does not work. */
 @media (max-width: 768px) {
   .seating-row-armed {
-    background: #f2faf6;
+    background: var(--mark-soft);
   }
 
   .seating-row-armed .seating-seats {
@@ -2831,25 +2920,6 @@ button {
   color: var(--text-soft);
 }
 
-/* The two that go somewhere read as buttons rather than labels. */
-.week-tag-link {
-  text-decoration: none;
-  color: inherit;
-  cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease;
-}
-
-.week-tag-link:hover {
-  background: rgba(255, 255, 255, 0.32);
-  border-color: rgba(255, 255, 255, 0.6);
-}
-
-/* The teams the dashboard reminders cover, set apart from the weekly tags. */
-.week-tag-team {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.5);
-}
-
 /* ---------- Dashboard week banner ---------- */
 
 /* Attendance and SA are weekly, so the week owns the top of the dashboard.
@@ -2857,37 +2927,38 @@ button {
 .week-banner {
   display: flex;
   align-items: stretch;
-  gap: 28px;
+  gap: 30px;
   margin-bottom: 8px;
-  padding: 26px 30px;
+  padding: 28px 32px;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, #0b3b6f 0%, #1668b8 55%, #3ba0e6 100%);
+  background: var(--ink);
   color: #fff;
-  box-shadow: 0 6px 18px rgba(11, 59, 111, 0.24);
+  box-shadow: var(--shadow-lift);
 }
 
+/* "Week 40" set as one lockup, the numeral carrying it and the word riding
+   its baseline — rather than a label stacked above a number, which is how
+   every dashboard in the world writes it. */
 .week-banner-main {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding-right: 28px;
-  border-right: 1px solid rgba(255, 255, 255, 0.28);
+  align-items: baseline;
+  gap: 10px;
+  padding-right: 30px;
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
 }
 
 .week-eyebrow {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.75);
+  font-size: 21px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* Deliberately oversized: it is the one number the page exists to show. */
 .week-number {
-  font-size: 76px;
+  font-size: 82px;
   line-height: 1;
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-weight: 600;
+  letter-spacing: -0.045em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -2900,9 +2971,9 @@ button {
 }
 
 .week-day {
-  font-size: 32px;
+  font-size: 34px;
   line-height: 1.1;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.025em;
 }
 
@@ -2926,14 +2997,38 @@ button {
 }
 
 .week-tag {
-  padding: 5px 12px;
+  padding: 5px 13px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  font-size: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The two things actually done every week, so they carry the marker colour
+   that means "this one" everywhere else in the app. Kept below the base rule:
+   above it they lost the cascade on equal specificity. */
+.week-tag-link {
+  background: var(--mark);
+  border-color: var(--mark);
+  color: var(--ink);
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.week-tag-link:hover {
+  background: #ffdd7a;
+  border-color: #ffdd7a;
+}
+
+/* The teams these reminders cover — context rather than somewhere to go, so
+   they stay an outline. */
+.week-tag-team {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.75);
 }
 
 @media (max-width: 720px) {
@@ -2947,11 +3042,15 @@ button {
   }
 
   .week-number {
-    font-size: 56px;
+    font-size: 60px;
+  }
+
+  .week-eyebrow {
+    font-size: 18px;
   }
 
   .week-day {
-    font-size: 24px;
+    font-size: 26px;
   }
 }
 
@@ -2987,23 +3086,24 @@ button {
   align-items: center;
   gap: 10px;
   padding-bottom: 10px;
-  border-bottom: 2px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 .section-title {
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .section-count {
   min-width: 24px;
-  padding: 2px 8px;
+  padding: 2px 9px;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--ink);
   color: #fff;
   font-size: 12px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
@@ -3061,7 +3161,7 @@ button {
   width: 100%;
   padding: 12px 12px;
   border: none;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #f0eef7;
   border-radius: var(--radius-sm);
   background: transparent;
   font-family: inherit;
@@ -3082,7 +3182,7 @@ button {
 }
 
 .member-row.active {
-  background: #e9f4f0;
+  background: var(--mark-soft);
 }
 
 .member-avatar {
@@ -3095,7 +3195,7 @@ button {
   border-radius: 50%;
   overflow: hidden;
   background: var(--card-head);
-  color: #6b3f3f;
+  color: #4a3f82;
   font-size: 12px;
   font-weight: 700;
 }
@@ -3559,7 +3659,7 @@ button {
 }
 
 .sheet-status-saving {
-  background: #e0a92a;
+  background: var(--mark-edge);
 }
 
 .sheet-status-error {
@@ -3616,16 +3716,14 @@ button {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: #fbe4e4;
+  background: #eeebfa;
   text-align: left;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: #8c4141;
+  color: #574b97;
   padding: 3px 6px;
-  border-bottom: 2px solid #efc3c3;
-  border-right: 1px solid #f2d2d2;
+  border-bottom: 2px solid #ddd6f2;
+  border-right: 1px solid #e7e2f6;
   white-space: nowrap;
 }
 
@@ -3640,7 +3738,7 @@ button {
    table, with no gap above or below it, so it reads as a divider between blocks
    rather than a label floating in white space. */
 .sheet-group-row td {
-  background: #3c4a52;
+  background: var(--ink);
   padding: 0 !important;
   border-bottom: none;
   border-right: none;
@@ -3660,10 +3758,9 @@ button {
 }
 
 .sheet-group-name {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .sheet-group-count {
@@ -3687,7 +3784,7 @@ button {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(26, 26, 26, 0.45);
+  background: rgba(25, 21, 53, 0.5);
   animation: update-fade 0.16s ease-out;
 }
 
@@ -3701,7 +3798,7 @@ button {
   padding: 24px 20px 18px;
   border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: 0 16px 48px rgba(26, 26, 26, 0.3);
+  box-shadow: 0 16px 48px rgba(25, 21, 53, 0.34);
   text-align: center;
   animation: update-rise 0.2s ease-out;
 }
@@ -3822,23 +3919,23 @@ button {
 
 /* Zebra striping makes a wide row easy to follow across the screen. */
 .sheet tbody tr:nth-child(even) td {
-  background: #fafbfb;
+  background: #fafaff;
 }
 
 .sheet tbody tr.sheet-group-row td {
-  background: #3c4a52;
+  background: var(--ink);
 }
 
 .sheet tbody tr:hover td {
-  background: #fdf6f6;
+  background: var(--mark-soft);
 }
 
 .sheet tbody tr.sheet-group-row:hover td {
-  background: #3c4a52;
+  background: var(--ink);
 }
 
 .sheet tbody tr:focus-within td {
-  background: #fbeaea;
+  background: #fff0c9;
 }
 
 .sheet tr:last-child td {
@@ -3878,7 +3975,7 @@ button {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: #26303a;
+  color: var(--ink);
   cursor: pointer;
   line-height: 16px;
 }
@@ -3895,8 +3992,8 @@ button {
 .sheet-select-optional.is-set {
   border-style: solid;
   border-color: var(--accent);
-  background: #e8f4ee;
-  color: #1a1a1a;
+  background: var(--mark-soft);
+  color: var(--ink);
 }
 
 .sheet-select:focus {
@@ -3919,7 +4016,7 @@ button {
   min-width: 32px;
   padding: 3px 6px;
   text-align: right;
-  background: #fdf3f3;
+  background: var(--bg);
   color: var(--text-soft);
   font-variant-numeric: tabular-nums;
 }
@@ -4164,10 +4261,8 @@ button {
 }
 
 .split-month-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--text-soft);
 }
 
@@ -4340,7 +4435,7 @@ button {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(26, 26, 26, 0.45);
+  background: rgba(25, 21, 53, 0.5);
 }
 
 .split-modal {
@@ -4351,7 +4446,7 @@ button {
   max-height: 100%;
   background: var(--surface);
   border-radius: var(--radius-lg);
-  box-shadow: 0 12px 40px rgba(26, 26, 26, 0.25);
+  box-shadow: 0 12px 40px rgba(25, 21, 53, 0.3);
   overflow: hidden;
 }
 
