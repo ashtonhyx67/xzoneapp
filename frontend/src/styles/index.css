@@ -2154,6 +2154,7 @@ button {
 
 /* Seating: the plan on the left, the people still to place on the right. */
 .seating-layout {
+  margin-top: 16px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
   gap: 20px;
@@ -2216,7 +2217,11 @@ button {
   overflow-wrap: anywhere;
 }
 
+/* The row's name takes the header's first line to itself; the count and the
+   arrows sit under it. Sharing one line, the name box was squeezed down to a
+   single letter by the buttons beside it. */
 .seating-row-label {
+  flex-basis: 100%;
   width: 100%;
   padding: 5px 8px;
   border: 1px solid var(--border);
@@ -2239,6 +2244,7 @@ button {
 .seating-row-tools {
   display: flex;
   gap: 2px;
+  margin-left: auto;
 }
 
 /* The seats themselves, stacked down the row. */
@@ -2688,11 +2694,6 @@ button {
   .pool-person {
     padding: 12px 12px;
   }
-}
-
-.seating-row-over {
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 2px rgba(0, 128, 96, 0.18);
 }
 
 .seat {
@@ -4884,6 +4885,208 @@ button {
   }
 }
 
+/* ---------- Seating: drag and drop ---------- */
+
+/* A card that can be picked up says so: it lifts a touch under the cursor. On
+   a phone, holding it is what picks it up, so the long-press menu and text
+   selection the phone would otherwise show are switched off. */
+.seat,
+.pool-person {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.seat-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.seating-seats {
+  /* What a card's position in its row is measured against while dragging. */
+  position: relative;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .seat:hover,
+  .pool-person:hover {
+    box-shadow: 0 2px 8px -2px rgba(36, 31, 71, 0.22);
+    transform: translateY(-1px);
+  }
+}
+
+/* The card that has been picked up leaves the row; the gap below stands in
+   for it, wherever it would land. It stays in the page (hidden, not removed),
+   because a phone stops sending a finger's movements to an element that has
+   been taken out of the page. */
+.seat-lifted {
+  display: none;
+}
+
+/* A name in the "to place" list stays where it is, faded, until it lands. */
+.pool-person-source {
+  opacity: 0.35;
+  transform: scale(0.97);
+}
+
+/* Where it will land: a dashed slot the size of the card. */
+.seat-gap {
+  display: block;
+  flex-shrink: 0;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--mark-soft);
+}
+
+/* Every row reads as somewhere to drop while a card is in hand, and the one
+   under it lights up. */
+.seating-plan-dragging .seating-row {
+  border-style: dashed;
+  border-color: var(--border-strong);
+}
+
+.seating-row {
+  transition: border-color var(--dur-quick) var(--ease-out),
+    background var(--dur-quick) var(--ease-out), box-shadow var(--dur-quick) var(--ease-out);
+}
+
+.seating-plan-dragging .seating-row-target {
+  border-style: solid;
+  border-color: var(--accent);
+  background: #f7f5ff;
+  box-shadow: 0 0 0 3px rgba(75, 63, 168, 0.12);
+}
+
+/* Dragging a seated name back here takes them out of their row. */
+.seating-pool {
+  transition: border-color var(--dur-quick) var(--ease-out),
+    background var(--dur-quick) var(--ease-out);
+}
+
+.seating-pool-armed {
+  border-style: dashed;
+  border-color: var(--border-strong);
+}
+
+.seating-pool-over {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.seating-pool-hint {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+  text-align: center;
+  animation: banner-in var(--dur-move) var(--ease-out);
+}
+
+.seating-pool-over .seating-pool-hint {
+  background: transparent;
+  color: var(--danger);
+}
+
+/* The card in your hand. Fixed to the window and moved by script; it never
+   takes pointer events, so whatever is underneath it can be found. */
+.drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 90;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.drag-ghost-card {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--card-head);
+  color: var(--text);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  outline: 2px solid var(--accent);
+  box-shadow: 0 18px 38px -12px rgba(25, 21, 53, 0.45), 0 4px 10px rgba(25, 21, 53, 0.14);
+  transform: scale(1.05);
+  animation: ghost-lift var(--dur-move) var(--ease-spring);
+}
+
+@keyframes ghost-lift {
+  from {
+    transform: scale(1);
+    box-shadow: 0 1px 2px rgba(25, 21, 53, 0.1);
+  }
+}
+
+/* While anything is being dragged, the hand is closed everywhere and nothing
+   on the page selects. */
+body.is-dragging,
+body.is-dragging * {
+  cursor: grabbing !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+/* ---------- Face ID offer ---------- */
+
+.faceid-offer {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.faceid-offer-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: var(--ink);
+  color: var(--mark);
+}
+
+.faceid-offer-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.faceid-offer-title {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.faceid-offer-text {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-soft);
+}
+
+.faceid-offer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.faceid-offer-actions .btn-inline {
+  flex: 0 1 auto;
+  width: auto;
+}
+
 /* ---------- Responsive overrides ---------- */
 
 /* These live at the foot of the stylesheet on purpose. A media query adds no
@@ -5403,9 +5606,19 @@ button {
   .export-head,
   .sheet-actions,
   .register-bar,
-  .legend-bar,
-  .week-picker {
+  .legend-bar {
     flex-wrap: wrap;
+  }
+
+  /* A toolbar's buttons share one line on a phone instead of each taking a
+     full line of its own. */
+  .attendance-actions {
+    width: 100%;
+  }
+
+  .attendance-actions .btn-inline {
+    flex: 1 1 0;
+    width: auto;
   }
 
   .split-activity-group,
