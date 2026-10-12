@@ -14,7 +14,9 @@ function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    // Pinned to the one algorithm tokens are signed with, so a token can never
+    // talk the server into checking it some other way.
+    const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
     req.userId = payload.userId;
     next();
   } catch (err) {

@@ -1,5 +1,4 @@
 const express = require("express");
-const bcrypt = require("bcryptjs");
 
 const { pool } = require("../db");
 const { requireAuth, requirePermission } = require("../middleware/auth");
@@ -7,6 +6,7 @@ const { PERMISSIONS, DEFAULT_GROUP, isAssignable, publicGroups } = require("../l
 const { isOwnerEmail } = require("../lib/owner");
 const { normalizeEmail, isValidEmail, EMAIL_ERROR } = require("../lib/email");
 const { CGS, TEAMS, TEAM_KEYS, normalizeTeam } = require("../lib/teams");
+const { hash, cleanName, NAME_ERROR, passwordProblem } = require("../lib/credentials");
 
 const router = express.Router();
 
@@ -63,17 +63,21 @@ router.get(
 router.post(
   "/accounts",
   route(async (req, res) => {
-    const { name, password, group } = req.body || {};
-    const email = normalizeEmail(req.body?.email);
+    const { password, group } = req.body || {};
+    const name = cleanName(req.body?.name);
+    const email = normalizeEmail(typeof req.body?.email === "string" ? req.body.email : "");
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: "Name, email, and password are all required." });
+    // The same rules as the sign-up page: an account an admin makes is no
+    // more allowed a weak password than one made by its owner.
+    if (!name) {
+      return res.status(400).json({ error: NAME_ERROR });
     }
     if (!isValidEmail(email)) {
       return res.status(400).json({ error: EMAIL_ERROR });
     }
-    if (String(password).length < 8) {
-      return res.status(400).json({ error: "Password must be at least 8 characters." });
+    const problem = passwordProblem(password, { email, name });
+    if (problem) {
+      return res.status(400).json({ error: problem });
     }
 
     const groupKey = isOwnerEmail(email) ? "owner" : group || DEFAULT_GROUP;
@@ -81,7 +85,7 @@ router.post(
       return res.status(400).json({ error: "That is not a group you can assign." });
     }
 
-    const passwordHash = await bcrypt.hash(String(password), 10);
+    const passwordHash = await hash(password);
 
     try {
       const inserted = await pool.query(
@@ -89,7 +93,7 @@ router.post(
          VALUES ($1, $2, $3, $4, $5)
          RETURNING id`,
         [
-          String(name).trim(),
+          name,
           email,
           passwordHash,
           groupKey,

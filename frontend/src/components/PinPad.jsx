@@ -5,7 +5,16 @@ const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"];
 
 // A 4-digit entry pad. The dots show progress; the keypad exists because this
 // is mostly used on a phone, and a hardware keyboard works too.
-export default function PinPad({ value, onChange, disabled = false, autoFocusKeyboard = true }) {
+//
+// `errorKey` changes every time an entry is rejected. The dots are keyed on it,
+// so they remount and the shake plays again even for the same mistake twice.
+export default function PinPad({
+  value,
+  onChange,
+  disabled = false,
+  autoFocusKeyboard = true,
+  errorKey = 0,
+}) {
   const digits = String(value || "");
 
   useEffect(() => {
@@ -13,6 +22,10 @@ export default function PinPad({ value, onChange, disabled = false, autoFocusKey
 
     function onKeyDown(event) {
       if (disabled || event.metaKey || event.ctrlKey || event.altKey) return;
+      // Typing in a field elsewhere on the page is not typing a PIN.
+      if (event.target instanceof HTMLElement && event.target.closest("input, textarea, select")) {
+        return;
+      }
       if (/^[0-9]$/.test(event.key)) {
         event.preventDefault();
         onChange((digits + event.key).slice(0, PIN_LENGTH));
@@ -34,7 +47,12 @@ export default function PinPad({ value, onChange, disabled = false, autoFocusKey
 
   return (
     <div className="pinpad">
-      <div className="pin-dots" role="status" aria-label={`${digits.length} of ${PIN_LENGTH} digits entered`}>
+      <div
+        key={errorKey}
+        className={`pin-dots${errorKey ? " pin-dots-error" : ""}`}
+        role="status"
+        aria-label={`${digits.length} of ${PIN_LENGTH} digits entered`}
+      >
         {Array.from({ length: PIN_LENGTH }).map((_, i) => (
           <span key={i} className={`pin-dot${i < digits.length ? " filled" : ""}`} />
         ))}
@@ -53,7 +71,25 @@ export default function PinPad({ value, onChange, disabled = false, autoFocusKey
               disabled={disabled || (key === "back" && digits.length === 0)}
               aria-label={key === "back" ? "Delete" : key}
             >
-              {key === "back" ? "⌫" : key}
+              {key === "back" ? (
+                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                  <path
+                    d="M9 5h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-6-7 6-7Z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="m12 9.5 5 5m0-5-5 5"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              ) : (
+                key
+              )}
             </button>
           )
         )}

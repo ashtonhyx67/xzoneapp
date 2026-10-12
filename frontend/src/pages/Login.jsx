@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import PasswordField from "../components/PasswordField.jsx";
 import { getDeviceAccount } from "../lib/device.js";
+import { deviceHasBiometrics, signInWithFaceId, faceIdErrorMessage } from "../lib/faceId.js";
+import { FaceIdGlyph } from "./Unlock.jsx";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -16,6 +18,40 @@ export default function Login() {
   const [form, setForm] = useState({ email: remembered?.email || "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [faceIdReady, setFaceIdReady] = useState(false);
+
+  // Offered only where this device has signed in with Face ID before.
+  useEffect(() => {
+    let active = true;
+    if (remembered?.hasFaceId) deviceHasBiometrics().then((ok) => active && setFaceIdReady(ok));
+    return () => {
+      active = false;
+    };
+  }, [remembered]);
+
+  function finish(data, usedFaceId = false) {
+    signIn(data.token, data.user, {
+      faceIdEnabled: data.faceIdEnabled,
+      usedFaceId,
+      permissions: data.permissions,
+      group: data.group,
+      isOwner: data.isOwner,
+      pinSet: data.pinSet,
+    });
+    navigate("/dashboard", { replace: true });
+  }
+
+  async function useFaceId() {
+    setError("");
+    setLoading(true);
+    try {
+      finish(await signInWithFaceId(form.email || remembered.email), true);
+    } catch (err) {
+      setError(faceIdErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function update(field) {
     return (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -26,15 +62,7 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      const data = await api.login(form);
-      signIn(data.token, data.user, {
-        faceIdEnabled: data.faceIdEnabled,
-        permissions: data.permissions,
-        group: data.group,
-        isOwner: data.isOwner,
-        pinSet: data.pinSet,
-      });
-      navigate("/dashboard");
+      finish(await api.login(form));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -48,7 +76,26 @@ export default function Login() {
       <div className="auth-card">
         <h1 className="auth-title">Sign in</h1>
 
-        {error && <div className="error-banner">{error}</div>}
+        {error && (
+          <div className="error-banner" role="alert">
+            {error}
+          </div>
+        )}
+
+        {faceIdReady && (
+          <>
+            <button
+              type="button"
+              className="btn btn-primary faceid-btn"
+              onClick={useFaceId}
+              disabled={loading}
+            >
+              <FaceIdGlyph />
+              Sign in with Face ID
+            </button>
+            <div className="divider">or use your password</div>
+          </>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div className="field">
@@ -57,6 +104,9 @@ export default function Login() {
               id="email"
               type="email"
               autoComplete="email"
+              inputMode="email"
+              autoCapitalize="none"
+              spellCheck={false}
               value={form.email}
               onChange={update("email")}
               required

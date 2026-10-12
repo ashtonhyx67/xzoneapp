@@ -23,8 +23,38 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
+if (process.env.JWT_SECRET.length < 32) {
+  console.warn(
+    "JWT_SECRET is shorter than 32 characters. Anyone who guesses it can sign in as anyone — " +
+      "set a long random one (for example: node -e \"console.log(require('crypto').randomBytes(48).toString('hex'))\")."
+  );
+}
+
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+// Railway puts one proxy in front of the app. Trusting exactly that one is what
+// makes req.ip the visitor's address rather than the proxy's — the sign-in rate
+// limits are per address, and would otherwise lump every visitor together.
+app.set("trust proxy", 1);
+app.disable("x-powered-by");
+
+// A few headers every response should carry. Content-Security-Policy is left
+// out on purpose: Google Fonts and the inline styles React writes would need a
+// careful allow-list, and a wrong one breaks the app outright.
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), publickey-credentials-create=(self), publickey-credentials-get=(self)"
+  );
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  next();
+});
 
 let dbReady = false;
 

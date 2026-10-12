@@ -52,7 +52,11 @@ export default function SignUp() {
       <div className="auth-card">
         <h1 className="auth-title">Create your account</h1>
 
-        {error && <div className="error-banner">{error}</div>}
+        {error && (
+          <div className="error-banner" role="alert">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} noValidate>
           <div className="field">
@@ -61,6 +65,7 @@ export default function SignUp() {
               id="name"
               type="text"
               autoComplete="name"
+              maxLength={80}
               value={form.name}
               onChange={update("name")}
               required
@@ -78,6 +83,9 @@ export default function SignUp() {
               pattern="[^\s@]+@[^\s@]+\.[^\s@]+"
               title="Include an @ and a domain, like name@gmail.com"
               autoComplete="email"
+              inputMode="email"
+              autoCapitalize="none"
+              spellCheck={false}
               value={form.email}
               onChange={update("email")}
               required

@@ -1,37 +1,32 @@
-// A platform credential (Face ID / Touch ID / Windows Hello) lives on the
-// device that created it, so "is Face ID available here?" is a question about
-// this browser, not about the account. Remembering it locally lets the sign-in
-// page stay quiet until there is actually something to offer — and avoids
-// asking the server about an email before anyone has signed in.
+import { startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/browser";
+import { api } from "../api.js";
 
-const KEY = "faceIdDevice";
-
-export function getFaceIdDevice() {
+// Whether this device has a face or fingerprint unlock the browser can use.
+// A browser can support WebAuthn without the device having either set up, and
+// asking anyway is what makes Chrome offer a QR code or a password app instead.
+export async function deviceHasBiometrics() {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed?.email ? parsed : null;
+    if (!browserSupportsWebAuthn()) return false;
+    const check = window.PublicKeyCredential?.isUserVerifyingPlatformAuthenticatorAvailable;
+    return check ? await check() : false;
   } catch {
-    // Corrupt or unavailable storage should never break sign-in.
-    return null;
+    return false;
   }
 }
 
-export function rememberFaceIdDevice(email) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify({ email }));
-  } catch {
-    // Private mode and similar: Face ID just won't be pre-offered next time.
-  }
+// The whole Face ID sign-in: ask the server for a challenge, have the device
+// sign it, and hand the signature back. Resolves to the same session payload a
+// password sign-in returns.
+export async function signInWithFaceId(email) {
+  const { options, userId } = await api.webauthnLoginOptions(email);
+  const response = await startAuthentication({ optionsJSON: options });
+  return api.webauthnLoginVerify(userId, response);
 }
 
-// Called when the server says this account has no credential, so a stale flag
-// (credential removed, database reset) stops offering a button that can't work.
-export function forgetFaceIdDevice() {
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    /* nothing to do */
+// The browser's own wording for a cancelled prompt is not something to show.
+export function faceIdErrorMessage(err, fallback = "Face ID didn't work. Try again.") {
+  if (err?.name === "NotAllowedError" || err?.name === "AbortError") {
+    return "Face ID was cancelled.";
   }
+  return err?.message || fallback;
 }

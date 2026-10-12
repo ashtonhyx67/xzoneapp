@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import PinPad, { PIN_LENGTH } from "../components/PinPad.jsx";
 import InstallPrompt from "../components/InstallPrompt.jsx";
 import { canInstall } from "../lib/install.js";
+import { isWeakPin, WEAK_PIN_ERROR, buzz } from "../lib/pin.js";
 
 // Shown once, right after an account is created (and to anyone who signed up
 // before PINs existed). Two passes: choose, then confirm.
@@ -16,7 +17,14 @@ export default function SetPin() {
   const [first, setFirst] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
+  const [errorKey, setErrorKey] = useState(0);
   const [busy, setBusy] = useState(false);
+
+  const fail = useCallback((message) => {
+    setError(message);
+    setErrorKey((k) => k + 1);
+    buzz();
+  }, []);
 
   const save = useCallback(
     async (confirmed) => {
@@ -37,7 +45,7 @@ export default function SetPin() {
 
         navigate("/dashboard", { replace: true });
       } catch (err) {
-        setError(err.message);
+        fail(err.message);
         setStep("choose");
         setFirst("");
         setPin("");
@@ -45,7 +53,7 @@ export default function SetPin() {
         setBusy(false);
       }
     },
-    [navigate, setPinSet, token]
+    [fail, navigate, setPinSet, token]
   );
 
   const handleChange = useCallback(
@@ -54,6 +62,12 @@ export default function SetPin() {
       if (next.length !== PIN_LENGTH || busy) return;
 
       if (step === "choose") {
+        // Turned away now, not after it has been typed twice and sent.
+        if (isWeakPin(next)) {
+          setPin("");
+          fail(WEAK_PIN_ERROR);
+          return;
+        }
         setError("");
         setFirst(next);
         setPin("");
@@ -62,7 +76,7 @@ export default function SetPin() {
       }
 
       if (next !== first) {
-        setError("Those PINs didn't match. Start again.");
+        fail("Those PINs didn't match. Start again.");
         setFirst("");
         setPin("");
         setStep("choose");
@@ -71,7 +85,7 @@ export default function SetPin() {
 
       save(next);
     },
-    [busy, first, save, step]
+    [busy, fail, first, save, step]
   );
 
   // Skipping is allowed — the password still works — but the prompt comes back
@@ -125,9 +139,13 @@ export default function SetPin() {
             : "Enter the same 4 digits once more."}
         </p>
 
-        {error && <div className="error-banner">{error}</div>}
+        {error && (
+          <div className="error-banner" role="alert" key={errorKey}>
+            {error}
+          </div>
+        )}
 
-        <PinPad value={pin} onChange={handleChange} disabled={busy} />
+        <PinPad value={pin} onChange={handleChange} disabled={busy} errorKey={errorKey} />
 
         <div className="auth-switch">
           <button type="button" className="link-btn" onClick={skip} disabled={busy}>

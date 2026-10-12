@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import PinPad, { PIN_LENGTH } from "./PinPad.jsx";
+import { isWeakPin, WEAK_PIN_ERROR, buzz } from "../lib/pin.js";
 
 // Change, add, or turn off the PIN from inside the app. Changing one asks for
 // the current PIN first, so an unlocked session left on a desk can't be used to
@@ -16,8 +17,18 @@ export default function PinSettings() {
   const [currentPin, setCurrentPin] = useState("");
   const [first, setFirst] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setErrorText] = useState("");
+  const [errorKey, setErrorKey] = useState(0);
   const [notice, setNotice] = useState("");
+
+  // Every rejection shakes the dots, so it is felt as well as read.
+  function setError(message) {
+    setErrorText(message);
+    if (message) {
+      setErrorKey((k) => k + 1);
+      buzz();
+    }
+  }
 
   function reset(nextOpen) {
     setOpen(nextOpen);
@@ -61,6 +72,11 @@ export default function PinSettings() {
     }
 
     if (step === "choose") {
+      if (isWeakPin(next)) {
+        setEntry("");
+        setError(WEAK_PIN_ERROR);
+        return;
+      }
       setFirst(next);
       setEntry("");
       setError("");
@@ -138,7 +154,7 @@ export default function PinSettings() {
       {open && (
         <div className="pin-inline">
           <div className="list-empty">{prompts[step]}</div>
-          <PinPad value={entry} onChange={handleChange} disabled={busy} />
+          <PinPad value={entry} onChange={handleChange} disabled={busy} errorKey={errorKey} />
         </div>
       )}
     </div>

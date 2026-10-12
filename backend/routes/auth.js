@@ -1,5 +1,4 @@
 const express = require("express");
-const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const {
   generateRegistrationOptions,
@@ -13,8 +12,39 @@ const { requireAuth } = require("../middleware/auth");
 const { isOwnerEmail } = require("../lib/owner");
 const { getGroup, permissionsFor, DEFAULT_GROUP } = require("../lib/groups");
 const { normalizeEmail, isValidEmail, EMAIL_ERROR } = require("../lib/email");
+const {
+  hash,
+  verify,
+  cleanName,
+  NAME_ERROR,
+  passwordProblem,
+  isValidPin,
+  isWeakPin,
+  WEAK_PIN_ERROR,
+} = require("../lib/credentials");
+const { rateLimit } = require("../lib/rateLimit");
 
 const router = express.Router();
+
+// One address trying many accounts, or one account many times, is stopped here
+// before the per-account counters below are ever reached. Generous enough for a
+// room full of people signing up on the same Wi-Fi.
+const signInLimit = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 40,
+  message: "Too many sign-in attempts from this network. Wait a few minutes and try again.",
+});
+const signUpLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: "Too many new accounts from this network. Wait a few minutes and try again.",
+});
+// Changing a PIN checks the current one, so it is a guessing surface too.
+const pinChangeLimit = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  message: "Too many PIN changes. Wait a few minutes and try again.",
+});
 
 // RP_ID must be the bare domain (no protocol/port), e.g. "myapp.up.railway.app".
 // ORIGIN must be the full origin, e.g. "https://myapp.up.railway.app".
@@ -45,8 +75,14 @@ const CHALLENGE_TTL = "5 minutes";
 // leaves the request hanging forever. Every async handler goes through this.
 const route = (handler) => (req, res, next) => handler(req, res, next).catch(next);
 
+// The app forgets the token when it is closed, so this only bounds how long a
+// copied token stays useful. A week covers an app left open in the background;
+// thirty days was a month-long window for a leaked one.
 function signToken(userId) {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "30d" });
+  return jwt.sign({ userId }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+    algorithm: "HS256",
+  });
 }
 
 function publicUser(row) {
@@ -75,14 +111,26 @@ async function takeChallenge(userId) {
 // ---------- PIN ----------
 
 // Four digits is only 10,000 combinations, so guessing is rate limited: after
-// this many wrong tries in a row the account stops accepting PINs for a while.
-// The password (and Face ID) still work, so nobody is ever locked out for good.
+// this many wrong tries in a row the account stops accepting PINs for a while,
+// and after a few of those the PIN is switched off until the password or Face ID
+// is used. At most 15 guesses ever reach the PIN, and the obvious PINs are
+// refused when one is chosen, so those 15 are not the likely ones either.
 const MAX_PIN_ATTEMPTS = 5;
 const PIN_LOCKOUT = "15 minutes";
+const MAX_PIN_LOCKOUTS = 3;
 
-function isValidPin(pin) {
-  return /^[0-9]{4}$/.test(String(pin ?? ""));
-}
+// Passwords get the same treatment, more loosely: they are far harder to guess,
+// and a lockout here is also a way for a stranger to annoy a real user.
+const MAX_LOGIN_ATTEMPTS = 10;
+const LOGIN_LOCKOUT = "15 minutes";
+
+const PIN_PAUSED_ERROR =
+  "PIN sign-in is paused after too many wrong PINs. Sign in with your password or Face ID to turn it back on.";
+
+// Any sign-in that proves more than a PIN does clears the PIN's strikes too.
+const CLEAR_STRIKES = `
+  login_attempts = 0, login_locked_until = NULL,
+  pin_attempts = 0, pin_locked_until = NULL, pin_lockouts = 0`;
 
 function minutesUntil(when) {
   const ms = new Date(when).getTime() - Date.now();
@@ -114,23 +162,27 @@ function sessionPayload(row) {
 
 router.post(
   "/signup",
+  signUpLimit,
   route(async (req, res) => {
-    const { name, password } = req.body;
-    const email = normalizeEmail(req.body.email);
+    const body = req.body || {};
+    const name = cleanName(body.name);
+    const email = normalizeEmail(typeof body.email === "string" ? body.email : "");
+    const { password } = body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: "Name, email, and password are all required." });
+    if (!name) {
+      return res.status(400).json({ error: NAME_ERROR });
     }
     // Checked here rather than trusting the browser: the input is type="email",
     // but nothing stops a request being made without one.
     if (!isValidEmail(email)) {
       return res.status(400).json({ error: EMAIL_ERROR });
     }
-    if (password.length < 8) {
-      return res.status(400).json({ error: "Password must be at least 8 characters." });
+    const problem = passwordProblem(password, { email, name });
+    if (problem) {
+      return res.status(400).json({ error: problem });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await hash(password);
 
     let user;
     try {
@@ -144,7 +196,7 @@ router.post(
                  CASE WHEN $4 OR NOT EXISTS (SELECT 1 FROM users) THEN $5 ELSE $6 END)
          RETURNING id, name, email, group_key, is_admin, pin_hash`,
         [
-          String(name).trim(),
+          name,
           email,
           passwordHash,
           isOwnerEmail(email),
@@ -168,30 +220,84 @@ router.post(
 
 router.post(
   "/login",
+  signInLimit,
   route(async (req, res) => {
-    const { password } = req.body;
-    const email = normalizeEmail(req.body.email);
+    const body = req.body || {};
+    const email = normalizeEmail(typeof body.email === "string" ? body.email : "");
+    const password = typeof body.password === "string" ? body.password : "";
 
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required." });
     }
 
-    const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.password_hash, u.group_key, u.is_admin, u.pin_hash,
-              EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled
-         FROM users u
-        WHERE u.email = $1`,
+    const found = await pool.query(
+      "SELECT id, password_hash, login_locked_until FROM users WHERE email = $1",
       [email]
     );
-    const user = result.rows[0];
+    const account = found.rows[0];
 
-    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    if (!account) {
+      // Same work, same answer, as a wrong password — so this can't be used
+      // to find out who has an account.
+      await verify(password, null);
       return res.status(401).json({ error: "Incorrect email or password." });
     }
 
-    res.json(sessionPayload(user));
+    if (account.login_locked_until && new Date(account.login_locked_until) > new Date()) {
+      return res.status(429).json({
+        error: `Too many wrong passwords. Try again in ${minutesUntil(
+          account.login_locked_until
+        )} minutes${await faceIdHint(account.id)}.`,
+      });
+    }
+
+    // Claim the attempt before checking it. Counting afterwards would let a
+    // burst of simultaneous guesses all read the same count and all get through.
+    const claimed = await pool.query(
+      `UPDATE users SET login_attempts = login_attempts + 1
+        WHERE id = $1 AND login_attempts < $2
+          AND (login_locked_until IS NULL OR login_locked_until <= now())
+        RETURNING login_attempts`,
+      [account.id, MAX_LOGIN_ATTEMPTS]
+    );
+    if (claimed.rows.length === 0) {
+      return res.status(429).json({ error: "Too many wrong passwords. Try again in 15 minutes." });
+    }
+
+    if (!(await verify(password, account.password_hash))) {
+      if (claimed.rows[0].login_attempts >= MAX_LOGIN_ATTEMPTS) {
+        await pool.query(
+          `UPDATE users
+              SET login_attempts = 0, login_locked_until = now() + interval '${LOGIN_LOCKOUT}'
+            WHERE id = $1`,
+          [account.id]
+        );
+        return res.status(429).json({
+          error: `Too many wrong passwords. Try again in 15 minutes${await faceIdHint(account.id)}.`,
+        });
+      }
+      return res.status(401).json({ error: "Incorrect email or password." });
+    }
+
+    const result = await pool.query(
+      `UPDATE users u SET ${CLEAR_STRIKES}
+        WHERE u.id = $1
+        RETURNING u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash,
+                  EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled`,
+      [account.id]
+    );
+
+    res.json(sessionPayload(result.rows[0]));
   })
 );
+
+async function faceIdHint(userId) {
+  const result = await pool.query(
+    "SELECT 1 FROM webauthn_credentials WHERE user_id = $1 LIMIT 1",
+    [userId]
+  );
+  return result.rows.length ? ", or use Face ID" : "";
+}
 
 router.get(
   "/me",
@@ -316,8 +422,12 @@ router.post(
 // if their account has an enrolled device.
 router.post(
   "/webauthn/login-options",
+  signInLimit,
   route(async (req, res) => {
-    const email = normalizeEmail(req.body.email);
+    const mismatch = rpMismatch(req);
+    if (mismatch) return res.status(500).json({ error: mismatch });
+
+    const email = normalizeEmail(typeof req.body?.email === "string" ? req.body.email : "");
     if (!email) return res.status(400).json({ error: "Email is required." });
 
     const result = await pool.query(
@@ -350,9 +460,10 @@ router.post(
 // Step 4: verify the biometric response and sign the user in.
 router.post(
   "/webauthn/login-verify",
+  signInLimit,
   route(async (req, res) => {
-    const { userId, response } = req.body;
-    if (!userId || !response?.id) {
+    const { userId, response } = req.body || {};
+    if (!Number.isInteger(userId) || typeof response?.id !== "string") {
       return res.status(400).json({ error: "Incomplete Face ID response." });
     }
 
@@ -397,6 +508,9 @@ router.post(
       verification.authenticationInfo.newCounter,
       saved.id,
     ]);
+    // A face or fingerprint proves more than a PIN, so it clears the PIN's
+    // strikes the same way the password does.
+    await pool.query(`UPDATE users SET ${CLEAR_STRIKES} WHERE id = $1`, [saved.user_id]);
 
     res.json(
       sessionPayload({
@@ -412,6 +526,19 @@ router.post(
   })
 );
 
+// Forget every device enrolled for this account. Used to start over — for
+// instance when a phone saved its passkey to a password app instead of to the
+// phone itself.
+router.delete(
+  "/webauthn",
+  requireAuth,
+  route(async (req, res) => {
+    await pool.query("DELETE FROM webauthn_credentials WHERE user_id = $1", [req.userId]);
+    await pool.query("DELETE FROM webauthn_challenges WHERE user_id = $1", [req.userId]);
+    res.json({ faceIdEnabled: false });
+  })
+);
+
 // ---------- PIN sign-in ----------
 
 // Set a PIN, or change an existing one. The user is already signed in here;
@@ -420,11 +547,15 @@ router.post(
 router.post(
   "/pin",
   requireAuth,
+  pinChangeLimit,
   route(async (req, res) => {
     const { pin, currentPin } = req.body || {};
 
     if (!isValidPin(pin)) {
       return res.status(400).json({ error: "Your PIN must be exactly 4 digits." });
+    }
+    if (isWeakPin(pin)) {
+      return res.status(400).json({ error: WEAK_PIN_ERROR, weakPin: true });
     }
 
     const existing = await pool.query("SELECT pin_hash FROM users WHERE id = $1", [req.userId]);
@@ -435,15 +566,16 @@ router.post(
       if (!isValidPin(currentPin)) {
         return res.status(400).json({ error: "Enter your current PIN to change it." });
       }
-      if (!(await bcrypt.compare(String(currentPin), currentHash))) {
+      if (!(await verify(currentPin, currentHash))) {
         return res.status(401).json({ error: "That current PIN is incorrect." });
       }
     }
 
-    const pinHash = await bcrypt.hash(String(pin), 10);
+    const pinHash = await hash(pin);
     await pool.query(
       `UPDATE users
-          SET pin_hash = $1, pin_set_at = now(), pin_attempts = 0, pin_locked_until = NULL
+          SET pin_hash = $1, pin_set_at = now(),
+              pin_attempts = 0, pin_locked_until = NULL, pin_lockouts = 0
         WHERE id = $2`,
       [pinHash, req.userId]
     );
@@ -459,7 +591,8 @@ router.delete(
   route(async (req, res) => {
     await pool.query(
       `UPDATE users
-          SET pin_hash = NULL, pin_set_at = NULL, pin_attempts = 0, pin_locked_until = NULL
+          SET pin_hash = NULL, pin_set_at = NULL,
+              pin_attempts = 0, pin_locked_until = NULL, pin_lockouts = 0
         WHERE id = $1`,
       [req.userId]
     );
@@ -471,70 +604,99 @@ router.delete(
 // has been closed, so it takes the email the device already remembers.
 router.post(
   "/pin/login",
+  signInLimit,
   route(async (req, res) => {
-    const email = normalizeEmail(req.body.email);
-    const pin = String(req.body.pin ?? "");
+    const body = req.body || {};
+    const email = normalizeEmail(typeof body.email === "string" ? body.email : "");
+    const pin = body.pin;
 
     if (!email || !isValidPin(pin)) {
       return res.status(400).json({ error: "Enter your 4-digit PIN." });
     }
 
-    const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash, u.pin_attempts, u.pin_locked_until,
-              EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled
-         FROM users u
-        WHERE u.email = $1`,
+    const found = await pool.query(
+      `SELECT id, pin_hash, pin_locked_until, pin_lockouts FROM users WHERE email = $1`,
       [email]
     );
-    const user = result.rows[0];
+    const account = found.rows[0];
 
-    // An unknown account and a wrong PIN read the same, so this page can't be
-    // used to find out who has an account.
-    if (!user || !user.pin_hash) {
+    // An unknown account and a wrong PIN read the same, and take as long, so
+    // this page can't be used to find out who has an account.
+    if (!account || !account.pin_hash) {
+      await verify(pin, null);
       return res.status(401).json({ error: "That PIN didn't work. Sign in with your password." });
     }
 
-    if (user.pin_locked_until && new Date(user.pin_locked_until) > new Date()) {
+    if (account.pin_lockouts >= MAX_PIN_LOCKOUTS) {
+      return res.status(423).json({ error: PIN_PAUSED_ERROR, pinPaused: true, lockedOut: true });
+    }
+
+    if (account.pin_locked_until && new Date(account.pin_locked_until) > new Date()) {
       return res.status(429).json({
         error: `Too many wrong PINs. Try again in ${minutesUntil(
-          user.pin_locked_until
+          account.pin_locked_until
         )} minutes, or sign in with your password.`,
         lockedOut: true,
       });
     }
 
-    if (!(await bcrypt.compare(pin, user.pin_hash))) {
-      const attempts = Number(user.pin_attempts || 0) + 1;
-      const lock = attempts >= MAX_PIN_ATTEMPTS;
+    // Claim this attempt before checking it. Reading the count, comparing, and
+    // then writing count + 1 lets fifty simultaneous guesses all read "0 tries
+    // so far" — the row lock on this UPDATE makes them queue instead.
+    const claimed = await pool.query(
+      `UPDATE users SET pin_attempts = pin_attempts + 1
+        WHERE id = $1 AND pin_hash IS NOT NULL
+          AND pin_attempts < $2 AND pin_lockouts < $3
+          AND (pin_locked_until IS NULL OR pin_locked_until <= now())
+        RETURNING pin_attempts`,
+      [account.id, MAX_PIN_ATTEMPTS, MAX_PIN_LOCKOUTS]
+    );
+    if (claimed.rows.length === 0) {
+      return res.status(429).json({
+        error: "Too many wrong PINs. Try again in 15 minutes, or sign in with your password.",
+        lockedOut: true,
+      });
+    }
+    const attempts = claimed.rows[0].pin_attempts;
 
-      await pool.query(
-        `UPDATE users
-            SET pin_attempts = $1,
-                pin_locked_until = CASE WHEN $2 THEN now() + interval '${PIN_LOCKOUT}' ELSE NULL END
-          WHERE id = $3`,
-        [lock ? 0 : attempts, lock, user.id]
-      );
-
-      if (lock) {
-        return res.status(429).json({
-          error: "Too many wrong PINs. Try again in 15 minutes, or sign in with your password.",
-          lockedOut: true,
+    if (!(await verify(pin, account.pin_hash))) {
+      if (attempts < MAX_PIN_ATTEMPTS) {
+        const left = MAX_PIN_ATTEMPTS - attempts;
+        return res.status(401).json({
+          error: `Incorrect PIN. ${left} ${left === 1 ? "try" : "tries"} left before it locks.`,
+          attemptsLeft: left,
         });
       }
 
-      const left = MAX_PIN_ATTEMPTS - attempts;
-      return res.status(401).json({
-        error: `Incorrect PIN. ${left} ${left === 1 ? "try" : "tries"} left before it locks.`,
-        attemptsLeft: left,
+      const locked = await pool.query(
+        `UPDATE users
+            SET pin_attempts = 0,
+                pin_lockouts = pin_lockouts + 1,
+                pin_locked_until = now() + interval '${PIN_LOCKOUT}'
+          WHERE id = $1
+          RETURNING pin_lockouts`,
+        [account.id]
+      );
+
+      if (locked.rows[0].pin_lockouts >= MAX_PIN_LOCKOUTS) {
+        return res.status(423).json({ error: PIN_PAUSED_ERROR, pinPaused: true, lockedOut: true });
+      }
+      return res.status(429).json({
+        error: "Too many wrong PINs. Try again in 15 minutes, or sign in with your password.",
+        lockedOut: true,
       });
     }
 
-    await pool.query(
-      "UPDATE users SET pin_attempts = 0, pin_locked_until = NULL WHERE id = $1",
-      [user.id]
+    const result = await pool.query(
+      `UPDATE users u
+          SET pin_attempts = 0, pin_locked_until = NULL, pin_lockouts = 0
+        WHERE u.id = $1
+        RETURNING u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash,
+                  EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled`,
+      [account.id]
     );
 
-    res.json(sessionPayload(user));
+    res.json(sessionPayload(result.rows[0]));
   })
 );
 

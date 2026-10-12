@@ -17,7 +17,7 @@ export function getDeviceAccount() {
   }
 }
 
-export function rememberDeviceAccount({ email, name, hasPin }) {
+export function rememberDeviceAccount({ email, name, hasPin, hasFaceId }) {
   if (!email) return;
   try {
     const existing = getDeviceAccount();
@@ -31,6 +31,9 @@ export function rememberDeviceAccount({ email, name, hasPin }) {
         email,
         name: name ?? base.name ?? "",
         hasPin: hasPin === undefined ? Boolean(base.hasPin) : Boolean(hasPin),
+        // Whether the account has Face ID enrolled — so the PIN screen knows to
+        // offer it before anything is asked of the server.
+        hasFaceId: hasFaceId === undefined ? Boolean(base.hasFaceId) : Boolean(hasFaceId),
       })
     );
   } catch {
@@ -41,6 +44,11 @@ export function rememberDeviceAccount({ email, name, hasPin }) {
 export function setDeviceHasPin(hasPin) {
   const existing = getDeviceAccount();
   if (existing) rememberDeviceAccount({ ...existing, hasPin });
+}
+
+export function setDeviceHasFaceId(hasFaceId) {
+  const existing = getDeviceAccount();
+  if (existing) rememberDeviceAccount({ ...existing, hasFaceId });
 }
 
 // "Not me" on the PIN screen, or a PIN the server no longer recognizes.

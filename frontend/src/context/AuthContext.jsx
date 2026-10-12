@@ -11,6 +11,7 @@ import {
   getDeviceAccount,
   rememberDeviceAccount,
   setDeviceHasPin,
+  setDeviceHasFaceId,
 } from "../lib/device.js";
 
 const AuthContext = createContext(null);
@@ -30,10 +31,19 @@ function readToken() {
   }
 }
 
+// A Face ID credential belongs to the device that made it, not to the account,
+// so the account having one says nothing about whether *this* device does. The
+// device flag is only set where it is earned — enrolling here, or signing in
+// with it here — and the server is only trusted to switch it off: an account
+// with no credentials at all certainly has none on this device.
+function faceIdOnDevice(accountHasFaceId) {
+  return accountHasFaceId ? undefined : false;
+}
+
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(readToken);
   const [user, setUser] = useState(null);
-  const [faceIdEnabled, setFaceIdEnabled] = useState(false);
+  const [faceIdEnabled, setFaceIdEnabledState] = useState(false);
   const [permissions, setPermissions] = useState([]);
   const [group, setGroup] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
@@ -48,7 +58,7 @@ export function AuthProvider({ children }) {
     }
     setToken(null);
     setUser(null);
-    setFaceIdEnabled(false);
+    setFaceIdEnabledState(false);
     setPermissions([]);
     setGroup(null);
     setIsOwner(false);
@@ -60,6 +70,12 @@ export function AuthProvider({ children }) {
   const setPinSet = useCallback((value) => {
     setPinSetState(Boolean(value));
     setDeviceHasPin(Boolean(value));
+  }, []);
+
+  // The same for Face ID, so the PIN screen can offer it on the next launch.
+  const setFaceIdEnabled = useCallback((value) => {
+    setFaceIdEnabledState(Boolean(value));
+    setDeviceHasFaceId(Boolean(value));
   }, []);
 
   // Only restore the session on a cold start. Signing in already has the user,
@@ -78,7 +94,7 @@ export function AuthProvider({ children }) {
       .then((data) => {
         if (!active) return;
         setUser(data.user);
-        setFaceIdEnabled(Boolean(data.faceIdEnabled));
+        setFaceIdEnabledState(Boolean(data.faceIdEnabled));
         setPermissions(data.permissions || []);
         setGroup(data.group || null);
         setIsOwner(Boolean(data.isOwner));
@@ -87,6 +103,7 @@ export function AuthProvider({ children }) {
           email: data.user.email,
           name: data.user.name,
           hasPin: Boolean(data.pinSet),
+          hasFaceId: faceIdOnDevice(data.faceIdEnabled),
         });
       })
       .catch((err) => {
@@ -116,7 +133,7 @@ export function AuthProvider({ children }) {
     }
     setToken(newToken);
     setUser(newUser);
-    setFaceIdEnabled(Boolean(options.faceIdEnabled));
+    setFaceIdEnabledState(Boolean(options.faceIdEnabled));
     setPermissions(options.permissions || []);
     setGroup(options.group || null);
     setIsOwner(Boolean(options.isOwner));
@@ -125,6 +142,7 @@ export function AuthProvider({ children }) {
       email: newUser?.email,
       name: newUser?.name,
       hasPin: Boolean(options.pinSet),
+      hasFaceId: options.usedFaceId ? true : faceIdOnDevice(options.faceIdEnabled),
     });
   }, []);
 
@@ -156,6 +174,7 @@ export function AuthProvider({ children }) {
       token,
       user,
       faceIdEnabled,
+      setFaceIdEnabled,
       permissions,
       can,
       group,

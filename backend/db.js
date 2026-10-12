@@ -216,6 +216,18 @@ async function initSchema() {
       ADD COLUMN IF NOT EXISTS pin_locked_until TIMESTAMPTZ;
   `);
 
+  // A lockout that simply expires lets a patient guesser keep going forever:
+  // five tries every fifteen minutes works through every PIN in about three
+  // weeks. So lockouts are counted, and after a few in a row the PIN stops
+  // working until the password (or Face ID) is used. Passwords get their own
+  // attempt counter for the same reason.
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS pin_lockouts INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS login_attempts INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS login_locked_until TIMESTAMPTZ;
+  `);
+
   // ---------- People ----------
   // One shared record per person. This is the source of truth; the roster is
   // an arrangement of these people, not a second copy of them.

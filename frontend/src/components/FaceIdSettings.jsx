@@ -1,42 +1,37 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { startRegistration, browserSupportsWebAuthn } from "@simplewebauthn/browser";
+import React, { useEffect, useState } from "react";
+import { startRegistration } from "@simplewebauthn/browser";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { getDeviceAccount } from "../lib/device.js";
+import { deviceHasBiometrics, faceIdErrorMessage } from "../lib/faceId.js";
 
-// Enrolling this device's biometrics. Signing in with it is not offered on the
-// sign-in screen yet — the PIN is the way back in — so this is here for when
-// that is turned back on.
+// Face ID (or Touch ID, or a fingerprint) for this device. Once it is on, the
+// PIN screen offers it first, and a successful scan also clears any wrong-PIN
+// strikes on the account.
 export default function FaceIdSettings() {
   const { token, faceIdEnabled, setFaceIdEnabled } = useAuth();
-  const supported = useMemo(() => browserSupportsWebAuthn(), []);
 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
-  // null while unknown, then whether this device has a fingerprint or face set
-  // up at all.
+  // null while unknown, then whether this device has a face or fingerprint
+  // unlock set up at all.
   const [builtIn, setBuiltIn] = useState(null);
+  // On for *this* device. The account can have Face ID on another phone.
+  const [onDevice, setOnDevice] = useState(
+    () => Boolean(faceIdEnabled && getDeviceAccount()?.hasFaceId)
+  );
 
-  // A browser can support WebAuthn without the device having any biometrics
-  // enrolled. Asking anyway is what makes Chrome offer a QR code or a
-  // third-party passkey app instead, which is not what this button says it
-  // does — so find out first and say so plainly.
   useEffect(() => {
     let active = true;
-    if (!supported || !window.PublicKeyCredential?.isUserVerifyingPlatformAuthenticatorAvailable) {
-      setBuiltIn(false);
-      return undefined;
-    }
-
-    window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
-      .then((available) => active && setBuiltIn(available))
-      .catch(() => active && setBuiltIn(false));
-
+    deviceHasBiometrics().then((available) => active && setBuiltIn(available));
     return () => {
       active = false;
     };
-  }, [supported]);
+  }, []);
 
-  if (!supported) return null;
+  useEffect(() => {
+    if (!faceIdEnabled) setOnDevice(false);
+  }, [faceIdEnabled]);
 
   async function enable() {
     setNotice(null);
@@ -46,18 +41,54 @@ export default function FaceIdSettings() {
       const response = await startRegistration({ optionsJSON: options });
       await api.webauthnRegisterVerify(token, response);
       setFaceIdEnabled(true);
-      setNotice({ type: "success", text: "Face ID is enabled on this device." });
+      setOnDevice(true);
+      setNotice({ type: "success", text: "Face ID is on. You can use it on the PIN screen." });
     } catch (err) {
-      // The browser's own wording for a cancelled or refused prompt is not
-      // something to show as-is.
-      const text =
-        err?.name === "NotAllowedError"
-          ? "Cancelled, or this device refused. Try again and approve the prompt."
-          : err?.message || "Couldn't enable Face ID here.";
-      setNotice({ type: "error", text });
+      // Already enrolled — a passkey synced from another of your devices, or
+      // one made here before this browser forgot. Either way it works here.
+      if (err?.name === "InvalidStateError") {
+        setFaceIdEnabled(true);
+        setOnDevice(true);
+        setNotice({ type: "success", text: "This device already has Face ID for your account." });
+      } else {
+        setNotice({ type: "error", text: faceIdErrorMessage(err, "Couldn't turn on Face ID here.") });
+      }
     } finally {
       setBusy(false);
     }
+  }
+
+  async function remove() {
+    setNotice(null);
+    setBusy(true);
+    try {
+      await api.removeFaceId(token);
+      setFaceIdEnabled(false);
+      setOnDevice(false);
+      setNotice({
+        type: "success",
+        text: "Face ID is off for your account. You can also delete the saved passkey from your phone's password settings.",
+      });
+    } catch (err) {
+      setNotice({ type: "error", text: err.message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (builtIn === false && !faceIdEnabled) {
+    return (
+      <div className="panel">
+        <div className="panel-row">
+          <div className="panel-title">Face ID</div>
+          <span className="badge badge-off">Not available here</span>
+        </div>
+        <p className="panel-note">
+          This device has no face or fingerprint unlock set up, so there is nothing to use.
+          Turn one on in the device's settings and come back.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -65,26 +96,32 @@ export default function FaceIdSettings() {
       <div className="panel-row">
         <div className="panel-title">Face ID</div>
         <div className="panel-row-actions">
-          {faceIdEnabled ? (
-            <span className="badge badge-on">Enrolled</span>
-          ) : builtIn === false ? (
-            <span className="badge badge-off">Not available here</span>
-          ) : (
+          {onDevice && <span className="badge badge-on">On</span>}
+          {!onDevice && builtIn !== false && (
             <button
               className="btn btn-secondary btn-inline"
               onClick={enable}
               disabled={busy || builtIn === null}
             >
-              {busy ? "Waiting for device" : "Enable Face ID"}
+              {busy ? <span className="spinner spinner-dark" /> : "Turn on"}
+            </button>
+          )}
+          {faceIdEnabled && (
+            <button className="btn btn-secondary btn-inline" onClick={remove} disabled={busy}>
+              Remove
             </button>
           )}
         </div>
       </div>
 
-      {builtIn === false && !faceIdEnabled && (
+      {!onDevice && (
         <p className="panel-note">
-          This device has no fingerprint or face unlock set up, so there is nothing to
-          enrol. Set one up in the device's own settings and this will offer it.
+          {faceIdEnabled
+            ? "Face ID is set up on another device. Turn it on here too to use it on this one."
+            : "Unlock with your face or fingerprint instead of typing your PIN."}{" "}
+          When your phone asks where to save the passkey, pick <strong>iCloud Keychain</strong>{" "}
+          (iPhone/iPad) or <strong>this device</strong> — not Microsoft Authenticator or another
+          password app, or it will ask for that app instead of your face.
         </p>
       )}
 
