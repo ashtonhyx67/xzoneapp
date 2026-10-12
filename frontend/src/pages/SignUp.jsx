@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import PasswordField from "../components/PasswordField.jsx";
+import BrandMark from "../components/BrandMark.jsx";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -48,7 +49,10 @@ export default function SignUp() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-wordmark">X Zone App</div>
+      <div className="auth-wordmark">
+        <BrandMark />
+        X Zone App
+      </div>
       <div className="auth-card">
         <h1 className="auth-title">Create your account</h1>
 

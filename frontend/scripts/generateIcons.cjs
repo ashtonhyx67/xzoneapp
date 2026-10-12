@@ -6,15 +6,14 @@
 //
 // Written by hand rather than pulled from an image library so the whole icon
 // set can be regenerated after a colour change with no extra dependencies.
-// The mark is three stacked bars — the roster — on the app's dark ground.
+// The mark is an X, in the marker yellow, on the app's ink ground.
 
 const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 
-const BG = [26, 26, 26]; // --text
-const ACCENT = [0, 128, 96]; // --accent
-const LIGHT = [246, 246, 247]; // --bg
+const BG = [36, 31, 71]; // --ink
+const MARK = [255, 207, 71]; // --mark
 
 // --- Minimal PNG writer (RGB, no alpha: iOS applies its own icon mask) ---
 
@@ -74,64 +73,46 @@ function encodePng(size, pixels) {
 
 // --- The mark ---
 
-// Distance from a point to a rounded rectangle, used to antialias its edges.
-function roundedRectDistance(x, y, left, top, width, height, radius) {
-  const cx = Math.abs(x - (left + width / 2)) - (width / 2 - radius);
-  const cy = Math.abs(y - (top + height / 2)) - (height / 2 - radius);
-  const dx = Math.max(cx, 0);
-  const dy = Math.max(cy, 0);
-  return Math.min(Math.max(cx, cy), 0) + Math.sqrt(dx * dx + dy * dy) - radius;
+// Distance from a point to one stroke of the X: a band around a slanted line,
+// cut off flat at the top and bottom like a letter rather than rounded like a
+// "close" button. Negative inside, positive outside, in pixels.
+function strokeDistance(x, y, c, slant, height, halfWidth) {
+  // The centre line runs from (c - slant, c - height) to (c + slant, c + height).
+  const dx = 2 * slant;
+  const dy = 2 * height;
+  const length = Math.hypot(dx, dy);
+  const across = Math.abs((x - c) * dy - (y - c) * dx) / length - halfWidth;
+  const beyond = Math.abs(y - c) - height;
+  return Math.max(across, beyond);
 }
 
 function drawIcon(size) {
   const pixels = Buffer.alloc(size * size * 3);
   const s = size / 512; // the mark is designed at 512 and scaled
 
-  // Bars sit inside the middle ~60% so Android's maskable safe zone can crop
-  // the corners without cutting the mark.
-  const barWidth = 268 * s;
-  const barHeight = 52 * s;
-  const gap = 34 * s;
-  const radius = 18 * s;
-  const totalHeight = barHeight * 3 + gap * 2;
-  const left = (size - barWidth) / 2;
-  const top = (size - totalHeight) / 2;
-
-  const bars = [
-    { y: top, color: ACCENT },
-    { y: top + barHeight + gap, color: LIGHT },
-    { y: top + (barHeight + gap) * 2, color: LIGHT },
+  // A letter X: the falling stroke heavy, the rising one light, the contrast
+  // a typeface gives it. It sits inside the middle 80% circle, Android's
+  // maskable safe zone, so a circular or squircle crop never clips it.
+  const c = size / 2;
+  const height = 124 * s;
+  const slant = 92 * s;
+  const strokes = [
+    { slant, halfWidth: 46 * s },
+    { slant: -slant, halfWidth: 19 * s },
   ];
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      let r = BG[0];
-      let g = BG[1];
-      let b = BG[2];
-
-      for (const bar of bars) {
-        const distance = roundedRectDistance(
-          x + 0.5,
-          y + 0.5,
-          left,
-          bar.y,
-          barWidth,
-          barHeight,
-          radius
-        );
-        // Blend across one pixel of the edge so the bars are not jagged.
-        const coverage = Math.min(Math.max(0.5 - distance, 0), 1);
-        if (coverage > 0) {
-          r = Math.round(r + (bar.color[0] - r) * coverage);
-          g = Math.round(g + (bar.color[1] - g) * coverage);
-          b = Math.round(b + (bar.color[2] - b) * coverage);
-        }
-      }
+      const distance = Math.min(
+        ...strokes.map((k) => strokeDistance(x + 0.5, y + 0.5, c, k.slant, height, k.halfWidth))
+      );
+      // Blend across one pixel of the edge so the strokes are not jagged.
+      const coverage = Math.min(Math.max(0.5 - distance, 0), 1);
 
       const i = (y * size + x) * 3;
-      pixels[i] = r;
-      pixels[i + 1] = g;
-      pixels[i + 2] = b;
+      pixels[i] = Math.round(BG[0] + (MARK[0] - BG[0]) * coverage);
+      pixels[i + 1] = Math.round(BG[1] + (MARK[1] - BG[1]) * coverage);
+      pixels[i + 2] = Math.round(BG[2] + (MARK[2] - BG[2]) * coverage);
     }
   }
 

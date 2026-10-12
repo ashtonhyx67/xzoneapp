@@ -7,6 +7,7 @@ import FaceIdSheet from "../components/FaceIdSheet.jsx";
 import { getDeviceAccount, forgetDeviceAccount, setDeviceHasFaceId } from "../lib/device.js";
 import { deviceHasBiometrics, signInWithFaceId, faceIdErrorMessage } from "../lib/faceId.js";
 import { buzz } from "../lib/pin.js";
+import BrandMark from "../components/BrandMark.jsx";
 
 // The screen a returning user lands on. The session ended when they closed the
 // app, but the device still knows who they are — so this replaces the sign-up
@@ -117,7 +118,10 @@ export default function Unlock() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-wordmark">X Zone App</div>
+      <div className="auth-wordmark">
+        <BrandMark />
+        X Zone App
+      </div>
       <div className="auth-card auth-card-pin">
         <div className="auth-avatar" aria-hidden="true">
           {(firstName || account.email || "?").slice(0, 1).toUpperCase()}

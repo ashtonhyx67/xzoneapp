@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { initials } from "../lib/photo.js";
 import { PERMISSIONS } from "../lib/permissions.js";
 import UpdatePrompt from "./UpdatePrompt.jsx";
+import BrandMark from "./BrandMark.jsx";
 
 // Set while a page is being drawn inside the shared frame, so a page that still
 // wraps itself in <AppShell> does not draw a second frame inside the first.
@@ -119,8 +120,8 @@ function Frame({ children }) {
     <div className="dashboard-shell">
       <aside className="sidebar">
         <div className="sidebar-wordmark">
+          <BrandMark />
           <span className="wordmark-full">X Zone</span>
-          <span className="wordmark-short" aria-hidden="true">XZ</span>
         </div>
 
         <nav className="sidebar-nav" aria-label="Main">

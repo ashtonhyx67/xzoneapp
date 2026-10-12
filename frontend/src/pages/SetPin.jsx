@@ -6,6 +6,7 @@ import PinPad, { PIN_LENGTH } from "../components/PinPad.jsx";
 import InstallPrompt from "../components/InstallPrompt.jsx";
 import { canInstall } from "../lib/install.js";
 import { isWeakPin, WEAK_PIN_ERROR, buzz } from "../lib/pin.js";
+import BrandMark from "../components/BrandMark.jsx";
 
 // Shown once, right after an account is created (and to anyone who signed up
 // before PINs existed). Two passes: choose, then confirm.
@@ -103,7 +104,10 @@ export default function SetPin() {
   if (step === "done") {
     return (
       <div className="auth-shell">
-        <div className="auth-wordmark">X Zone App</div>
+        <div className="auth-wordmark">
+        <BrandMark />
+        X Zone App
+      </div>
         <div className="auth-card">
           <h1 className="auth-title">You're all set</h1>
           <p className="auth-subtitle">
@@ -128,7 +132,10 @@ export default function SetPin() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-wordmark">X Zone App</div>
+      <div className="auth-wordmark">
+        <BrandMark />
+        X Zone App
+      </div>
       <div className="auth-card auth-card-pin">
         <h1 className="auth-title">
           {step === "choose" ? "Create a PIN" : "Confirm your PIN"}

@@ -417,8 +417,25 @@ button {
   scrollbar-width: none;
 }
 
-.wordmark-short {
-  display: none;
+/* The X beside the name, wherever the name is written. */
+.brand-mark {
+  flex-shrink: 0;
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.sidebar-wordmark,
+.auth-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* On the dark rail the badge's own ink square would vanish into the rail, so
+   it is edged in the marker colour's faint glow instead. */
+.sidebar .brand-mark {
+  border-radius: 28%;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14);
 }
 
 .sidebar-wordmark {
@@ -5736,8 +5753,13 @@ body.is-dragging * {
     display: none;
   }
 
-  .wordmark-short {
-    display: inline;
+  .sidebar-wordmark {
+    justify-content: center;
+  }
+
+  .sidebar-wordmark .brand-mark {
+    width: 40px;
+    height: 40px;
   }
 
   .nav-item {
