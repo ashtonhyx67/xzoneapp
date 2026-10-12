@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import PinPad, { PIN_LENGTH } from "../components/PinPad.jsx";
+import FaceIdSheet from "../components/FaceIdSheet.jsx";
 import { getDeviceAccount, forgetDeviceAccount, setDeviceHasFaceId } from "../lib/device.js";
 import { deviceHasBiometrics, signInWithFaceId, faceIdErrorMessage } from "../lib/faceId.js";
 import { buzz } from "../lib/pin.js";
@@ -21,7 +22,7 @@ export default function Unlock() {
   const [busy, setBusy] = useState(false);
   const [lockedOut, setLockedOut] = useState(false);
   const [faceIdReady, setFaceIdReady] = useState(false);
-  const autoTried = useRef(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const firstName = account?.name ? account.name.split(" ")[0] : "";
 
@@ -30,27 +31,20 @@ export default function Unlock() {
     if (!account?.hasPin && !account?.hasFaceId) navigate("/login", { replace: true });
   }, [account, navigate]);
 
-  // A device with Face ID opens straight into it: the scan starts by itself,
-  // so getting in is a glance rather than a tap and a glance. The phone still
-  // shows its own Face ID sheet — no website can skip that — and if it cannot
-  // start without a tap, or the scan is cancelled, the button and PIN are there.
+  // A device with Face ID opens on the Face ID pop-up; the PIN is one tap
+  // behind it ("Use PIN instead") for when a face is not an option.
   useEffect(() => {
     let active = true;
     if (account?.hasFaceId) {
       deviceHasBiometrics().then((ok) => {
         if (!active) return;
         setFaceIdReady(ok);
-        if (ok && !autoTried.current) {
-          autoTried.current = true;
-          unlockWithFaceId({ auto: true });
-        }
+        setSheetOpen(ok);
       });
     }
     return () => {
       active = false;
     };
-    // Once per visit to this screen; unlockWithFaceId is stable enough here.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account]);
 
   const finish = useCallback(
@@ -91,26 +85,19 @@ export default function Unlock() {
     [account, fail, finish]
   );
 
-  async function unlockWithFaceId({ auto = false } = {}) {
-    setBusy(true);
-    setError("");
-    try {
-      finish(await signInWithFaceId(account.email), true);
-    } catch (err) {
-      // The account no longer has Face ID (removed on another device), so stop
-      // offering a button that cannot work.
-      if (err.status === 404) {
+  // The pop-up closed. An error here means the account no longer has Face ID
+  // (removed on another device), so stop offering something that cannot work.
+  const closeSheet = useCallback(
+    (err) => {
+      setSheetOpen(false);
+      if (err?.status === 404) {
         setDeviceHasFaceId(false);
         setFaceIdReady(false);
+        fail(faceIdErrorMessage(err));
       }
-      // Started by itself and turned down — by the person, or by a browser
-      // that wants a tap first — is not an error worth a red banner.
-      const declined = err?.name === "NotAllowedError" || err?.name === "AbortError";
-      if (!(auto && declined)) fail(faceIdErrorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
+    },
+    [fail]
+  );
 
   // Four digits is the whole input, so there is nothing left to confirm.
   const handleChange = useCallback(
@@ -152,7 +139,7 @@ export default function Unlock() {
           <button
             type="button"
             className="btn btn-primary faceid-btn"
-            onClick={() => unlockWithFaceId()}
+            onClick={() => setSheetOpen(true)}
             disabled={busy}
           >
             <FaceIdGlyph />
@@ -166,6 +153,8 @@ export default function Unlock() {
             onChange={handleChange}
             disabled={busy || lockedOut}
             errorKey={errorKey}
+            // Digits typed while the pop-up is up are not a PIN.
+            autoFocusKeyboard={!sheetOpen}
           />
         )}
 
@@ -181,6 +170,17 @@ export default function Unlock() {
           </button>
         </div>
       </div>
+
+      {sheetOpen && (
+        <FaceIdSheet
+          title={firstName ? `Welcome back, ${firstName}` : "Unlock X Zone"}
+          subtitle="Unlock X Zone with Face ID"
+          dismissLabel={account.hasPin ? "Use PIN instead" : "Not now"}
+          onScan={() => signInWithFaceId(account.email)}
+          onDone={(session) => finish(session, true)}
+          onDismiss={closeSheet}
+        />
+      )}
     </div>
   );
 }
