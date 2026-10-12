@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { startRegistration } from "@simplewebauthn/browser";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { getDeviceAccount } from "../lib/device.js";
-import { deviceHasBiometrics, faceIdErrorMessage } from "../lib/faceId.js";
+import { deviceHasBiometrics, enrollFaceId, faceIdErrorMessage } from "../lib/faceId.js";
 
 // Face ID (or Touch ID, or a fingerprint) for this device. Once it is on, the
 // PIN screen offers it first, and a successful scan also clears any wrong-PIN
@@ -37,22 +36,12 @@ export default function FaceIdSettings() {
     setNotice(null);
     setBusy(true);
     try {
-      const options = await api.webauthnRegisterOptions(token);
-      const response = await startRegistration({ optionsJSON: options });
-      await api.webauthnRegisterVerify(token, response);
+      await enrollFaceId(token);
       setFaceIdEnabled(true);
       setOnDevice(true);
-      setNotice({ type: "success", text: "Face ID is on. You can use it on the PIN screen." });
+      setNotice({ type: "success", text: "Face ID is on. The app will open with it from now on." });
     } catch (err) {
-      // Already enrolled — a passkey synced from another of your devices, or
-      // one made here before this browser forgot. Either way it works here.
-      if (err?.name === "InvalidStateError") {
-        setFaceIdEnabled(true);
-        setOnDevice(true);
-        setNotice({ type: "success", text: "This device already has Face ID for your account." });
-      } else {
-        setNotice({ type: "error", text: faceIdErrorMessage(err, "Couldn't turn on Face ID here.") });
-      }
+      setNotice({ type: "error", text: faceIdErrorMessage(err, "Couldn't turn on Face ID here.") });
     } finally {
       setBusy(false);
     }

@@ -6,6 +6,7 @@ import { PERMISSIONS } from "../lib/permissions.js";
 import AppShell from "../components/AppShell.jsx";
 import AskPanel from "../components/AskPanel.jsx";
 import MemberRow from "../components/MemberRow.jsx";
+import FaceIdOffer from "../components/FaceIdOffer.jsx";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -159,6 +160,8 @@ export default function Dashboard() {
       <WeekBanner firstName={firstName} teams={summary?.scope ?? []} />
 
       {summaryError && <div className="error-banner">{summaryError}</div>}
+
+      <FaceIdOffer />
 
       {!canView ? (
         <div className="panel">

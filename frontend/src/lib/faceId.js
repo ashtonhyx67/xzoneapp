@@ -1,4 +1,8 @@
-import { startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/browser";
+import {
+  startAuthentication,
+  startRegistration,
+  browserSupportsWebAuthn,
+} from "@simplewebauthn/browser";
 import { api } from "../api.js";
 
 // Whether this device has a face or fingerprint unlock the browser can use.
@@ -21,6 +25,20 @@ export async function signInWithFaceId(email) {
   const { options, userId } = await api.webauthnLoginOptions(email);
   const response = await startAuthentication({ optionsJSON: options });
   return api.webauthnLoginVerify(userId, response);
+}
+
+// Set up Face ID on this device for the signed-in account. A device that
+// already holds a passkey for the account (synced from another of the
+// person's devices, say) answers InvalidStateError — which means it already
+// works here, so that counts as done.
+export async function enrollFaceId(token) {
+  const options = await api.webauthnRegisterOptions(token);
+  try {
+    const response = await startRegistration({ optionsJSON: options });
+    await api.webauthnRegisterVerify(token, response);
+  } catch (err) {
+    if (err?.name !== "InvalidStateError") throw err;
+  }
 }
 
 // The browser's own wording for a cancelled prompt is not something to show.
