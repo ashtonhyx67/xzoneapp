@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -29,6 +29,7 @@ export default function Members() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const detailRef = useRef(null);
 
   // A link from the dashboard names the person to open.
   const requestedId = Number(searchParams.get("person")) || null;
@@ -100,6 +101,14 @@ export default function Members() {
     // Keep the address bar honest, so a reload or a shared link reopens the
     // same person.
     setSearchParams(id ? { person: String(id) } : {}, { replace: true });
+
+    // On a phone or a portrait tablet the card sits under the list, so a tap
+    // would otherwise change something off the bottom of the screen.
+    if (window.matchMedia("(max-width: 860px)").matches) {
+      requestAnimationFrame(() =>
+        detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      );
+    }
   }
 
   async function save() {
@@ -195,8 +204,9 @@ export default function Members() {
             </div>
           </aside>
 
-          <div className="member-detail-pane">
+          <div className="member-detail-pane" ref={detailRef}>
             <PersonCard
+              key={shown?.id ?? "none"}
               person={shown}
               editing={Boolean(draft)}
               canEdit={canEdit}
