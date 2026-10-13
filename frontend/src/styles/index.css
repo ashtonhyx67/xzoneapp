@@ -1533,9 +1533,15 @@ button {
 }
 
 .install-icon {
-  font-size: 26px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--mark);
 }
 
 .install-body {
@@ -1556,7 +1562,24 @@ button {
 }
 
 .install-btn {
-  width: 100%;
+  width: auto;
+  padding-left: 22px;
+  padding-right: 22px;
+}
+
+@media (max-width: 560px) {
+  .install-btn {
+    width: 100%;
+  }
+}
+
+/* On the Admin page it is one of the sheets, not a box tinted into the page. */
+.section > .install-card {
+  margin-top: 20px;
+  padding: 22px;
+  border: none;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 .install-steps {
@@ -3527,6 +3550,20 @@ button {
   gap: 8px;
 }
 
+.panel-title-with-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Dashboard and member lists: the status sits in a column of its own width,
+   so the role pills beside it line up down the list. */
+.member-row .member-badge {
+  flex-shrink: 0;
+  justify-content: center;
+  min-width: 96px;
+}
+
 /* ---------- Database grid ---------- */
 
 .sheet-panel {
@@ -5139,13 +5176,11 @@ body.is-dragging * {
     padding: 24px;
   }
 
-  /* The two field tables side by side. The long-text rows are a sibling of
-     this block and already span the card, so they are unaffected. */
-  .person-main {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* The field tables share the whole column, side by side once each has room
+     (.card-tables wraps them on its own). The long-text rows are a sibling of
+     this block and already span the card. */
+  .card-tables {
     gap: 20px;
-    align-items: start;
   }
 }
 
@@ -5796,3 +5831,41 @@ body.is-dragging * {
     grid-template-columns: 92px minmax(0, 1fr);
   }
 }
+
+/* ---------- Phone polish ---------- */
+
+@media (max-width: 768px) {
+  /* A placeholder the width of the screen is mostly empty grey; a smaller
+     portrait leaves the record itself in view. */
+  .person-side .person-photo {
+    width: 140px;
+    margin: 0 auto;
+    border-radius: 50%;
+  }
+
+  .person-photo-empty {
+    font-size: 40px;
+  }
+
+  .member-row .member-badge {
+    min-width: 0;
+    max-width: 104px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 700px) {
+  /* Name and email fill the first line; how they sign in and their access
+     share the next one instead of taking a line each. */
+  .account-row .member-identity {
+    flex: 1 1 calc(100% - 40px);
+  }
+
+  .account-row .account-signin,
+  .account-row .account-access {
+    flex: 0 0 auto;
+  }
+}
+

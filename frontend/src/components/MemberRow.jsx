@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { initials, photoSrc } from "../lib/photo.js";
-import { roleClass } from "../lib/roles.js";
+import { roleClass, roleStyle } from "../lib/roles.js";
 
 // One person, the same shape everywhere they are listed: on the dashboard under
 // a heading, and in the member list beside the scorecard. Every row leads to
@@ -21,9 +21,17 @@ export default function MemberRow({ person, detail, badge, to, onClick, active =
         {detail && <span className="member-detail">{detail}</span>}
       </span>
 
-      {person.role && <span className={roleClass(person.role)}>{person.role}</span>}
+      {person.role && (
+        <span className={roleClass(person.role)} style={roleStyle(person.role)}>
+          {person.role}
+        </span>
+      )}
 
-      {badge && <span className={`badge ${badge.tone === "on" ? "badge-on" : "badge-off"}`}>{badge.text}</span>}
+      {badge && (
+        <span className={`badge member-badge ${badge.tone === "on" ? "badge-on" : "badge-off"}`}>
+          {badge.text}
+        </span>
+      )}
     </>
   );
 

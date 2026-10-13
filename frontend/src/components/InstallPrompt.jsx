@@ -32,7 +32,12 @@ export default function InstallPrompt({ onDone }) {
   return (
     <div className="install-card">
       <div className="install-icon" aria-hidden="true">
-        📲
+        <svg viewBox="0 0 24 24" width="22" height="22">
+          <g fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
+            <path d="M12 7.5v7M9 11.5l3 3 3-3M10.5 18.5h3" />
+          </g>
+        </svg>
       </div>
 
       <div className="install-body">

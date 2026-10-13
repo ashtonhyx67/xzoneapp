@@ -119,9 +119,11 @@ export default function PinSettings() {
   return (
     <div className="panel">
       <div className="panel-row">
-        <div className="panel-title">PIN sign-in</div>
-        <div className="panel-row-actions">
+        <div className="panel-title panel-title-with-badge">
+          PIN sign-in
           {pinSet && !open && <span className="badge badge-on">On</span>}
+        </div>
+        <div className="panel-row-actions">
           <button
             className="btn btn-secondary btn-inline"
             onClick={() => {
@@ -141,11 +143,11 @@ export default function PinSettings() {
       </div>
 
       {!open && (
-        <div className="list-empty">
+        <p className="panel-note">
           {pinSet
             ? "Closing the app signs you out; your PIN gets you back in."
             : "Set a 4-digit PIN so you can get back in without typing your password."}
-        </div>
+        </p>
       )}
 
       {error && <div className="error-banner panel-notice">{error}</div>}
