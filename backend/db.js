@@ -120,32 +120,6 @@ async function initSchema() {
     );
   `);
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS webauthn_credentials (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      credential_id TEXT UNIQUE NOT NULL,
-      public_key TEXT NOT NULL,
-      counter BIGINT NOT NULL DEFAULT 0,
-      device_type TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-  `);
-
-  // Postgres does not index foreign keys automatically, and every WebAuthn
-  // lookup filters on user_id.
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS webauthn_credentials_user_id_idx
-      ON webauthn_credentials (user_id);
-  `);
-
-  // Remembering the transports the authenticator reported lets the browser go
-  // straight to the right one instead of prompting for all of them.
-  await pool.query(`
-    ALTER TABLE webauthn_credentials
-      ADD COLUMN IF NOT EXISTS transports JSONB;
-  `);
-
   // Access to the people database is restricted; ordinary accounts can sign in
   // but see nothing until an admin promotes them.
   await pool.query(`
@@ -219,7 +193,7 @@ async function initSchema() {
   // A lockout that simply expires lets a patient guesser keep going forever:
   // five tries every fifteen minutes works through every PIN in about three
   // weeks. So lockouts are counted, and after a few in a row the PIN stops
-  // working until the password (or Face ID) is used. Passwords get their own
+  // working until the password is used. Passwords get their own
   // attempt counter for the same reason.
   await pool.query(`
     ALTER TABLE users
@@ -593,16 +567,6 @@ async function initSchema() {
 
   await pool.query(`
     CREATE INDEX IF NOT EXISTS seating_seats_row_idx ON seating_seats (row_id, position);
-  `);
-
-  // Temporary store for in-flight WebAuthn challenges.
-  // A real production app might use Redis for this; a table is fine at this scale.
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS webauthn_challenges (
-      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-      challenge TEXT NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
   `);
 
   // ---------- Shared expenses ----------

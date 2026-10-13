@@ -1,12 +1,5 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const {
-  generateRegistrationOptions,
-  verifyRegistrationResponse,
-  generateAuthenticationOptions,
-  verifyAuthenticationResponse,
-} = require("@simplewebauthn/server");
-
 const { pool } = require("../db");
 const { requireAuth } = require("../middleware/auth");
 const { isOwnerEmail } = require("../lib/owner");
@@ -46,31 +39,6 @@ const pinChangeLimit = rateLimit({
   message: "Too many PIN changes. Wait a few minutes and try again.",
 });
 
-// RP_ID must be the bare domain (no protocol/port), e.g. "myapp.up.railway.app".
-// ORIGIN must be the full origin, e.g. "https://myapp.up.railway.app".
-// Both default to localhost for local development.
-const RP_NAME = "X Zone App";
-const RP_ID = process.env.RP_ID || "localhost";
-const ORIGIN = process.env.ORIGIN || "http://localhost:5173";
-
-// WebAuthn ties a credential to one domain. If RP_ID does not match the domain
-// the page is actually on, the browser refuses in ways that read as the feature
-// being broken rather than misconfigured — so say which it is.
-function rpMismatch(req) {
-  const host = String(req.headers.host || "").split(":")[0];
-  if (!host || host === RP_ID) return null;
-  // A subdomain of RP_ID is fine; anything else is not.
-  if (host.endsWith(`.${RP_ID}`)) return null;
-
-  return (
-    `Face ID is set up for "${RP_ID}" but this page is on "${host}". ` +
-    `Set RP_ID to "${host}" and ORIGIN to "https://${host}" in the server's variables.`
-  );
-}
-
-// A challenge is single-use and short-lived; anything older is not accepted.
-const CHALLENGE_TTL = "5 minutes";
-
 // Express 4 does not catch rejected promises, so an async route that throws
 // leaves the request hanging forever. Every async handler goes through this.
 const route = (handler) => (req, res, next) => handler(req, res, next).catch(next);
@@ -89,31 +57,11 @@ function publicUser(row) {
   return { id: row.id, name: row.name, email: row.email };
 }
 
-async function saveChallenge(userId, challenge) {
-  await pool.query(
-    `INSERT INTO webauthn_challenges (user_id, challenge) VALUES ($1, $2)
-     ON CONFLICT (user_id) DO UPDATE SET challenge = $2, created_at = now()`,
-    [userId, challenge]
-  );
-}
-
-// Reads and deletes in one statement, so a challenge can never be replayed.
-async function takeChallenge(userId) {
-  const result = await pool.query(
-    `DELETE FROM webauthn_challenges
-      WHERE user_id = $1 AND created_at > now() - interval '${CHALLENGE_TTL}'
-      RETURNING challenge`,
-    [userId]
-  );
-  return result.rows[0]?.challenge || null;
-}
-
 // ---------- PIN ----------
 
 // Four digits is only 10,000 combinations, so guessing is rate limited: after
 // this many wrong tries in a row the account stops accepting PINs for a while,
-// and after a few of those the PIN is switched off until the password or Face ID
-// is used. At most 15 guesses ever reach the PIN, and the obvious PINs are
+// and after a few of those the PIN is switched off until the password is used. At most 15 guesses ever reach the PIN, and the obvious PINs are
 // refused when one is chosen, so those 15 are not the likely ones either.
 const MAX_PIN_ATTEMPTS = 5;
 const PIN_LOCKOUT = "15 minutes";
@@ -125,7 +73,7 @@ const MAX_LOGIN_ATTEMPTS = 10;
 const LOGIN_LOCKOUT = "15 minutes";
 
 const PIN_PAUSED_ERROR =
-  "PIN sign-in is paused after too many wrong PINs. Sign in with your password or Face ID to turn it back on.";
+  "PIN sign-in is paused after too many wrong PINs. Sign in with your password to turn it back on.";
 
 // Any sign-in that proves more than a PIN does clears the PIN's strikes too.
 const CLEAR_STRIKES = `
@@ -149,7 +97,6 @@ function sessionPayload(row) {
   return {
     token: signToken(row.id),
     user: publicUser(row),
-    faceIdEnabled: Boolean(row.face_id_enabled),
     isOwner: owner,
     pinSet: Boolean(row.pin_hash),
     group: { key: group.key, label: group.label },
@@ -247,7 +194,7 @@ router.post(
       return res.status(429).json({
         error: `Too many wrong passwords. Try again in ${minutesUntil(
           account.login_locked_until
-        )} minutes${await faceIdHint(account.id)}.`,
+        )} minutes.`,
       });
     }
 
@@ -273,7 +220,7 @@ router.post(
           [account.id]
         );
         return res.status(429).json({
-          error: `Too many wrong passwords. Try again in 15 minutes${await faceIdHint(account.id)}.`,
+          error: `Too many wrong passwords. Try again in 15 minutes.`,
         });
       }
       return res.status(401).json({ error: "Incorrect email or password." });
@@ -282,8 +229,7 @@ router.post(
     const result = await pool.query(
       `UPDATE users u SET ${CLEAR_STRIKES}
         WHERE u.id = $1
-        RETURNING u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash,
-                  EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled`,
+        RETURNING u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash`,
       [account.id]
     );
 
@@ -291,23 +237,12 @@ router.post(
   })
 );
 
-async function faceIdHint(userId) {
-  const result = await pool.query(
-    "SELECT 1 FROM webauthn_credentials WHERE user_id = $1 LIMIT 1",
-    [userId]
-  );
-  return result.rows.length ? ", or use Face ID" : "";
-}
-
 router.get(
   "/me",
   requireAuth,
   route(async (req, res) => {
-    // One round trip for the profile and whether Face ID is already enrolled,
-    // so the dashboard never has to guess.
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash,
-              EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled
+      `SELECT u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash
          FROM users u
         WHERE u.id = $1`,
       [req.userId]
@@ -319,223 +254,6 @@ router.get(
     // noise, so send everything except that.
     const { token, ...session } = sessionPayload(row);
     res.json(session);
-  })
-);
-
-// ---------- WebAuthn (Face ID / Touch ID / fingerprint) ----------
-
-// Step 1: an already-signed-in user asks to enroll their device's biometrics.
-router.get(
-  "/webauthn/register-options",
-  requireAuth,
-  route(async (req, res) => {
-    const mismatch = rpMismatch(req);
-    if (mismatch) return res.status(500).json({ error: mismatch });
-
-    const userResult = await pool.query("SELECT id, name, email FROM users WHERE id = $1", [
-      req.userId,
-    ]);
-    const user = userResult.rows[0];
-    if (!user) return res.status(404).json({ error: "User not found." });
-
-    const existing = await pool.query(
-      "SELECT credential_id, transports FROM webauthn_credentials WHERE user_id = $1",
-      [req.userId]
-    );
-
-    const options = await generateRegistrationOptions({
-      rpName: RP_NAME,
-      rpID: RP_ID,
-      userID: Buffer.from(String(user.id)),
-      userName: user.email,
-      userDisplayName: user.name,
-      attestationType: "none",
-      authenticatorSelection: {
-        authenticatorAttachment: "platform", // Face ID / Touch ID / Windows Hello
-        userVerification: "required",
-        residentKey: "preferred",
-      },
-      // Asks the browser for the authenticator built into this device. Without
-      // it Chrome is free to lead with "use a phone" and offer a QR code or a
-      // third-party passkey provider, which is not what Face ID here means.
-      hints: ["client-device"],
-      // Stops the same device being enrolled twice.
-      excludeCredentials: existing.rows.map((c) => ({
-        id: c.credential_id,
-        transports: c.transports || undefined,
-      })),
-    });
-
-    await saveChallenge(req.userId, options.challenge);
-    res.json(options);
-  })
-);
-
-// Step 2: verify the device's response and store the credential.
-router.post(
-  "/webauthn/register-verify",
-  requireAuth,
-  route(async (req, res) => {
-    const expectedChallenge = await takeChallenge(req.userId);
-    if (!expectedChallenge) {
-      return res.status(400).json({ error: "That registration expired. Please try again." });
-    }
-
-    let verification;
-    try {
-      verification = await verifyRegistrationResponse({
-        response: req.body,
-        expectedChallenge,
-        expectedOrigin: ORIGIN,
-        expectedRPID: RP_ID,
-      });
-    } catch (err) {
-      // A rejected device is the caller's problem, not a server fault.
-      return res.status(400).json({ error: err.message || "Could not verify that device." });
-    }
-
-    if (!verification.verified || !verification.registrationInfo) {
-      return res.status(400).json({ error: "Could not verify that device." });
-    }
-
-    const { credential } = verification.registrationInfo;
-
-    await pool.query(
-      `INSERT INTO webauthn_credentials (user_id, credential_id, public_key, counter, device_type, transports)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (credential_id) DO NOTHING`,
-      [
-        req.userId,
-        credential.id,
-        Buffer.from(credential.publicKey).toString("base64url"),
-        credential.counter,
-        "platform",
-        JSON.stringify(credential.transports || []),
-      ]
-    );
-
-    res.json({ verified: true });
-  })
-);
-
-// Step 3: at login time, before the user types a password, offer Face ID
-// if their account has an enrolled device.
-router.post(
-  "/webauthn/login-options",
-  signInLimit,
-  route(async (req, res) => {
-    const mismatch = rpMismatch(req);
-    if (mismatch) return res.status(500).json({ error: mismatch });
-
-    const email = normalizeEmail(typeof req.body?.email === "string" ? req.body.email : "");
-    if (!email) return res.status(400).json({ error: "Email is required." });
-
-    const result = await pool.query(
-      `SELECT u.id, c.credential_id, c.transports
-         FROM users u
-         JOIN webauthn_credentials c ON c.user_id = u.id
-        WHERE u.email = $1`,
-      [email]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Face ID isn't set up for this account." });
-    }
-
-    const userId = result.rows[0].id;
-    const options = await generateAuthenticationOptions({
-      rpID: RP_ID,
-      userVerification: "required",
-      allowCredentials: result.rows.map((c) => ({
-        id: c.credential_id,
-        transports: c.transports || undefined,
-      })),
-    });
-
-    await saveChallenge(userId, options.challenge);
-    res.json({ options, userId });
-  })
-);
-
-// Step 4: verify the biometric response and sign the user in.
-router.post(
-  "/webauthn/login-verify",
-  signInLimit,
-  route(async (req, res) => {
-    const { userId, response } = req.body || {};
-    if (!Number.isInteger(userId) || typeof response?.id !== "string") {
-      return res.status(400).json({ error: "Incomplete Face ID response." });
-    }
-
-    const expectedChallenge = await takeChallenge(userId);
-    if (!expectedChallenge) {
-      return res.status(400).json({ error: "That sign-in expired. Please try again." });
-    }
-
-    const credResult = await pool.query(
-      `SELECT c.id, c.credential_id, c.public_key, c.counter,
-              u.id AS user_id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash
-         FROM webauthn_credentials c
-         JOIN users u ON u.id = c.user_id
-        WHERE c.credential_id = $1 AND c.user_id = $2`,
-      [response.id, userId]
-    );
-    const saved = credResult.rows[0];
-    if (!saved) return res.status(400).json({ error: "Unrecognized device." });
-
-    let verification;
-    try {
-      verification = await verifyAuthenticationResponse({
-        response,
-        expectedChallenge,
-        expectedOrigin: ORIGIN,
-        expectedRPID: RP_ID,
-        credential: {
-          id: saved.credential_id,
-          publicKey: Buffer.from(saved.public_key, "base64url"),
-          counter: Number(saved.counter),
-        },
-      });
-    } catch (err) {
-      return res.status(401).json({ error: err.message || "Face ID verification failed." });
-    }
-
-    if (!verification.verified) {
-      return res.status(401).json({ error: "Face ID verification failed." });
-    }
-
-    await pool.query("UPDATE webauthn_credentials SET counter = $1 WHERE id = $2", [
-      verification.authenticationInfo.newCounter,
-      saved.id,
-    ]);
-    // A face or fingerprint proves more than a PIN, so it clears the PIN's
-    // strikes the same way the password does.
-    await pool.query(`UPDATE users SET ${CLEAR_STRIKES} WHERE id = $1`, [saved.user_id]);
-
-    res.json(
-      sessionPayload({
-        id: saved.user_id,
-        name: saved.name,
-        email: saved.email,
-        group_key: saved.group_key,
-        is_admin: saved.is_admin,
-        pin_hash: saved.pin_hash,
-        face_id_enabled: true,
-      })
-    );
-  })
-);
-
-// Forget every device enrolled for this account. Used to start over — for
-// instance when a phone saved its passkey to a password app instead of to the
-// phone itself.
-router.delete(
-  "/webauthn",
-  requireAuth,
-  route(async (req, res) => {
-    await pool.query("DELETE FROM webauthn_credentials WHERE user_id = $1", [req.userId]);
-    await pool.query("DELETE FROM webauthn_challenges WHERE user_id = $1", [req.userId]);
-    res.json({ faceIdEnabled: false });
   })
 );
 
@@ -691,8 +409,7 @@ router.post(
       `UPDATE users u
           SET pin_attempts = 0, pin_locked_until = NULL, pin_lockouts = 0
         WHERE u.id = $1
-        RETURNING u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash,
-                  EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled`,
+        RETURNING u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash`,
       [account.id]
     );
 

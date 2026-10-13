@@ -13,6 +13,7 @@ export default function PinPad({
   onChange,
   disabled = false,
   autoFocusKeyboard = true,
+  checking = false,
   errorKey = 0,
 }) {
   const digits = String(value || "");
@@ -49,7 +50,9 @@ export default function PinPad({
     <div className="pinpad">
       <div
         key={errorKey}
-        className={`pin-dots${errorKey ? " pin-dots-error" : ""}`}
+        className={`pin-dots${errorKey ? " pin-dots-error" : ""}${
+          checking ? " pin-dots-checking" : ""
+        }`}
         role="status"
         aria-label={`${digits.length} of ${PIN_LENGTH} digits entered`}
       >

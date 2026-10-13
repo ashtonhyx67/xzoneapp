@@ -142,17 +142,4 @@ export const api = {
   setAccountTeams: (token, id, teams) =>
     request(`/admin/accounts/${id}`, { method: "PATCH", body: { teams }, token }),
   deleteAccount: (token, id) => request(`/admin/accounts/${id}`, { method: "DELETE", token }),
-
-  webauthnRegisterOptions: (token) =>
-    request("/auth/webauthn/register-options", { token }),
-  webauthnRegisterVerify: (token, response) =>
-    request("/auth/webauthn/register-verify", { method: "POST", body: response, token }),
-  removeFaceId: (token) => request("/auth/webauthn", { method: "DELETE", token }),
-  webauthnLoginOptions: (email) =>
-    request("/auth/webauthn/login-options", { method: "POST", body: { email } }),
-  webauthnLoginVerify: (userId, response) =>
-    request("/auth/webauthn/login-verify", {
-      method: "POST",
-      body: { userId, response },
-    }),
 };

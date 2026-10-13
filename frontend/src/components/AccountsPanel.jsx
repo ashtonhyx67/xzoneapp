@@ -212,7 +212,6 @@ export default function AccountsPanel() {
 
               <span className="account-signin">
                 {account.pinSet && <span className="badge badge-off">PIN</span>}
-                {account.faceIdEnabled && <span className="badge badge-off">Face ID</span>}
               </span>
 
               {account.isOwner ? (

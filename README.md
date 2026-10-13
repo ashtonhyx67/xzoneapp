@@ -6,7 +6,7 @@ Member records, a roster, and account management for X Zone. Backend is Node/Exp
 ## Project structure
 
 ```
-backend/     Express API, Postgres access, auth (password + WebAuthn/Face ID)
+backend/     Express API, Postgres access, auth (password + PIN)
 frontend/    React app (Vite) — signup, login, dashboard
 railway.json Deployment config for Railway
 ```
@@ -44,10 +44,6 @@ Open `http://localhost:5173` and sign up. The first account, and any account
 using the `OWNER_EMAIL` address, gets full access; everyone after that starts
 with none until the owner puts them in a group on the Admin tab.
 
-**Note on WebAuthn locally:** it works fine on `localhost`, no HTTPS needed
-there. The moment you deploy, though, the two settings below have to match
-your real domain.
-
 ## 2. Deploy to Railway
 
 1. Push this project to a GitHub repo, then in Railway: **New Project → Deploy
@@ -58,21 +54,12 @@ your real domain.
 3. On your app service, open **Variables** and add:
    - `JWT_SECRET` — a long random string
    - `NODE_ENV` — `production`
-   - `RP_ID` — your Railway domain with no protocol, e.g. `team-app.up.railway.app`
-   - `ORIGIN` — the same domain with protocol, e.g. `https://team-app.up.railway.app`
    - `OWNER_EMAIL` — the email that owns the instance (defaults to
      `ashtonhengyongxin@gmail.com`). That account is always an admin, whether
      it signs up before or after you set this.
-   
-   (You can find your domain under the service's **Settings → Networking**
-   once Railway generates it — deploy once first, copy the domain, then set
-   these two and redeploy.)
 4. Railway will run `npm run build` (builds the frontend, installs the
    backend) and then `npm start` (`railway.json` already wires this up). One
    service serves both the API and the built frontend.
-
-Face ID enrolment only works over `https://`, which Railway gives you by
-default, so it works on real devices once deployed.
 
 ## 3. What's already built
 
@@ -83,7 +70,7 @@ default, so it works on real devices once deployed.
   route with one, and the app hides what a permission does not allow. Add a
   group or move a permission between groups in that one file. New sign-ups
   land in No access until someone puts them in a group.
-- An Admin tab: your own PIN and Face ID, plus — for anyone with
+- An Admin tab: your own PIN, plus — for anyone with
   `manageAccounts` — the list of everyone who can sign in, with add, remove,
   and change-group
 - JWT-based sessions that end when the app is closed — the token lives in
@@ -100,9 +87,6 @@ default, so it works on real devices once deployed.
   `frontend/src/lib/roles.js`; edit that one list and the whole app follows.
   (Bulk loading from a CSV is a terminal job now:
   `node backend/scripts/importPeople.js file.csv`.)
-- Face ID / Touch ID / Windows Hello enrolment via WebAuthn, on the Admin tab.
-  Signing in with it is not offered on the sign-in screen yet — the PIN is the
-  way back in — but the backend routes are all there for when it is.
 - A dashboard of stat cards and headed sections — Birthdays, Follow-ups — with
   the people they are about listed underneath; every row opens that person's
   scorecard on the Members tab
