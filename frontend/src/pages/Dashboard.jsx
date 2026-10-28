@@ -6,7 +6,7 @@ import { PERMISSIONS } from "../lib/permissions.js";
 import AppShell from "../components/AppShell.jsx";
 import AskPanel from "../components/AskPanel.jsx";
 import MemberRow from "../components/MemberRow.jsx";
-import FaceIdOffer from "../components/FaceIdOffer.jsx";
+import EventInvite from "../components/EventInvite.jsx";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -161,8 +161,6 @@ export default function Dashboard() {
 
       {summaryError && <div className="error-banner">{summaryError}</div>}
 
-      <FaceIdOffer />
-
       {!canView ? (
         <div className="panel">
           <div className="panel-title">Your account is waiting for access.</div>
@@ -172,6 +170,11 @@ export default function Dashboard() {
           {/* Above the reminders: a question is usually why someone opened the
               dashboard, and the reminders are what they scroll to otherwise. */}
           <AskPanel />
+
+          {/* Under the question box and above the reminders: scheduling
+              something is a thing you come here to do, not something you
+              scroll past. */}
+          <EventInvite />
 
           <MemberSection
             title="Birthdays"

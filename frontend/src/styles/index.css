@@ -2914,7 +2914,7 @@ button {
   font-size: 82px;
   line-height: 1;
   font-weight: 600;
-  letter-spacing: -0.045em;
+  letter-spacing: -0.015em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -4750,18 +4750,6 @@ button {
   box-shadow: 0 6px 18px -6px rgba(36, 31, 71, 0.45);
 }
 
-.faceid-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  margin-top: 18px;
-}
-
-.faceid-glyph {
-  flex-shrink: 0;
-}
-
 /* A spinner on a light button. */
 .spinner-dark {
   border-color: rgba(36, 31, 71, 0.18);
@@ -5055,290 +5043,165 @@ body.is-dragging * {
   user-select: none !important;
 }
 
-/* ---------- Face ID offer ---------- */
+/* ---------- Putting something in the calendar ---------- */
 
-.faceid-offer {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
+.event-form {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  animation: rise-in var(--dur-move) var(--ease-out);
 }
 
-.faceid-offer-icon {
+/* The date and its two times are one answer to "when", so they sit on one
+   line and wrap together rather than stacking into three questions. */
+.event-when {
   display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.event-when .field {
+  flex: 1 1 130px;
+  margin-bottom: 0;
+}
+
+.event-allday {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
+  gap: 8px;
+  margin: 14px 0 16px;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.event-allday input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+.event-details {
+  width: 100%;
+  padding: 10px 13px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--dur-quick) var(--ease-out),
+    box-shadow var(--dur-quick) var(--ease-out);
+}
+
+.event-details:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(75, 63, 168, 0.14);
+}
+
+/* The event as it will read once it is somewhere else. On ink, because it is
+   the thing being made and everything above it is only the making of it. */
+.event-preview {
+  margin: 4px 0 16px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
   background: var(--ink);
+  color: #fff;
+}
+
+.event-preview-title {
+  font-size: 16px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.event-preview-when {
+  margin-top: 3px;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--mark);
 }
 
-.faceid-offer-body {
-  flex: 1;
-  min-width: 0;
+.event-preview-where {
+  margin-top: 1px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  overflow-wrap: anywhere;
 }
 
-.faceid-offer-title {
-  font-size: 15px;
-  font-weight: 650;
-}
-
-.faceid-offer-text {
-  margin-top: 4px;
+/* Nothing to show yet reads as an instruction, not as an empty box. */
+.event-preview-empty {
+  background: var(--bg);
+  color: var(--text-soft);
   font-size: 13px;
   line-height: 1.5;
-  color: var(--text-soft);
 }
 
-.faceid-offer-actions {
+.event-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  margin-top: 12px;
 }
 
-.faceid-offer-actions .btn-inline {
-  flex: 0 1 auto;
+.event-actions .btn-inline {
   width: auto;
 }
 
-/* ---------- Face ID pop-up ---------- */
-
-/* A card in the middle of a dimmed, softened screen on a laptop; a sheet
-   rising from the bottom edge on a phone, where a thumb is. */
-.fid-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(25, 21, 53, 0.42);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-  animation: fade-in var(--dur-move) var(--ease-out);
+.event-open {
+  margin-left: auto;
 }
 
-.fid-sheet {
+/* The panel's own header button stays its own size when .panel-row stacks on
+   a phone: "Close" spanning the screen reads as a form control, not a header
+   control. */
+.event-panel > .panel-row .btn-inline {
+  width: auto;
+  align-self: flex-start;
+}
+
+/* ---------- Waiting on a list ---------- */
+
+/* The page skeleton above is a page of blocks; a register is a list of names.
+   The rows shorten down the stack the way names do, so it reads as a list
+   rather than as a stack of identical bars. Rides on .skeleton for the
+   shimmer, so there is one of those and not two. */
+.skeleton-rows {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 360px;
-  padding: 30px 26px 18px;
-  border-radius: 28px;
-  background: var(--surface);
-  box-shadow: 0 24px 60px -18px rgba(25, 21, 53, 0.55);
-  text-align: center;
-  animation: pop-in var(--dur-enter) var(--ease-spring);
+  gap: 10px;
+  padding: 4px 0;
 }
 
-.fid-leaving {
-  animation: fid-fade-out 220ms var(--ease-out) forwards;
-}
-
-.fid-leaving .fid-sheet {
-  animation: fid-drop 220ms var(--ease-out) forwards;
-}
-
-@keyframes fid-fade-out {
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes fid-drop {
-  to {
-    opacity: 0;
-    transform: translateY(16px) scale(0.97);
-  }
-}
-
-.fid-grabber {
-  display: none;
-}
-
-/* The icon: the Face ID corners breathing while it waits, a line sweeping
-   down them while the phone scans, and a tick drawing itself when it is
-   done. */
-.fid-icon {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 104px;
-  height: 104px;
-  margin-bottom: 18px;
-  border-radius: 30px;
-  background: var(--ink);
-  color: var(--mark);
-  overflow: hidden;
-  box-shadow: 0 12px 28px -12px rgba(36, 31, 71, 0.6);
-  transition: background var(--dur-move) var(--ease-out), color var(--dur-move) var(--ease-out),
-    transform var(--dur-move) var(--ease-spring);
-}
-
-.fid-corners,
-.fid-face {
-  transform-origin: 32px 32px;
-  transition: opacity var(--dur-quick) var(--ease-out), transform var(--dur-move) var(--ease-out);
-}
-
-.fid-icon-idle .fid-corners {
-  animation: fid-breathe 2.6s var(--ease-in-out) infinite;
-}
-
-@keyframes fid-breathe {
-  50% {
-    transform: scale(0.92);
-  }
-}
-
-.fid-icon-scanning .fid-corners {
-  transform: scale(0.9);
-}
-
-.fid-icon-scanning .fid-face {
-  opacity: 0.55;
-}
-
-.fid-scanline {
-  position: absolute;
-  left: 18px;
-  right: 18px;
-  top: 0;
-  height: 3px;
-  border-radius: 3px;
-  background: var(--mark);
-  box-shadow: 0 0 14px 3px rgba(255, 207, 71, 0.55);
-  opacity: 0;
-}
-
-.fid-icon-scanning .fid-scanline {
-  opacity: 1;
-  animation: fid-scan 1.15s var(--ease-in-out) infinite alternate;
-}
-
-@keyframes fid-scan {
-  from {
-    transform: translateY(22px);
-  }
-  to {
-    transform: translateY(80px);
-  }
-}
-
-.fid-check {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  opacity: 0;
-}
-
-.fid-icon-success {
-  background: var(--good);
-  color: #fff;
-  transform: scale(1.04);
-}
-
-.fid-icon-success .fid-corners,
-.fid-icon-success .fid-face {
-  opacity: 0;
-  transform: scale(0.6);
-}
-
-.fid-icon-success .fid-check {
-  opacity: 1;
-  animation: fid-draw 420ms var(--ease-out) 80ms forwards;
-}
-
-@keyframes fid-draw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-.fid-title {
-  font-family: "Fraunces", Georgia, serif;
-  font-variation-settings: "SOFT" 40, "WONK" 1;
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-}
-
-.fid-subtitle {
-  margin-top: 6px;
-  min-height: 1.5em;
-  font-size: 14px;
-  color: var(--text-soft);
-}
-
-.fid-message {
-  margin-top: 12px;
-  padding: 8px 12px;
+.skeleton-row {
+  height: 34px;
   border-radius: var(--radius-sm);
-  background: var(--danger-bg);
-  color: var(--danger);
-  font-size: 13px;
-  line-height: 1.4;
-  animation: shake 440ms var(--ease-out);
 }
 
-.fid-button {
-  margin-top: 22px;
-  padding-top: 14px;
-  padding-bottom: 14px;
-  font-size: 15px;
+.skeleton-row:nth-child(3n + 2) {
+  width: 86%;
 }
 
-.fid-button:disabled {
-  opacity: 1;
+.skeleton-row:nth-child(3n + 3) {
+  width: 72%;
 }
 
-.fid-button-done {
-  background: var(--good);
-}
-
-.fid-secondary {
-  margin-top: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
-}
-
-@media (max-width: 560px) {
-  .fid-backdrop {
-    align-items: flex-end;
-    padding: 0;
-  }
-
-  .fid-sheet {
-    max-width: none;
-    padding: 10px 24px calc(18px + env(safe-area-inset-bottom));
-    border-radius: 28px 28px 0 0;
-    animation: sheet-up var(--dur-enter) var(--ease-out);
-  }
-
-  .fid-leaving .fid-sheet {
-    animation: fid-sink 240ms var(--ease-out) forwards;
-  }
-
-  .fid-grabber {
-    display: block;
-    width: 38px;
-    height: 5px;
-    margin-bottom: 22px;
-    border-radius: 999px;
-    background: var(--border-strong);
+/* A number that changes while you are watching should look like it changed.
+   The attendance total ticks over rather than cutting to the new figure. */
+@keyframes tick {
+  from {
+    opacity: 0.35;
+    transform: translateY(-0.12em);
   }
 }
 
-@keyframes fid-sink {
-  to {
-    transform: translateY(100%);
-  }
+.ticking {
+  display: inline-block;
+  animation: tick var(--dur-move) var(--ease-out);
 }
 
 /* ---------- Responsive overrides ---------- */
@@ -5715,7 +5578,7 @@ body.is-dragging * {
    the current page is named by its colour alone and every link is its icon.
    The yellow pill says which one you are on without needing the word. With
    five or fewer there is room for the word, so it stays. */
-@media (max-width: 430px) {
+@media (max-width: 480px) {
   .sidebar-nav:has(> .nav-item:nth-child(6)) .nav-item {
     min-width: 38px;
     padding: 0 8px;

@@ -28,7 +28,6 @@ function publicAccount(row) {
     isOwner: owner,
     teams: row.teams ?? [],
     pinSet: Boolean(row.pin_set),
-    faceIdEnabled: Boolean(row.face_id_enabled),
     createdAt: row.created_at,
   };
 }
@@ -36,7 +35,6 @@ function publicAccount(row) {
 const SELECT_ACCOUNTS = `
   SELECT u.id, u.name, u.email, u.group_key, u.is_admin, u.created_at,
          (u.pin_hash IS NOT NULL) AS pin_set,
-         EXISTS (SELECT 1 FROM webauthn_credentials c WHERE c.user_id = u.id) AS face_id_enabled,
          COALESCE(
            (SELECT array_agg(t.team ORDER BY t.team) FROM user_teams t WHERE t.user_id = u.id),
            '{}'

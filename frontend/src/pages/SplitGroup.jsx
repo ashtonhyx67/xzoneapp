@@ -13,6 +13,7 @@ import {
 import AppShell from "../components/AppShell.jsx";
 import ExpenseEditor from "../components/ExpenseEditor.jsx";
 import SettleUp from "../components/SettleUp.jsx";
+import { SkeletonRows } from "../components/Skeleton.jsx";
 
 // One group: what has been spent, who is out of pocket, and the payments that
 // would put everyone straight. The page is built from a single response, so
@@ -195,7 +196,11 @@ export default function SplitGroup() {
   if (!state) {
     return (
       <AppShell>
-        {error ? <div className="error-banner">{error}</div> : <p className="list-empty">Loading…</p>}
+        {error ? (
+          <div className="error-banner">{error}</div>
+        ) : (
+          <SkeletonRows count={5} label="Loading the group" />
+        )}
       </AppShell>
     );
   }

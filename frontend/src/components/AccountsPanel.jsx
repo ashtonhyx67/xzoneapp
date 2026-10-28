@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { CGS } from "../lib/teams.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { initials } from "../lib/photo.js";
+import { SkeletonRows } from "./Skeleton.jsx";
 
 // Everyone who can sign in, and which group they are in. Groups are defined on
 // the server (backend/lib/groups.js) and arrive with their permissions, so this
@@ -195,7 +196,7 @@ export default function AccountsPanel() {
       )}
 
       {loading ? (
-        <div className="list-empty">Loading…</div>
+        <SkeletonRows count={4} label="Loading accounts" />
       ) : (
         <div className="account-list">
           {accounts.map((account) => (
@@ -212,7 +213,6 @@ export default function AccountsPanel() {
 
               <span className="account-signin">
                 {account.pinSet && <span className="badge badge-off">PIN</span>}
-                {account.faceIdEnabled && <span className="badge badge-off">Face ID</span>}
               </span>
 
               {account.isOwner ? (

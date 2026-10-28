@@ -1,11 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import PasswordField from "../components/PasswordField.jsx";
 import { getDeviceAccount } from "../lib/device.js";
-import { deviceHasBiometrics, signInWithFaceId, faceIdErrorMessage } from "../lib/faceId.js";
-import { FaceIdGlyph } from "./Unlock.jsx";
 import BrandMark from "../components/BrandMark.jsx";
 
 export default function Login() {
@@ -19,39 +17,15 @@ export default function Login() {
   const [form, setForm] = useState({ email: remembered?.email || "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [faceIdReady, setFaceIdReady] = useState(false);
 
-  // Offered only where this device has signed in with Face ID before.
-  useEffect(() => {
-    let active = true;
-    if (remembered?.hasFaceId) deviceHasBiometrics().then((ok) => active && setFaceIdReady(ok));
-    return () => {
-      active = false;
-    };
-  }, [remembered]);
-
-  function finish(data, usedFaceId = false) {
+  function finish(data) {
     signIn(data.token, data.user, {
-      faceIdEnabled: data.faceIdEnabled,
-      usedFaceId,
       permissions: data.permissions,
       group: data.group,
       isOwner: data.isOwner,
       pinSet: data.pinSet,
     });
     navigate("/dashboard", { replace: true });
-  }
-
-  async function useFaceId() {
-    setError("");
-    setLoading(true);
-    try {
-      finish(await signInWithFaceId(form.email || remembered.email), true);
-    } catch (err) {
-      setError(faceIdErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
   }
 
   function update(field) {
@@ -84,21 +58,6 @@ export default function Login() {
           <div className="error-banner" role="alert">
             {error}
           </div>
-        )}
-
-        {faceIdReady && (
-          <>
-            <button
-              type="button"
-              className="btn btn-primary faceid-btn"
-              onClick={useFaceId}
-              disabled={loading}
-            >
-              <FaceIdGlyph />
-              Sign in with Face ID
-            </button>
-            <div className="divider">or use your password</div>
-          </>
         )}
 
         <form onSubmit={handleSubmit}>

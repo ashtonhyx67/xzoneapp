@@ -9,6 +9,7 @@ import MemberRow from "../components/MemberRow.jsx";
 import Roster from "../components/Roster.jsx";
 import { CGS, cgOf } from "../lib/teams.js";
 import SearchBox from "../components/SearchBox.jsx";
+import { SkeletonRows } from "../components/Skeleton.jsx";
 
 // The member list and the scorecard side by side: pick anyone on the left, read
 // or edit their record on the right. Both are the same database rows the
@@ -150,7 +151,7 @@ export default function Members() {
 
       {loading ? (
         <div className="panel">
-          <div className="panel-title">Loading…</div>
+          <SkeletonRows count={7} label="Loading members" />
         </div>
       ) : people.length === 0 ? (
         <div className="panel">

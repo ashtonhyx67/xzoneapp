@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
 import AppShell from "../components/AppShell.jsx";
 import PeopleSheet from "../components/PeopleSheet.jsx";
+import { SkeletonRows } from "../components/Skeleton.jsx";
 
 // The whole people table as an editable grid — the spreadsheet the data used to
 // live in, except it is the database, so an edit here is the real record.
@@ -66,7 +67,7 @@ export default function Database() {
 
       {loading ? (
         <div className="panel">
-          <div className="panel-title">Loading…</div>
+          <SkeletonRows count={8} label="Loading the database" />
         </div>
       ) : (
         <PeopleSheet token={token} people={people} onSaved={(saved) => setPeople(saved)} />

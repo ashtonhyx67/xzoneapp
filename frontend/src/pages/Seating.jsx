@@ -9,6 +9,7 @@ import AppShell from "../components/AppShell.jsx";
 import WeekPicker from "../components/WeekPicker.jsx";
 import { useFlip } from "../lib/flip.js";
 import { useDragAndDrop } from "../lib/useDragAndDrop.js";
+import { SkeletonRows } from "../components/Skeleton.jsx";
 
 let counter = 0;
 const newKey = () => `k-${(counter += 1)}`;
@@ -401,7 +402,7 @@ export default function Seating() {
         {error && <div className="error-banner panel-notice">{error}</div>}
 
         {!record ? (
-          <div className="list-empty">Loading…</div>
+          <SkeletonRows count={6} label="Loading the arrangement" />
         ) : (
           <div className="seating-layout" ref={layoutRef}>
             <div className={`seating-plan${drag ? " seating-plan-dragging" : ""}`} ref={planRef}>

@@ -3,15 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import PinPad, { PIN_LENGTH } from "../components/PinPad.jsx";
-import FaceIdSheet from "../components/FaceIdSheet.jsx";
-import { getDeviceAccount, forgetDeviceAccount, setDeviceHasFaceId } from "../lib/device.js";
-import { deviceHasBiometrics, signInWithFaceId, faceIdErrorMessage } from "../lib/faceId.js";
+import { getDeviceAccount, forgetDeviceAccount } from "../lib/device.js";
 import { buzz } from "../lib/pin.js";
 import BrandMark from "../components/BrandMark.jsx";
 
 // The screen a returning user lands on. The session ended when they closed the
 // app, but the device still knows who they are — so this replaces the sign-up
-// card with four digits, or a glance at the camera.
+// card with four digits.
 export default function Unlock() {
   const navigate = useNavigate();
   const { signIn } = useAuth();
@@ -22,37 +20,17 @@ export default function Unlock() {
   const [errorKey, setErrorKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [lockedOut, setLockedOut] = useState(false);
-  const [faceIdReady, setFaceIdReady] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
 
   const firstName = account?.name ? account.name.split(" ")[0] : "";
 
   // Nothing remembered on this device means there is no PIN to ask for.
   useEffect(() => {
-    if (!account?.hasPin && !account?.hasFaceId) navigate("/login", { replace: true });
+    if (!account?.hasPin) navigate("/login", { replace: true });
   }, [account, navigate]);
 
-  // A device with Face ID opens on the Face ID pop-up; the PIN is one tap
-  // behind it ("Use PIN instead") for when a face is not an option.
-  useEffect(() => {
-    let active = true;
-    if (account?.hasFaceId) {
-      deviceHasBiometrics().then((ok) => {
-        if (!active) return;
-        setFaceIdReady(ok);
-        setSheetOpen(ok);
-      });
-    }
-    return () => {
-      active = false;
-    };
-  }, [account]);
-
   const finish = useCallback(
-    (data, usedFaceId = false) => {
+    (data) => {
       signIn(data.token, data.user, {
-        faceIdEnabled: data.faceIdEnabled,
-        usedFaceId,
         permissions: data.permissions,
         group: data.group,
         isOwner: data.isOwner,
@@ -86,20 +64,6 @@ export default function Unlock() {
     [account, fail, finish]
   );
 
-  // The pop-up closed. An error here means the account no longer has Face ID
-  // (removed on another device), so stop offering something that cannot work.
-  const closeSheet = useCallback(
-    (err) => {
-      setSheetOpen(false);
-      if (err?.status === 404) {
-        setDeviceHasFaceId(false);
-        setFaceIdReady(false);
-        fail(faceIdErrorMessage(err));
-      }
-    },
-    [fail]
-  );
-
   // Four digits is the whole input, so there is nothing left to confirm.
   const handleChange = useCallback(
     (next) => {
@@ -114,7 +78,7 @@ export default function Unlock() {
     navigate("/login", { replace: true });
   }
 
-  if (!account?.hasPin && !account?.hasFaceId) return null;
+  if (!account?.hasPin) return null;
 
   return (
     <div className="auth-shell">
@@ -129,9 +93,7 @@ export default function Unlock() {
         <h1 className="auth-title">
           {firstName ? `Welcome back, ${firstName}` : "Welcome back"}
         </h1>
-        <p className="auth-subtitle">
-          {account.hasPin ? "Enter your 4-digit PIN to continue" : "Use Face ID to continue"}
-        </p>
+        <p className="auth-subtitle">Enter your 4-digit PIN to continue</p>
 
         {error && (
           <div className="error-banner" role="alert" key={errorKey}>
@@ -139,28 +101,13 @@ export default function Unlock() {
           </div>
         )}
 
-        {faceIdReady && (
-          <button
-            type="button"
-            className="btn btn-primary faceid-btn"
-            onClick={() => setSheetOpen(true)}
-            disabled={busy}
-          >
-            <FaceIdGlyph />
-            Use Face ID
-          </button>
-        )}
-
-        {account.hasPin && (
-          <PinPad
-            value={pin}
-            onChange={handleChange}
-            disabled={busy || lockedOut}
-            errorKey={errorKey}
-            // Digits typed while the pop-up is up are not a PIN.
-            autoFocusKeyboard={!sheetOpen}
-          />
-        )}
+        <PinPad
+          value={pin}
+          onChange={handleChange}
+          disabled={busy || lockedOut}
+          errorKey={errorKey}
+          autoFocusKeyboard
+        />
 
         <div className="auth-switch">
           <button type="button" className="link-btn" onClick={() => navigate("/login")}>
@@ -174,31 +121,6 @@ export default function Unlock() {
           </button>
         </div>
       </div>
-
-      {sheetOpen && (
-        <FaceIdSheet
-          title={firstName ? `Welcome back, ${firstName}` : "Unlock X Zone"}
-          subtitle="Unlock X Zone with Face ID"
-          dismissLabel={account.hasPin ? "Use PIN instead" : "Not now"}
-          onScan={() => signInWithFaceId(account.email)}
-          onDone={(session) => finish(session, true)}
-          onDismiss={closeSheet}
-        />
-      )}
     </div>
   );
 }
-
-function FaceIdGlyph() {
-  return (
-    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" className="faceid-glyph">
-      <g fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-        <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" />
-        <path d="M9 9.5v1M15 9.5v1M12 9.5v3.5h-1" />
-        <path d="M9 16c1.6 1.2 4.4 1.2 6 0" />
-      </g>
-    </svg>
-  );
-}
-
-export { FaceIdGlyph };

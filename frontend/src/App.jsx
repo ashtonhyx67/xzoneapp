@@ -50,7 +50,7 @@ function usePrefetchPages(enabled) {
 // not to the sign-up card.
 function signedOutHome() {
   const account = getDeviceAccount();
-  return account?.hasPin || account?.hasFaceId ? "/unlock" : "/login";
+  return account?.hasPin ? "/unlock" : "/login";
 }
 
 function ProtectedRoute({ children }) {

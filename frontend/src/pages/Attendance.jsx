@@ -14,6 +14,7 @@ import {
   toTelegram,
 } from "../lib/attendance.js";
 import AppShell from "../components/AppShell.jsx";
+import { SkeletonRows, Ticker } from "../components/Skeleton.jsx";
 import WeekPicker from "../components/WeekPicker.jsx";
 
 const SAVE_DELAY = 700;
@@ -546,7 +547,7 @@ export default function Attendance() {
         )}
 
         {!record ? (
-          <div className="list-empty">Loading…</div>
+          <SkeletonRows count={8} label="Loading the register" />
         ) : (
           <>
             <div className="tally">
@@ -556,9 +557,10 @@ export default function Attendance() {
                 <span className="tally-total-label">
                   Total attendance{cg ? ` (${cg})` : ""}
                 </span>
-                <span className="tally-total-value">
-                  {cgCounts ? cgCounts.counts.total : total}
-                </span>
+                <Ticker
+                  className="tally-total-value"
+                  value={cgCounts ? cgCounts.counts.total : total}
+                />
               </div>
 
               {/* Which team the group's number is made of. No use knowing the

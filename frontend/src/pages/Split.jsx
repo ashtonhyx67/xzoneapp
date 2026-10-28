@@ -6,6 +6,7 @@ import { PERMISSIONS } from "../lib/permissions.js";
 import { CURRENCIES, formatMoney } from "../lib/split.js";
 import AppShell from "../components/AppShell.jsx";
 import SearchBox from "../components/SearchBox.jsx";
+import { SkeletonRows } from "../components/Skeleton.jsx";
 
 const EMOJI = ["🧾", "🏕️", "🍜", "✈️", "🏠", "🎉", "⛪", "🎁", "🚐", "☕"];
 
@@ -231,7 +232,7 @@ export default function Split() {
         </div>
 
         {!data ? (
-          <p className="list-empty">Loading…</p>
+          <SkeletonRows count={4} label="Loading groups" />
         ) : active.length === 0 ? (
           <p className="list-empty">No groups yet. Start one for a trip, a flat, or an event.</p>
         ) : (
