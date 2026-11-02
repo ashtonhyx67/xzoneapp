@@ -43,6 +43,12 @@ export const api = {
   removePin: (token) => request("/auth/pin", { method: "DELETE", token }),
   pinLogin: (email, pin) => request("/auth/pin/login", { method: "POST", body: { email, pin } }),
 
+  // The quiz is scored on the server, one step at a time: each submit answers
+  // with what to ask next, or with the result once it has one.
+  personalityQuiz: (token, signal) => request("/personality/quiz", { token, signal }),
+  personalityResult: (token, signal) => request("/personality", { token, signal }),
+  submitPersonality: (token, body) => request("/personality", { method: "POST", body, token }),
+
   bulkSavePeople: (token, changes) =>
     request("/people/bulk", { method: "PUT", body: changes, token }),
 

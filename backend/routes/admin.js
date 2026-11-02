@@ -27,13 +27,14 @@ function publicAccount(row) {
     isAdmin: owner || row.is_admin === true,
     isOwner: owner,
     teams: row.teams ?? [],
+    personalityType: row.personality_type || null,
     pinSet: Boolean(row.pin_set),
     createdAt: row.created_at,
   };
 }
 
 const SELECT_ACCOUNTS = `
-  SELECT u.id, u.name, u.email, u.group_key, u.is_admin, u.created_at,
+  SELECT u.id, u.name, u.email, u.group_key, u.is_admin, u.created_at, u.personality_type,
          (u.pin_hash IS NOT NULL) AS pin_set,
          COALESCE(
            (SELECT array_agg(t.team ORDER BY t.team) FROM user_teams t WHERE t.user_id = u.id),

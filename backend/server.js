@@ -15,6 +15,7 @@ const attendanceRoutes = require("./routes/attendance");
 const seatingRoutes = require("./routes/seating");
 const askRoutes = require("./routes/ask");
 const splitRoutes = require("./routes/split");
+const personalityRoutes = require("./routes/personality");
 
 if (!process.env.JWT_SECRET) {
   console.error(
@@ -91,6 +92,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/seating", seatingRoutes);
 app.use("/api/ask", askRoutes);
 app.use("/api/split", splitRoutes);
+app.use("/api/personality", personalityRoutes);
 
 app.use("/api/dashboard", dashboardRoutes);
 

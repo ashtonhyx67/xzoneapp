@@ -732,6 +732,41 @@ async function initSchema() {
       ON split_activity (group_id, created_at DESC);
   `);
 
+  // ---------- Personality ----------
+  // The account carries the type it is currently assigned, because that is what
+  // the rest of the app reads. An account without one is asked to take the quiz,
+  // however and whenever it was created.
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS personality_type TEXT,
+      ADD COLUMN IF NOT EXISTS personality_taken_at TIMESTAMPTZ;
+  `);
+
+  // Every sitting, kept whole. The answers are here so that once enough people
+  // have taken it, the questions themselves can be checked: which ones hang
+  // together, and which ones are not measuring what they were written to.
+  // measured_type is what the answers said; type is what the person ended up
+  // with after settling any close calls themselves.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS personality_results (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      quiz_version INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      measured_type TEXT NOT NULL,
+      scores JSONB NOT NULL,
+      answers JSONB NOT NULL,
+      choices JSONB NOT NULL DEFAULT '{}',
+      careless BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS personality_results_user_idx
+      ON personality_results (user_id, created_at DESC);
+  `);
+
   console.log("Database schema ready.");
 }
 

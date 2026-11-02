@@ -4,6 +4,7 @@ import { CGS } from "../lib/teams.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { initials } from "../lib/photo.js";
 import { SkeletonRows } from "./Skeleton.jsx";
+import PersonalityTag from "./PersonalityTag.jsx";
 
 // Everyone who can sign in, and which group they are in. Groups are defined on
 // the server (backend/lib/groups.js) and arrive with their permissions, so this
@@ -212,6 +213,7 @@ export default function AccountsPanel() {
               </span>
 
               <span className="account-signin">
+                {account.personalityType && <PersonalityTag type={account.personalityType} />}
                 {account.pinSet && <span className="badge badge-off">PIN</span>}
               </span>
 

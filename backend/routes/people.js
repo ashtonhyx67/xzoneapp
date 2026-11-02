@@ -87,11 +87,22 @@ function normalizeUpdate(body) {
 
 // Age is computed on read so it can never drift out of date, unlike the
 // separate Age column the spreadsheet kept alongside Birthday.
+//
+// A personality belongs to the account that took the quiz, and is read across
+// to the person rather than copied onto them, so a retake can never leave the
+// two disagreeing. An account that has not been linked to a person yet is matched
+// by name, the same way db.js links them; an explicit link wins over a name.
 const SELECT_PERSON = `
   SELECT p.*,
          CASE WHEN p.birthday IS NULL THEN NULL
               ELSE date_part('year', age(p.birthday))::int
-         END AS age
+         END AS age,
+         (SELECT u.personality_type
+            FROM users u
+           WHERE u.personality_type IS NOT NULL
+             AND (u.person_id = p.id OR (u.person_id IS NULL AND lower(u.name) = lower(p.name)))
+           ORDER BY (u.person_id IS NOT NULL) DESC, u.personality_taken_at DESC
+           LIMIT 1) AS personality_type
     FROM people p
 `;
 

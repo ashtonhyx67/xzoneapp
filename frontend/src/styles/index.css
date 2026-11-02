@@ -5882,3 +5882,696 @@ body.is-dragging * {
     grid-template-columns: 92px minmax(0, 1fr);
   }
 }
+
+/* ---------- Personality quiz ---------- */
+
+.quiz-shell {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: calc(20px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+}
+
+.quiz-shell-center {
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+/* The ordinary spinner is white, for sitting on an ink button. */
+.spinner-dark {
+  width: 24px;
+  height: 24px;
+  border-color: var(--border-strong);
+  border-top-color: var(--ink);
+}
+
+.quiz-saving {
+  font-size: 14px;
+  color: var(--text-soft);
+}
+
+.quiz-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  margin-bottom: 10px;
+}
+
+/* Intro */
+
+.quiz-intro {
+  width: 100%;
+}
+
+.quiz-intro p {
+  color: var(--text-soft);
+  margin-bottom: 20px;
+}
+
+.quiz-intro-title {
+  font-family: "Fraunces", Georgia, serif;
+  font-variation-settings: "SOFT" 40, "WONK" 1;
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+
+.quiz-demo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 10px;
+}
+
+.quiz-demo-option {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.quiz-demo-dots {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.quiz-demo-dots i {
+  display: block;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+}
+
+.quiz-demo-dot-2 {
+  width: 20px;
+  height: 20px;
+}
+
+.quiz-demo-dot-1 {
+  width: 15px;
+  height: 15px;
+}
+
+.quiz-demo-dot-0 {
+  width: 10px;
+  height: 10px;
+}
+
+.quiz-demo-dots .quiz-demo-dot-on {
+  background: var(--mark);
+  border-color: var(--mark-edge);
+}
+
+.quiz-intro .quiz-intro-how {
+  font-size: 13px;
+}
+
+.quiz-intro-restart {
+  margin-top: 10px;
+}
+
+.quiz-intro .quiz-intro-note {
+  margin: 20px 0 0;
+  font-size: 12px;
+}
+
+.quiz-later {
+  display: block;
+  margin: 16px auto 0;
+  font-size: 13px;
+}
+
+/* One question at a time */
+
+.quiz-shell-asking {
+  overflow-x: clip;
+}
+
+.quiz-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.quiz-back {
+  width: 44px;
+  height: 44px;
+  margin-left: -11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.quiz-back:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.quiz-progress {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.quiz-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ink);
+  transition: width 0.2s ease;
+}
+
+.quiz-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+  min-width: 38px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.quiz-error {
+  margin-bottom: 14px;
+}
+
+.quiz-extra {
+  background: var(--mark-soft);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+/* pan-y hands vertical drags to the browser, so the page still scrolls, and
+   keeps horizontal ones for the swipe. */
+.quiz-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+  padding: 24px 18px 16px;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  animation: quiz-card-in 0.2s ease both;
+  transition: transform 0.17s ease, opacity 0.17s ease;
+}
+
+.quiz-card-dragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+@keyframes quiz-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+
+/* The entrance animation holds its end state, which would otherwise outrank the
+   inline transform a drag sets and the classes below. */
+.quiz-card-dragging,
+.quiz-card-leaving-left,
+.quiz-card-leaving-right,
+.quiz-card-leaving-up {
+  animation: none;
+}
+
+.quiz-card-leaving-left {
+  opacity: 0;
+  transform: translateX(-70px) rotate(-3deg);
+}
+
+.quiz-card-leaving-right {
+  opacity: 0;
+  transform: translateX(70px) rotate(3deg);
+}
+
+.quiz-card-leaving-up {
+  opacity: 0;
+  transform: translateY(-14px);
+}
+
+.quiz-prompt {
+  font-family: "Fraunces", Georgia, serif;
+  font-variation-settings: "SOFT" 40, "WONK" 1;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.22;
+  letter-spacing: -0.015em;
+  margin-bottom: 20px;
+  min-height: 2.44em;
+}
+
+/* Focused by script for screen readers, not by anyone tabbing to it. */
+.quiz-prompt:focus {
+  outline: none;
+}
+
+.quiz-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.quiz-option {
+  min-height: 112px;
+  padding: 12px;
+  background: var(--bg);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  cursor: inherit;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.quiz-option-on {
+  background: var(--mark-soft);
+  border-color: var(--mark-edge);
+}
+
+.quiz-scale {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.quiz-dot {
+  min-height: 62px;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.quiz-dot-mark {
+  display: flex;
+  margin: auto 0;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  background: var(--surface);
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+
+.quiz-dot-2 .quiz-dot-mark {
+  width: 34px;
+  height: 34px;
+}
+
+.quiz-dot-1 .quiz-dot-mark {
+  width: 26px;
+  height: 26px;
+}
+
+.quiz-dot-0 .quiz-dot-mark {
+  width: 18px;
+  height: 18px;
+}
+
+/* Mouse only. A touch leaves :hover stuck on whatever was tapped, and the next
+   card's dot in that spot would look already chosen. */
+@media (hover: hover) {
+  .quiz-dot:hover .quiz-dot-mark {
+    border-color: var(--ink);
+  }
+}
+
+.quiz-dot-on {
+  color: var(--ink);
+}
+
+.quiz-dot-on .quiz-dot-mark {
+  background: var(--mark);
+  border-color: var(--mark-edge);
+  transform: scale(1.08);
+}
+
+.quiz-dot-label {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.quiz-hint {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--text-soft);
+  text-align: center;
+}
+
+.quiz-bottom {
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+/* A close call, settled by reading both */
+
+.quiz-choose-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quiz-choose .quiz-prompt {
+  min-height: 0;
+}
+
+.quiz-choice {
+  padding: 18px;
+  background: var(--surface);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+@media (hover: hover) {
+  .quiz-choice:hover {
+    border-color: var(--mark-edge);
+    background: var(--mark-soft);
+  }
+}
+
+.quiz-choice-label {
+  display: block;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.quiz-choice-text {
+  display: block;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-soft);
+}
+
+/* The result */
+
+.doodle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #fbf6e8;
+  color: #171525;
+}
+
+.doodle svg {
+  width: 84%;
+  height: 84%;
+  display: block;
+}
+
+.doodle-large {
+  width: 120px;
+  height: 120px;
+}
+
+.doodle-small {
+  width: 56px;
+  height: 56px;
+}
+
+.doodle-tiny {
+  width: 18px;
+  height: 18px;
+}
+
+.result-reveal .doodle-large {
+  animation: result-pop 0.5s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+
+.result-reveal .result-name,
+.result-reveal .result-card,
+.result-reveal .result-title,
+.result-reveal .result-blurb,
+.result-reveal .result-continue {
+  animation: result-rise 0.4s ease both;
+}
+
+.result-reveal .result-name {
+  animation-delay: 0.15s;
+}
+
+.result-reveal .result-card {
+  animation-delay: 0.25s;
+}
+
+.result-reveal .result-title,
+.result-reveal .result-blurb {
+  animation-delay: 0.35s;
+}
+
+.result-reveal .result-continue {
+  animation-delay: 0.45s;
+}
+
+@keyframes result-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-8deg);
+  }
+}
+
+@keyframes result-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.result-head {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.result-name {
+  min-width: 0;
+}
+
+.result-code {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-soft);
+}
+
+.result-animal {
+  font-family: "Fraunces", Georgia, serif;
+  font-variation-settings: "SOFT" 0, "WONK" 0;
+  font-size: 44px;
+  font-weight: 500;
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+}
+
+.result-card {
+  background: var(--surface);
+  border-radius: 26px;
+  padding: 22px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.result-warning {
+  background: var(--mark-soft);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 10px 12px;
+  margin-bottom: 18px;
+}
+
+.result-bar {
+  margin-bottom: 16px;
+}
+
+.result-bar-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 15px;
+  color: var(--text-soft);
+  margin-bottom: 7px;
+}
+
+.result-bar-lean {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.result-bar-close {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--mark-soft);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.result-bar-track {
+  position: relative;
+  display: block;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--bg);
+}
+
+.result-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.result-reveal .result-bar-fill {
+  animation: result-bar-grow 0.6s 0.35s ease both;
+}
+
+@keyframes result-bar-grow {
+  from {
+    width: 0;
+  }
+}
+
+.result-bar-fill-first {
+  right: 50%;
+}
+
+.result-bar-fill-second {
+  left: 50%;
+}
+
+.result-retake {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 14px 16px;
+  background: var(--bg);
+  border: none;
+  border-radius: 18px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.result-retake:hover {
+  background: var(--border);
+}
+
+.result-title {
+  font-family: "Fraunces", Georgia, serif;
+  font-variation-settings: "SOFT" 0, "WONK" 0;
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.result-blurb {
+  font-size: 17px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.result-continue {
+  padding: 14px 18px;
+  font-size: 15px;
+}
+
+/* Beside someone's name elsewhere in the app */
+
+.personality-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px 2px 3px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+/* Wraps because a small screen makes every inline button full width. */
+.personality-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.personality-panel .account-identity {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+@media (max-width: 380px) {
+  .result-animal {
+    font-size: 36px;
+  }
+
+  .doodle-large {
+    width: 96px;
+    height: 96px;
+  }
+
+  .quiz-prompt {
+    font-size: 21px;
+  }
+
+  .quiz-option {
+    min-height: 100px;
+    font-size: 14px;
+  }
+}

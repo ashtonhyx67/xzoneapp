@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { photoSrc, initials } from "../lib/photo.js";
 import { ROLES, findRole, roleClass, roleStyle } from "../lib/roles.js";
+import PersonalityTag from "./PersonalityTag.jsx";
 
 // One white card: the photo and who they are on the left, the two field tables
 // beside it, and the long-text rows running full width underneath so no corner
@@ -164,6 +165,7 @@ export default function PersonCard({
                 → {person.deployed_to}
               </span>
             )}
+            {person.personality_type && <PersonalityTag type={person.personality_type} />}
           </div>
         </div>
 

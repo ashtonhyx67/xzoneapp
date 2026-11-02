@@ -38,6 +38,8 @@ export function AuthProvider({ children }) {
   const [group, setGroup] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
   const [pinSet, setPinSetState] = useState(false);
+  const [personalityDue, setPersonalityDue] = useState(false);
+  const [personalityType, setPersonalityType] = useState(null);
   const [loading, setLoading] = useState(() => Boolean(readToken()));
 
   const signOut = useCallback(() => {
@@ -52,6 +54,14 @@ export function AuthProvider({ children }) {
     setGroup(null);
     setIsOwner(false);
     setPinSetState(false);
+    setPersonalityDue(false);
+    setPersonalityType(null);
+  }, []);
+
+  // Finishing the quiz is what stops it being asked for.
+  const setPersonality = useCallback((type) => {
+    setPersonalityType(type);
+    setPersonalityDue(false);
   }, []);
 
   // Keep the device's record of "does this account have a PIN" in step with
@@ -81,6 +91,8 @@ export function AuthProvider({ children }) {
         setGroup(data.group || null);
         setIsOwner(Boolean(data.isOwner));
         setPinSetState(Boolean(data.pinSet));
+        setPersonalityDue(Boolean(data.personalityDue));
+        setPersonalityType(data.personalityType || null);
         rememberDeviceAccount({
           email: data.user.email,
           name: data.user.name,
@@ -108,6 +120,7 @@ export function AuthProvider({ children }) {
       sessionStorage.setItem(TOKEN_KEY, newToken);
       // A different sign-in gets its own chance to be asked about a PIN.
       sessionStorage.removeItem("pinPromptSkipped");
+      sessionStorage.removeItem("personalityPromptSkipped");
     } catch {
       // Storage is unavailable (private mode); the session still works until
       // the page is reloaded.
@@ -118,6 +131,8 @@ export function AuthProvider({ children }) {
     setGroup(options.group || null);
     setIsOwner(Boolean(options.isOwner));
     setPinSetState(Boolean(options.pinSet));
+    setPersonalityDue(Boolean(options.personalityDue));
+    setPersonalityType(options.personalityType || null);
     rememberDeviceAccount({
       email: newUser?.email,
       name: newUser?.name,
@@ -142,6 +157,9 @@ export function AuthProvider({ children }) {
       isOwner,
       pinSet,
       setPinSet,
+      personalityDue,
+      personalityType,
+      setPersonality,
       loading,
       signIn,
       signOut,
@@ -156,6 +174,9 @@ export function AuthProvider({ children }) {
       isOwner,
       pinSet,
       setPinSet,
+      personalityDue,
+      personalityType,
+      setPersonality,
       loading,
       signIn,
       signOut,

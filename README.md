@@ -108,6 +108,16 @@ default, so it works on real devices once deployed.
   scorecard on the Members tab
 - Members: the member list beside the scorecard, searchable, deep-linkable as
   `/members?person=<id>`
+- A personality quiz at `/personality`, asked of every account that has no type
+  yet: right after sign-up, or on the next launch for anyone already here. 48
+  two-sided questions (swipe, tap, or number keys), four more on any dimension
+  that comes out close, and a straight choice between the two sides if it is
+  still close.
+  Scored on the server by `backend/lib/personality.js`, which also holds the
+  questions and the sixteen types. The type is saved on the account, shown on
+  the scorecard, the database grid and the accounts list; every sitting's answers
+  are kept in `personality_results`. `npm test --prefix backend` checks the
+  scoring and that the questions stay balanced.
 - A small reusable design system in `frontend/src/styles/index.css`
 
 ## 4. Where to add your next features

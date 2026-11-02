@@ -29,6 +29,7 @@ const Seating = lazy(pages.Seating);
 const Admin = lazy(pages.Admin);
 const Split = lazy(pages.Split);
 const SplitGroup = lazy(pages.SplitGroup);
+const Personality = lazy(() => import("./pages/Personality.jsx"));
 
 // Once someone is signed in and the dashboard has drawn, the other pages are
 // fetched quietly in the background. A tap on the bar then opens a page that is
@@ -54,16 +55,27 @@ function signedOutHome() {
 }
 
 function ProtectedRoute({ children }) {
-  const { token, loading, pinSet } = useAuth();
+  const { token, loading, pinSet, personalityDue } = useAuth();
   const location = useLocation();
 
   if (loading) return <div className="boot-screen" aria-hidden="true" />;
   if (!token) return <Navigate to={signedOutHome()} replace />;
 
+  // Every account does the quiz before anything else. Like the PIN it can be put
+  // off, but only until the next launch, and until then it is not lost: the
+  // answers so far are kept on the device.
+  if (personalityDue && !sessionStorage.getItem("personalityPromptSkipped")) {
+    if (location.pathname !== "/personality") {
+      return <Navigate to="/personality" replace />;
+    }
+    return children;
+  }
+
   // Everyone gets asked to choose a PIN once. "Skip for now" leaves the flag
   // set for this session only, so the prompt returns on the next launch.
+  // The quiz is let through so someone without a PIN can still open it.
   if (!pinSet && !sessionStorage.getItem("pinPromptSkipped")) {
-    if (location.pathname !== "/set-pin") {
+    if (location.pathname !== "/set-pin" && location.pathname !== "/personality") {
       return <Navigate to="/set-pin" replace />;
     }
   }
@@ -86,6 +98,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <SetPin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/personality"
+          element={
+            <ProtectedRoute>
+              <Personality />
             </ProtectedRoute>
           }
         />

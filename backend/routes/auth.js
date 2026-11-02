@@ -100,6 +100,8 @@ function sessionPayload(row) {
     user: publicUser(row),
     isOwner: owner,
     pinSet: Boolean(row.pin_hash),
+    personalityDue: !row.personality_type,
+    personalityType: row.personality_type || null,
     group: { key: group.key, label: group.label },
     isAdmin,
     permissions: permissionsFor(groupKey, isAdmin),
@@ -142,7 +144,7 @@ router.post(
         `INSERT INTO users (name, email, password_hash, is_admin, group_key)
          VALUES ($1, $2, $3, $4 OR NOT EXISTS (SELECT 1 FROM users),
                  CASE WHEN $4 OR NOT EXISTS (SELECT 1 FROM users) THEN $5 ELSE $6 END)
-         RETURNING id, name, email, group_key, is_admin, pin_hash`,
+         RETURNING id, name, email, group_key, is_admin, pin_hash, personality_type`,
         [
           name,
           email,
@@ -230,7 +232,7 @@ router.post(
     const result = await pool.query(
       `UPDATE users u SET ${CLEAR_STRIKES}
         WHERE u.id = $1
-        RETURNING u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash`,
+        RETURNING u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash, u.personality_type`,
       [account.id]
     );
 
@@ -243,7 +245,7 @@ router.get(
   requireAuth,
   route(async (req, res) => {
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash
+      `SELECT u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash, u.personality_type
          FROM users u
         WHERE u.id = $1`,
       [req.userId]
@@ -410,7 +412,7 @@ router.post(
       `UPDATE users u
           SET pin_attempts = 0, pin_locked_until = NULL, pin_lockouts = 0
         WHERE u.id = $1
-        RETURNING u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash`,
+        RETURNING u.id, u.name, u.email, u.group_key, u.is_admin, u.pin_hash, u.personality_type`,
       [account.id]
     );
 

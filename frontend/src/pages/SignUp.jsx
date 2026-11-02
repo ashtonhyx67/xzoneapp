@@ -37,9 +37,12 @@ export default function SignUp() {
         group: data.group,
         isOwner: data.isOwner,
         pinSet: data.pinSet,
+        personalityDue: data.personalityDue,
+        personalityType: data.personalityType,
       });
-      // Straight to choosing a PIN — it is how they will get back in from now on.
-      navigate("/set-pin", { replace: true });
+      // The quiz first, then choosing a PIN, which the route guard asks for once
+      // the quiz is out of the way.
+      navigate("/personality", { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {

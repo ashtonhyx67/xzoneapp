@@ -24,6 +24,8 @@ export default function Login() {
       group: data.group,
       isOwner: data.isOwner,
       pinSet: data.pinSet,
+      personalityDue: data.personalityDue,
+      personalityType: data.personalityType,
     });
     navigate("/dashboard", { replace: true });
   }

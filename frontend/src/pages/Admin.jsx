@@ -7,11 +7,12 @@ import PinSettings from "../components/PinSettings.jsx";
 import AccountsPanel from "../components/AccountsPanel.jsx";
 import AppVersion from "../components/AppVersion.jsx";
 import InstallPrompt from "../components/InstallPrompt.jsx";
+import AnimalDoodle, { ANIMALS } from "../components/AnimalDoodle.jsx";
 
 // Everything about signing in lives here — your own PIN and, for
 // anyone who can manage accounts, everyone else's access.
 export default function Admin() {
-  const { user, can, group, isOwner, signOut } = useAuth();
+  const { user, can, group, isOwner, personalityType, signOut } = useAuth();
   const navigate = useNavigate();
 
   function handleSignOut() {
@@ -51,6 +52,31 @@ export default function Admin() {
         {/* Renders nothing once the app is installed, or where it cannot be —
             so this is only here for whoever said "maybe later". */}
         <InstallPrompt />
+      </section>
+
+      <section className="section">
+        <div className="section-head">
+          <h2 className="section-title">Your personality</h2>
+        </div>
+        {/* How someone who put the quiz off gets to it without waiting for the
+            next launch, and how anyone else sees or retakes theirs. */}
+        <div className="panel personality-panel">
+          {personalityType && <AnimalDoodle type={personalityType} className="doodle-small" />}
+          <div className="account-identity">
+            <div className="account-name">
+              {personalityType ? ANIMALS[personalityType] : "Which animal are you?"}
+            </div>
+            <div className="account-email">
+              {personalityType || "48 quick questions, about 5 minutes"}
+            </div>
+          </div>
+          <button
+            className="btn btn-secondary btn-inline"
+            onClick={() => navigate("/personality", { state: { from: "/admin" } })}
+          >
+            {personalityType ? "See result" : "Take the quiz"}
+          </button>
+        </div>
       </section>
 
       <section className="section">
