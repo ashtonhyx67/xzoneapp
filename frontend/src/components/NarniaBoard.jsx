@@ -4,7 +4,6 @@ import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   assignToTask,
-  formatDay,
   localDay,
   roomOfTask,
   sendToRoom,
@@ -51,7 +50,6 @@ function FullScreenQr({ url, code, onClose }) {
     <div className="narnia-qr-full" role="dialog" aria-modal="true" onClick={onClose}>
       <h2>Scan to check in</h2>
       <QrCode value={url} label="QR code to check in to Narnia BM" className="narnia-qr-big" />
-      <p>Point your phone's camera at the code.</p>
       <p className="narnia-code-text">{code}</p>
       <button type="button" className="btn btn-secondary btn-inline" ref={closeRef}>
         Close
@@ -90,9 +88,6 @@ function CheckInCard({ session, count, onAllowNames }) {
         <div className="narnia-count">
           <span className="narnia-count-number">{count}</span> checked in
         </div>
-        <p className="narnia-hint">
-          Everyone scans this with their phone's camera. Started {formatDay(session.heldOn)}.
-        </p>
         <div className="narnia-form-actions">
           <button type="button" className="btn btn-primary btn-inline" onClick={() => setBig(true)}>
             Show QR big
@@ -269,11 +264,6 @@ export default function NarniaBoard() {
   if (session === null) {
     return (
       <section className="panel narnia-start">
-        <h2 className="narnia-start-title">Ready for today's BM?</h2>
-        <p className="narnia-hint">
-          This makes a QR code. Everyone scans it to check in, then you send them to a room and a
-          task, and their phone shows them what to do and what to use.
-        </p>
         {error && <div className="error-banner">{error}</div>}
         <button
           type="button"
@@ -288,7 +278,6 @@ export default function NarniaBoard() {
   }
 
   const tasks = session.rooms.flatMap((room) => room.tasks);
-  const doneCount = tasks.filter((task) => task.done).length;
   const toPlace = session.people.filter((p) => p.roomId === null && p.taskIds.length === 0);
   const placedNowhereElse = (roomId) =>
     session.people.filter((p) => p.roomId === roomId && p.taskIds.length === 0);
@@ -342,13 +331,7 @@ export default function NarniaBoard() {
           </button>
         </div>
 
-        {toPlace.length === 0 ? (
-          <p className="narnia-empty">
-            {session.people.length === 0
-              ? "Nobody yet. Names appear here as people scan."
-              : "Everyone has somewhere to be."}
-          </p>
-        ) : (
+        {toPlace.length > 0 && (
           <div className="narnia-chips">
             {toPlace.map((person) => {
               const key = `p-${person.id}`;
@@ -436,10 +419,6 @@ export default function NarniaBoard() {
                 </div>
               )}
 
-              {room.tasks.length === 0 && (
-                <p className="narnia-empty">No tasks in this room yet. Add them under The standard.</p>
-              )}
-
               <ul className="narnia-board-tasks">
                 {room.tasks.map((task) => {
                   const onTask = session.people.filter((p) => p.taskIds.includes(task.id));
@@ -469,10 +448,7 @@ export default function NarniaBoard() {
                       </button>
                       <div className="narnia-board-task-body">
                         <div className="narnia-board-task-title">{task.title}</div>
-                        {task.logistics.length > 0 && (
-                          <div className="narnia-board-task-logistics">{task.logistics.join(" · ")}</div>
-                        )}
-                        {onTask.length > 0 ? (
+                        {onTask.length > 0 && (
                           <div className="narnia-chips">
                             {onTask.map((person) => {
                               const key = `t-${task.id}-${person.id}`;
@@ -501,8 +477,6 @@ export default function NarniaBoard() {
                               );
                             })}
                           </div>
-                        ) : (
-                          !task.done && <div className="narnia-board-task-empty">Nobody yet</div>
                         )}
                       </div>
                     </li>
@@ -527,9 +501,6 @@ export default function NarniaBoard() {
       )}
 
       <div className="narnia-board-foot">
-        <span className="narnia-hint">
-          {doneCount}/{tasks.length} tasks done
-        </span>
         <TwoTapButton
           className="btn btn-secondary btn-inline"
           confirmLabel="Tap again to end"

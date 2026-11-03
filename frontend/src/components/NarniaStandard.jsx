@@ -1,14 +1,13 @@
 import React, { useRef, useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import { roomLogistics } from "../lib/narnia.js";
 import { shrinkPhoto } from "../lib/shrinkPhoto.js";
 import NarniaPhotos from "./NarniaPhotos.jsx";
 import TwoTapButton from "./TwoTapButton.jsx";
 
 // Opens the camera or the photo library, whichever the phone offers, and uploads
 // what comes back.
-function AddPhoto({ roomId, taskId = null, onRooms, onError, label = "+ Photo" }) {
+function AddPhoto({ roomId, onRooms, onError }) {
   const { token } = useAuth();
   const input = useRef(null);
   const [busy, setBusy] = useState(false);
@@ -24,7 +23,7 @@ function AddPhoto({ roomId, taskId = null, onRooms, onError, label = "+ Photo" }
       // One at a time, so a bad file in the middle does not lose the ones before it.
       for (const file of files) {
         const image = await shrinkPhoto(file);
-        const { rooms } = await api.narniaAddPhoto(token, roomId, { image, taskId });
+        const { rooms } = await api.narniaAddPhoto(token, roomId, { image });
         onRooms(rooms);
       }
     } catch (err) {
@@ -42,7 +41,7 @@ function AddPhoto({ roomId, taskId = null, onRooms, onError, label = "+ Photo" }
         onClick={() => input.current?.click()}
         disabled={busy}
       >
-        {busy ? "Adding…" : label}
+        {busy ? "Adding…" : "+ Photo"}
       </button>
       <input
         ref={input}
@@ -51,15 +50,59 @@ function AddPhoto({ roomId, taskId = null, onRooms, onError, label = "+ Photo" }
         multiple
         hidden
         onChange={handleFiles}
-        aria-label="Add a photo of the standard"
+        aria-label="Add a photo of the room"
       />
     </>
   );
 }
 
-function TaskForm({ initial, submitLabel, onSubmit, onCancel }) {
+// The room's list: the one place an item is added or taken away.
+function LogisticsEditor({ items, onChange }) {
+  const [value, setValue] = useState("");
+
+  function add(event) {
+    event.preventDefault();
+    if (!value.trim()) return;
+    // The server splits on commas and drops repeats.
+    onChange([...items, value]);
+    setValue("");
+  }
+
+  return (
+    <>
+      <ul className="narnia-logistics">
+        {items.map((item) => (
+          <li className="narnia-logistic-edit" key={item}>
+            {item}
+            <button
+              type="button"
+              aria-label={`Remove ${item}`}
+              onClick={() => onChange(items.filter((other) => other !== item))}
+            >
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+      <form className="narnia-add-person" onSubmit={add}>
+        <input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Add logistics"
+          aria-label="Add logistics"
+          maxLength={200}
+        />
+        <button type="submit" className="btn btn-secondary btn-inline" disabled={!value.trim()}>
+          Add
+        </button>
+      </form>
+    </>
+  );
+}
+
+function TaskForm({ initial, roomLogistics, submitLabel, onSubmit, onCancel }) {
   const [title, setTitle] = useState(initial?.title ?? "");
-  const [logistics, setLogistics] = useState((initial?.logistics ?? []).join(", "));
+  const [picked, setPicked] = useState(initial?.logistics ?? []);
   const [note, setNote] = useState(initial?.note ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -67,19 +110,24 @@ function TaskForm({ initial, submitLabel, onSubmit, onCancel }) {
     event.preventDefault();
     if (!title.trim()) return;
     setSaving(true);
-    const saved = await onSubmit({ title, logistics, note });
+    const saved = await onSubmit({ title, logistics: picked, note });
     setSaving(false);
     if (saved && !initial) {
       setTitle("");
-      setLogistics("");
+      setPicked([]);
       setNote("");
     }
   }
 
+  const toggle = (item) =>
+    setPicked((list) =>
+      list.includes(item) ? list.filter((other) => other !== item) : [...list, item]
+    );
+
   return (
     <form className="narnia-task-form" onSubmit={handleSubmit}>
       <div className="field">
-        <label>What needs doing</label>
+        <label>Task</label>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -88,23 +136,32 @@ function TaskForm({ initial, submitLabel, onSubmit, onCancel }) {
           required
         />
       </div>
+      {roomLogistics.length > 0 && (
+        <div className="field">
+          <label>What to use</label>
+          <div className="narnia-picks">
+            {roomLogistics.map((item) => (
+              <button
+                type="button"
+                key={item}
+                className={`narnia-pick${picked.includes(item) ? " narnia-pick-on" : ""}`}
+                aria-pressed={picked.includes(item)}
+                onClick={() => toggle(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="field">
-        <label>What to use (separate with commas)</label>
-        <input
-          value={logistics}
-          onChange={(e) => setLogistics(e.target.value)}
-          placeholder="Broom, Dustpan"
-        />
-      </div>
-      <div className="field">
-        <label>Any notes (optional)</label>
+        <label>Notes</label>
         <textarea
           className="narnia-textarea"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={2}
           maxLength={500}
-          placeholder="Start from the corner by the door"
         />
       </div>
       <div className="narnia-form-actions">
@@ -121,18 +178,7 @@ function TaskForm({ initial, submitLabel, onSubmit, onCancel }) {
   );
 }
 
-function Logistics({ items }) {
-  if (items.length === 0) return null;
-  return (
-    <ul className="narnia-logistics">
-      {items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ul>
-  );
-}
-
-function TaskRow({ task, roomId, canRun, onRooms, onError, removePhoto }) {
+function TaskRow({ task, roomLogistics, onRooms, onError }) {
   const { token } = useAuth();
   const [editing, setEditing] = useState(false);
 
@@ -159,61 +205,54 @@ function TaskRow({ task, roomId, canRun, onRooms, onError, removePhoto }) {
     }
   }
 
-  return (
-    <li className="narnia-task">
-      {editing ? (
+  if (editing) {
+    return (
+      <li className="narnia-task">
         <TaskForm
           initial={task}
+          roomLogistics={roomLogistics}
           submitLabel="Save"
           onSubmit={save}
           onCancel={() => setEditing(false)}
         />
-      ) : (
-        <>
-          <div className="narnia-task-head">
-            <span className="narnia-task-title">{task.title}</span>
-            {canRun && (
-              <span className="narnia-task-tools">
-                <button type="button" className="link-btn" onClick={() => setEditing(true)}>
-                  Edit
-                </button>
-                <TwoTapButton
-                  className="link-btn link-btn-danger"
-                  confirmLabel="Tap again"
-                  onConfirm={remove}
-                >
-                  Delete
-                </TwoTapButton>
-              </span>
-            )}
-          </div>
-          <Logistics items={task.logistics} />
-          {task.note && <p className="narnia-note">{task.note}</p>}
-          <NarniaPhotos photos={task.photos} onRemove={canRun ? removePhoto : undefined} />
-          {canRun && (
-            <div className="narnia-task-photo-add">
-              <AddPhoto
-                roomId={roomId}
-                taskId={task.id}
-                onRooms={onRooms}
-                onError={onError}
-                label="+ Photo of this done well"
-              />
-            </div>
-          )}
-        </>
+      </li>
+    );
+  }
+
+  return (
+    <li className="narnia-task">
+      <div className="narnia-task-head">
+        <span className="narnia-task-title">{task.title}</span>
+        <span className="narnia-task-tools">
+          <button type="button" className="link-btn" onClick={() => setEditing(true)}>
+            Edit
+          </button>
+          <TwoTapButton
+            className="link-btn link-btn-danger"
+            confirmLabel="Tap again"
+            onConfirm={remove}
+          >
+            Delete
+          </TwoTapButton>
+        </span>
+      </div>
+      {task.logistics.length > 0 && (
+        <ul className="narnia-logistics">
+          {task.logistics.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
       )}
+      {task.note && <p className="narnia-note">{task.note}</p>}
     </li>
   );
 }
 
-function RoomCard({ room, canRun, canDelete, onRooms }) {
+function RoomCard({ room, canDelete, onRooms }) {
   const { token } = useAuth();
   const [name, setName] = useState(room.name);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
-
-  const needed = roomLogistics(room);
 
   async function run(call) {
     setError("");
@@ -233,25 +272,68 @@ function RoomCard({ room, canRun, canDelete, onRooms }) {
     else if (next !== room.name) run(() => api.narniaUpdateRoom(token, room.id, { name: next }));
   }
 
-  const removePhoto = (photo) => run(() => api.narniaDeletePhoto(token, photo.id));
-
   return (
     <section className="panel narnia-room">
-      <div className="narnia-room-head">
-        {canRun ? (
-          <input
-            className="narnia-room-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={saveName}
-            onKeyDown={(e) => e.key === "Enter" && e.target.blur()}
-            aria-label="Room name"
-            maxLength={120}
+      <input
+        className="narnia-room-name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={saveName}
+        onKeyDown={(e) => e.key === "Enter" && e.target.blur()}
+        aria-label="Room name"
+        maxLength={120}
+      />
+
+      {error && <div className="error-banner panel-notice">{error}</div>}
+
+      <NarniaPhotos
+        photos={room.photos}
+        onRemove={(photo) => run(() => api.narniaDeletePhoto(token, photo.id))}
+      />
+      <div className="narnia-add-row">
+        <AddPhoto roomId={room.id} onRooms={onRooms} onError={setError} />
+      </div>
+
+      <h3 className="narnia-subhead">Logistics</h3>
+      <LogisticsEditor
+        items={room.logistics}
+        onChange={(logistics) => run(() => api.narniaUpdateRoom(token, room.id, { logistics }))}
+      />
+
+      <h3 className="narnia-subhead">What to do</h3>
+      <ul className="narnia-task-list">
+        {room.tasks.map((task) => (
+          <TaskRow
+            key={task.id}
+            task={task}
+            roomLogistics={room.logistics}
+            onRooms={onRooms}
+            onError={setError}
           />
-        ) : (
-          <h2 className="narnia-room-name-text">{room.name}</h2>
-        )}
-        {canRun && canDelete && (
+        ))}
+      </ul>
+
+      {adding ? (
+        <TaskForm
+          roomLogistics={room.logistics}
+          submitLabel="Add task"
+          onSubmit={(fields) => run(() => api.narniaAddTask(token, room.id, fields))}
+          onCancel={() => setAdding(false)}
+        />
+      ) : (
+        <div className="narnia-add-row">
+          <button
+            type="button"
+            className="btn btn-secondary btn-inline"
+            onClick={() => setAdding(true)}
+          >
+            + Task
+          </button>
+        </div>
+      )}
+
+      {canDelete && (
+        <div className="narnia-add-row">
           <TwoTapButton
             className="link-btn link-btn-danger"
             confirmLabel="Tap again to delete"
@@ -259,71 +341,14 @@ function RoomCard({ room, canRun, canDelete, onRooms }) {
           >
             Delete room
           </TwoTapButton>
-        )}
-      </div>
-
-      {error && <div className="error-banner panel-notice">{error}</div>}
-
-      <h3 className="narnia-subhead">The excellent standard</h3>
-      {room.photos.length === 0 && (
-        <p className="narnia-empty">
-          {canRun ? "Add photos of this room when it's done well." : "No photos yet."}
-        </p>
-      )}
-      <NarniaPhotos photos={room.photos} onRemove={canRun ? removePhoto : undefined} />
-      {canRun && (
-        <div className="narnia-add-row">
-          <AddPhoto roomId={room.id} onRooms={onRooms} onError={setError} />
         </div>
       )}
-
-      {needed.length > 0 && (
-        <>
-          <h3 className="narnia-subhead">Logistics to gather</h3>
-          <Logistics items={needed} />
-        </>
-      )}
-
-      <h3 className="narnia-subhead">What to do</h3>
-      {room.tasks.length === 0 && <p className="narnia-empty">No tasks yet.</p>}
-      <ul className="narnia-task-list">
-        {room.tasks.map((task) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            roomId={room.id}
-            canRun={canRun}
-            onRooms={onRooms}
-            onError={setError}
-            removePhoto={removePhoto}
-          />
-        ))}
-      </ul>
-
-      {canRun &&
-        (adding ? (
-          <TaskForm
-            submitLabel="Add task"
-            onSubmit={(fields) => run(() => api.narniaAddTask(token, room.id, fields))}
-            onCancel={() => setAdding(false)}
-          />
-        ) : (
-          <div className="narnia-add-row">
-            <button
-              type="button"
-              className="btn btn-secondary btn-inline"
-              onClick={() => setAdding(true)}
-            >
-              + Task
-            </button>
-          </div>
-        ))}
     </section>
   );
 }
 
-// The standard itself: the same page for everyone, and editable by whoever runs BM.
-export default function NarniaStandard({ rooms, canRun, onRooms }) {
+// Editing every room. What members read is pages/Narnia.jsx.
+export default function NarniaStandard({ rooms, onRooms }) {
   const { token } = useAuth();
   const [error, setError] = useState("");
 
@@ -343,21 +368,13 @@ export default function NarniaStandard({ rooms, canRun, onRooms }) {
     <>
       <div className="narnia-rooms">
         {rooms.map((room) => (
-          <RoomCard
-            key={room.id}
-            room={room}
-            canRun={canRun}
-            canDelete={rooms.length > 1}
-            onRooms={onRooms}
-          />
+          <RoomCard key={room.id} room={room} canDelete={rooms.length > 1} onRooms={onRooms} />
         ))}
       </div>
       {error && <div className="error-banner">{error}</div>}
-      {canRun && (
-        <button type="button" className="btn btn-secondary btn-inline narnia-add-room" onClick={addRoom}>
-          + Room
-        </button>
-      )}
+      <button type="button" className="btn btn-secondary btn-inline narnia-add-room" onClick={addRoom}>
+        + Room
+      </button>
     </>
   );
 }

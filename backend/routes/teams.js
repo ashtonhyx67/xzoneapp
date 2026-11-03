@@ -10,7 +10,7 @@ const router = express.Router();
 // teams takes effect on their next request instead of their next sign-in.
 router.get("/", requireAuth, async (req, res, next) => {
   try {
-    const access = await loadAccess(req.userId);
+    const access = await loadAccess(req.userId, req);
     if (!access) return res.status(401).json({ error: "Not signed in." });
 
     res.json({

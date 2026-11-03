@@ -6,7 +6,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { api } from "../api.js";
+import { api, isViewingAsMember, setViewingAsMember } from "../api.js";
 import {
   getDeviceAccount,
   rememberDeviceAccount,
@@ -41,6 +41,7 @@ export function AuthProvider({ children }) {
   const [personalityDue, setPersonalityDue] = useState(false);
   const [personalityType, setPersonalityType] = useState(null);
   const [loading, setLoading] = useState(() => Boolean(readToken()));
+  const [viewingAsMember, setViewing] = useState(isViewingAsMember);
 
   const signOut = useCallback(() => {
     try {
@@ -48,6 +49,8 @@ export function AuthProvider({ children }) {
     } catch {
       /* nothing to clear */
     }
+    setViewingAsMember(false);
+    setViewing(false);
     setToken(null);
     setUser(null);
     setPermissions([]);
@@ -57,6 +60,25 @@ export function AuthProvider({ children }) {
     setPersonalityDue(false);
     setPersonalityType(null);
   }, []);
+
+  // Asks the server what this account may do under the preview, or out of it, so
+  // the menus and the data change together. Put back if the server cannot say.
+  const setViewAsMember = useCallback(
+    async (on) => {
+      setViewingAsMember(on);
+      try {
+        const data = await api.me(token);
+        setPermissions(data.permissions || []);
+        setGroup(data.group || null);
+        setIsOwner(Boolean(data.isOwner));
+        setViewing(on);
+      } catch (err) {
+        setViewingAsMember(!on);
+        throw err;
+      }
+    },
+    [token]
+  );
 
   // Finishing the quiz is what stops it being asked for.
   const setPersonality = useCallback((type) => {
@@ -125,6 +147,8 @@ export function AuthProvider({ children }) {
       // Storage is unavailable (private mode); the session still works until
       // the page is reloaded.
     }
+    setViewingAsMember(false);
+    setViewing(false);
     setToken(newToken);
     setUser(newUser);
     setPermissions(options.permissions || []);
@@ -160,6 +184,8 @@ export function AuthProvider({ children }) {
       personalityDue,
       personalityType,
       setPersonality,
+      viewingAsMember,
+      setViewAsMember,
       loading,
       signIn,
       signOut,
@@ -177,6 +203,8 @@ export function AuthProvider({ children }) {
       personalityDue,
       personalityType,
       setPersonality,
+      viewingAsMember,
+      setViewAsMember,
       loading,
       signIn,
       signOut,

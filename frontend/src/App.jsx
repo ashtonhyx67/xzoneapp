@@ -21,6 +21,11 @@ const pages = {
   Split: () => import("./pages/Split.jsx"),
   SplitGroup: () => import("./pages/SplitGroup.jsx"),
   Narnia: () => import("./pages/Narnia.jsx"),
+  NarniaRun: () => import("./pages/NarniaRun.jsx"),
+  NarniaRooms: () => import("./pages/NarniaRooms.jsx"),
+  NarniaHistory: () => import("./pages/NarniaHistory.jsx"),
+  AdminAccount: () => import("./pages/AdminAccount.jsx"),
+  AdminAccounts: () => import("./pages/AdminAccounts.jsx"),
 };
 
 const Members = lazy(pages.Members);
@@ -31,6 +36,11 @@ const Admin = lazy(pages.Admin);
 const Split = lazy(pages.Split);
 const SplitGroup = lazy(pages.SplitGroup);
 const Narnia = lazy(pages.Narnia);
+const NarniaRun = lazy(pages.NarniaRun);
+const NarniaRooms = lazy(pages.NarniaRooms);
+const NarniaHistory = lazy(pages.NarniaHistory);
+const AdminAccount = lazy(pages.AdminAccount);
+const AdminAccounts = lazy(pages.AdminAccounts);
 const NarniaCheckIn = lazy(() => import("./pages/NarniaCheckIn.jsx"));
 const Personality = lazy(() => import("./pages/Personality.jsx"));
 
@@ -138,6 +148,11 @@ export default function App() {
           <Route path="/narnia" element={<Narnia />} />
           <Route path="/database" element={<Database />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/account" element={<AdminAccount />} />
+          <Route path="/admin/accounts" element={<AdminAccounts />} />
+          <Route path="/admin/narnia" element={<NarniaRun />} />
+          <Route path="/admin/narnia/rooms" element={<NarniaRooms />} />
+          <Route path="/admin/narnia/history" element={<NarniaHistory />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

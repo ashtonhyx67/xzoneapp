@@ -116,15 +116,18 @@ default, so it works on real devices once deployed.
   the scorecard, the database grid and the accounts list; every sitting's answers
   are kept in `personality_results`. `npm test --prefix backend` checks the
   scoring and that the questions stay balanced.
-- Narnia BM at `/narnia`, for cleaning the two big rooms together. The standard
-  is permanent: each room's tasks, the logistics each task uses, and reference
-  photos of it done well. A leader starts a session, which makes a QR code; people
+- An Admin dashboard at `/admin`: a grid of tiles for everything in the app, each
+  account seeing only what it can open. Leaders can also preview the whole app as a
+  member from there (`X-View-As`, which only ever takes access away).
+- Narnia BM, for cleaning the two big rooms together. `/narnia` is what everyone
+  reads: each room's photos, logistics and tasks. Editing and running it is under
+  `/admin/narnia`. A room keeps one logistics list and each task picks from it.
+  A leader starts a session, which makes a QR code; people
   scan it with the phone's own camera and land on `/narnia/in/<code>`. That offers
   signing in first (an account already signed in is checked in without asking), and
   typing a name for as long as the leader leaves that switched on. The leader sends
   each person to a room and tasks by tapping or dragging, or with "Share out evenly",
-  and their phone updates itself to show what to do, what to use and what excellent
-  looks like. Who came and who didn't is under History, for leaders only, and is
+  and their phone updates itself to show what to do and what to use. Who came and who didn't is under History, for leaders only, and is
   not part of the weekly registers.
   Leaders and admins run it (`RUN_NARNIA` in `backend/lib/groups.js`). The reasoning
   is in `backend/lib/narnia.js`, the routes in `backend/routes/narnia.js`.

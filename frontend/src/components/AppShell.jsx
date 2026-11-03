@@ -75,12 +75,61 @@ const ICONS = {
       <circle cx="17" cy="17.5" r="2" />
     </>
   ),
+  // The rest are only on the Admin dashboard.
+  qr: (
+    <>
+      <rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1.2" />
+      <rect x="14" y="3.5" width="6.5" height="6.5" rx="1.2" />
+      <rect x="3.5" y="14" width="6.5" height="6.5" rx="1.2" />
+      <path d="M14 14h2.5v2.5H14zM20.5 14v2.5M14 20.5h2.5M19 20.5h1.5V19" />
+    </>
+  ),
+  rooms: (
+    <>
+      <path d="M6 21V4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21" />
+      <path d="M3.5 21h17" />
+      <circle cx="14.5" cy="12.5" r="0.9" />
+    </>
+  ),
+  history: (
+    <>
+      <path d="M4 12a8 8 0 1 0 2.6-5.9" />
+      <path d="M4 4.5v4h4" />
+      <path d="M12 8v4.5l3 1.8" />
+    </>
+  ),
+  accounts: (
+    <>
+      <circle cx="9" cy="8" r="3.4" />
+      <path d="M2.8 20a6.2 6.2 0 0 1 12.4 0" />
+      <path d="M18.5 7.5v6M15.5 10.5h6" />
+    </>
+  ),
+  me: (
+    <>
+      <circle cx="12" cy="8" r="3.8" />
+      <path d="M4.5 20.5a7.5 7.5 0 0 1 15 0" />
+    </>
+  ),
+  personality: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M8.5 14a4 4 0 0 0 7 0" />
+      <path d="M9 9.5v.5M15 9.5v.5" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="2.8" />
+    </>
+  ),
 };
 
-function NavIcon({ name }) {
+export function NavIcon({ name, className = "nav-icon" }) {
   return (
     <svg
-      className="nav-icon"
+      className={className}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -95,8 +144,17 @@ function NavIcon({ name }) {
 }
 
 function Frame({ children }) {
-  const { user, can, group, isOwner, signOut } = useAuth();
+  const { user, can, group, isOwner, signOut, viewingAsMember, setViewAsMember } = useAuth();
   const navigate = useNavigate();
+
+  async function exitMemberView() {
+    try {
+      await setViewAsMember(false);
+      navigate("/admin");
+    } catch {
+      /* still in the preview, and the bar is still there to try again */
+    }
+  }
 
   function handleSignOut() {
     signOut();
@@ -126,7 +184,7 @@ function Frame({ children }) {
   );
 
   return (
-    <div className="dashboard-shell">
+    <div className={`dashboard-shell${viewingAsMember ? " dashboard-shell-previewing" : ""}`}>
       <aside className="sidebar">
         <div className="sidebar-wordmark">
           <BrandMark />
@@ -146,7 +204,7 @@ function Frame({ children }) {
           {can(PERMISSIONS.USE_EXPENSES) && link("/split", "split", "Split")}
           {can(PERMISSIONS.EDIT_DATABASE) && link("/database", "database", "Database")}
           {/* Everyone needs somewhere to set a PIN and sign out, so Admin is
-              always reachable; what it contains is gated inside it. */}
+              always reachable; each account sees only the tiles it can open. */}
           {link("/admin", "admin", "Admin")}
         </nav>
 
@@ -170,6 +228,17 @@ function Frame({ children }) {
       </aside>
 
       <main className="main-content">{children}</main>
+
+      {/* Always on screen during a preview, so nobody forgets they are in one. */}
+      {viewingAsMember && (
+        <div className="member-view-bar" role="status">
+          <NavIcon name="eye" className="member-view-icon" />
+          <span>Member view</span>
+          <button type="button" onClick={exitMemberView}>
+            Exit
+          </button>
+        </div>
+      )}
 
       {/* Sits above everything, on every signed-in page, because a stale app is
           stale wherever you happen to be standing in it. */}

@@ -3,7 +3,7 @@ const { Pool, types } = require("pg");
 const { OWNER_EMAIL } = require("./lib/owner");
 const { DEFAULT_GROUP } = require("./lib/groups");
 const { DEFAULT_TEAM } = require("./lib/teams");
-const { STARTER_ROOMS } = require("./lib/narnia");
+const { STARTER_ROOMS, cleanLogistics } = require("./lib/narnia");
 
 // A DATE has no time and no timezone, but node-pg turns it into a local-midnight
 // JS Date, which JSON.stringify then shifts to UTC — sending every birthday a
@@ -798,7 +798,6 @@ async function initSchema() {
     CREATE TABLE IF NOT EXISTS narnia_photos (
       id TEXT PRIMARY KEY,
       room_id INTEGER NOT NULL REFERENCES narnia_rooms(id) ON DELETE CASCADE,
-      task_id INTEGER REFERENCES narnia_tasks(id) ON DELETE CASCADE,
       caption TEXT NOT NULL DEFAULT '',
       mime TEXT NOT NULL,
       data BYTEA NOT NULL,
@@ -809,14 +808,48 @@ async function initSchema() {
   await pool.query(`CREATE INDEX IF NOT EXISTS narnia_tasks_room_idx ON narnia_tasks (room_id);`);
   await pool.query(`CREATE INDEX IF NOT EXISTS narnia_photos_room_idx ON narnia_photos (room_id);`);
 
+  // A photo used to be able to belong to one task. Only the room has a standard
+  // now, so any such photo becomes the room's, where it can be kept or removed.
+  await pool.query(`ALTER TABLE narnia_photos DROP COLUMN IF EXISTS task_id;`);
+
+  // A room keeps its own logistics list, and each task picks from it. That list
+  // used to be worked out from the tasks, so the first boot with this column fills
+  // it the same way. Only that once: an emptied list must stay empty.
+  const roomLogisticsExist = await pool.query(`
+    SELECT 1 FROM information_schema.columns
+     WHERE table_name = 'narnia_rooms' AND column_name = 'logistics'
+  `);
+  if (!roomLogisticsExist.rows[0]) {
+    await pool.query(`
+      ALTER TABLE narnia_rooms ADD COLUMN logistics JSONB NOT NULL DEFAULT '[]';
+    `);
+    const tasks = await pool.query(
+      "SELECT room_id, logistics FROM narnia_tasks ORDER BY position, id"
+    );
+    const byRoom = new Map();
+    for (const task of tasks.rows) {
+      byRoom.set(task.room_id, [...(byRoom.get(task.room_id) ?? []), ...task.logistics]);
+    }
+    for (const [roomId, items] of byRoom) {
+      await pool.query("UPDATE narnia_rooms SET logistics = $1 WHERE id = $2", [
+        JSON.stringify(cleanLogistics(items)),
+        roomId,
+      ]);
+    }
+  }
+
   // A brand new installation opens on something to edit rather than a blank page.
   // The app will not delete the last room, so this can never run a second time.
   const narniaRooms = await pool.query("SELECT 1 FROM narnia_rooms LIMIT 1");
   if (!narniaRooms.rows[0]) {
     for (const [roomIndex, room] of STARTER_ROOMS.entries()) {
       const created = await pool.query(
-        "INSERT INTO narnia_rooms (name, position) VALUES ($1, $2) RETURNING id",
-        [room.name, roomIndex]
+        "INSERT INTO narnia_rooms (name, position, logistics) VALUES ($1, $2, $3) RETURNING id",
+        [
+          room.name,
+          roomIndex,
+          JSON.stringify(cleanLogistics(room.tasks.flatMap((task) => task.logistics))),
+        ]
       );
       for (const [taskIndex, task] of room.tasks.entries()) {
         await pool.query(

@@ -5,6 +5,7 @@ const {
   STARTER_ROOMS,
   newCode,
   cleanLogistics,
+  pickLogistics,
   cleanNote,
   cleanText,
   decodePhoto,
@@ -46,7 +47,16 @@ test("logistics split on commas and lines, and repeats collapse", () => {
     "Floor cleaner",
   ]);
   assert.deepEqual(cleanLogistics(["Broom", " ", "broom"]), ["Broom"]);
+  // Adding "Bin bag, Gloves" to a list that already has things on it.
+  assert.deepEqual(cleanLogistics(["Mop", "Bin bag, Gloves"]), ["Mop", "Bin bag", "Gloves"]);
   assert.deepEqual(cleanLogistics(undefined), []);
+});
+
+test("a task can only use what is on its room's list, spelled the room's way", () => {
+  const room = ["Mop", "Bucket", "Floor cleaner"];
+  assert.deepEqual(pickLogistics(room, ["bucket", "MOP", "Ladder"]), ["Mop", "Bucket"]);
+  assert.deepEqual(pickLogistics(room, []), []);
+  assert.deepEqual(pickLogistics([], ["Mop"]), []);
 });
 
 test("text is tidied and capped", () => {

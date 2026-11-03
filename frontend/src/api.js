@@ -1,11 +1,33 @@
 const BASE = "/api";
 
+// A leader previewing the app as a member. Kept for this launch only, and sent with
+// every request so the server answers exactly as it would for a member.
+const VIEW_AS_KEY = "viewAsMember";
+
+export function isViewingAsMember() {
+  try {
+    return sessionStorage.getItem(VIEW_AS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setViewingAsMember(on) {
+  try {
+    if (on) sessionStorage.setItem(VIEW_AS_KEY, "1");
+    else sessionStorage.removeItem(VIEW_AS_KEY);
+  } catch {
+    /* storage unavailable; the preview simply does not start */
+  }
+}
+
 async function request(path, { method = "GET", body, token, signal, headers } = {}) {
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(isViewingAsMember() ? { "X-View-As": "member" } : {}),
       ...headers,
     },
     body: body ? JSON.stringify(body) : undefined,

@@ -41,10 +41,16 @@ function optionalAuth(req, res, next) {
   next();
 }
 
+// A leader previewing the app the way a member sees it. Only ever takes access
+// away, so it needs no check of its own: anyone may hold less than they are given.
+function viewingAsMember(req) {
+  return req?.get?.("X-View-As") === "member";
+}
+
 // Access is read from the database on every request, never from the token, so
 // moving someone between groups takes effect immediately rather than whenever
-// their token happens to expire.
-async function loadAccess(userId) {
+// their token happens to expire. Pass the request so a preview is honoured.
+async function loadAccess(userId, req) {
   const result = await pool.query(
     "SELECT id, name, email, group_key, is_admin, person_id FROM users WHERE id = $1",
     [userId]
@@ -53,9 +59,14 @@ async function loadAccess(userId) {
   if (!row) return null;
 
   // The owner's group comes from their email, so it survives any edit.
-  const groupKey = isOwnerEmail(row.email) ? "owner" : row.group_key || DEFAULT_GROUP;
+  const asMember = viewingAsMember(req);
+  const groupKey = asMember
+    ? "member"
+    : isOwnerEmail(row.email)
+      ? "owner"
+      : row.group_key || DEFAULT_GROUP;
   // The owner is always an admin; for everyone else it is the flag on the row.
-  const isAdmin = isOwnerEmail(row.email) || row.is_admin === true;
+  const isAdmin = !asMember && (isOwnerEmail(row.email) || row.is_admin === true);
 
   const assigned = await pool.query(
     "SELECT team FROM user_teams WHERE user_id = $1 ORDER BY team",
@@ -68,7 +79,7 @@ async function loadAccess(userId) {
     group: getGroup(groupKey),
     permissions: permissionsFor(groupKey, isAdmin),
     isAdmin,
-    isOwner: isOwnerEmail(row.email),
+    isOwner: !asMember && isOwnerEmail(row.email),
     // Which person in the directory this account *is*. Shared expenses are
     // split between people, not accounts, so this is how "you" is found among
     // the members of a group. Null until the names match or one is chosen.
@@ -88,7 +99,7 @@ async function loadAccess(userId) {
 function requirePermission(permission) {
   return async function check(req, res, next) {
     try {
-      const access = await loadAccess(req.userId);
+      const access = await loadAccess(req.userId, req);
       if (!access) return res.status(401).json({ error: "Not signed in." });
       if (!access.permissions.includes(permission)) {
         return res.status(403).json({ error: "You do not have access to this." });
@@ -101,4 +112,4 @@ function requirePermission(permission) {
   };
 }
 
-module.exports = { requireAuth, optionalAuth, loadAccess, requirePermission };
+module.exports = { requireAuth, optionalAuth, viewingAsMember, loadAccess, requirePermission };

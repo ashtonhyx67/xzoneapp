@@ -1,92 +1,121 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
-import AppShell from "../components/AppShell.jsx";
-import PinSettings from "../components/PinSettings.jsx";
-import AccountsPanel from "../components/AccountsPanel.jsx";
-import AppVersion from "../components/AppVersion.jsx";
-import InstallPrompt from "../components/InstallPrompt.jsx";
-import AnimalDoodle, { ANIMALS } from "../components/AnimalDoodle.jsx";
+import AppShell, { NavIcon } from "../components/AppShell.jsx";
 
-// Everything about signing in lives here — your own PIN and, for
-// anyone who can manage accounts, everyone else's access.
+function Tile({ tile }) {
+  const inner = (
+    <>
+      <NavIcon name={tile.icon} className="admin-tile-icon" />
+      <span className="admin-tile-label">{tile.label}</span>
+    </>
+  );
+
+  return tile.onClick ? (
+    <button type="button" className="admin-tile" onClick={tile.onClick}>
+      {inner}
+    </button>
+  ) : (
+    <Link className="admin-tile" to={tile.to} state={tile.state}>
+      {inner}
+    </Link>
+  );
+}
+
+// Everything in the app, one tap away. Each account only sees what it can open, so
+// a section with nothing in it is left out altogether.
 export default function Admin() {
-  const { user, can, group, isOwner, personalityType, signOut } = useAuth();
+  const { can, setViewAsMember } = useAuth();
   const navigate = useNavigate();
+  const [error, setError] = useState("");
 
-  function handleSignOut() {
-    signOut();
-    navigate("/login");
+  async function viewAsMember() {
+    setError("");
+    try {
+      await setViewAsMember(true);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err.message);
+    }
   }
+
+  const canRun = can(PERMISSIONS.RUN_NARNIA);
+
+  const sections = [
+    {
+      title: "Narnia BM",
+      tiles: [
+        { to: "/narnia", icon: "narnia", label: "Narnia BM" },
+        canRun && { to: "/admin/narnia", icon: "qr", label: "Run a BM" },
+        canRun && { to: "/admin/narnia/rooms", icon: "rooms", label: "Rooms & Tasks" },
+        canRun && { to: "/admin/narnia/history", icon: "history", label: "History" },
+      ],
+    },
+    {
+      title: "People",
+      tiles: [
+        can(PERMISSIONS.VIEW_DIRECTORY) && { to: "/members", icon: "members", label: "Members" },
+        can(PERMISSIONS.EDIT_DATABASE) && { to: "/database", icon: "database", label: "Database" },
+        can(PERMISSIONS.MANAGE_ACCOUNTS) && {
+          to: "/admin/accounts",
+          icon: "accounts",
+          label: "Accounts",
+        },
+      ],
+    },
+    {
+      title: "Every Week",
+      tiles: [
+        { to: "/dashboard", icon: "home", label: "Dashboard" },
+        can(PERMISSIONS.VIEW_DIRECTORY) && {
+          to: "/attendance",
+          icon: "attendance",
+          label: "Attendance",
+        },
+        can(PERMISSIONS.VIEW_SEATING) && { to: "/seating", icon: "seating", label: "Seating" },
+        can(PERMISSIONS.USE_EXPENSES) && { to: "/split", icon: "split", label: "Split" },
+      ],
+    },
+    {
+      title: "Me",
+      tiles: [
+        { to: "/admin/account", icon: "me", label: "My Account" },
+        {
+          to: "/personality",
+          state: { from: "/admin" },
+          icon: "personality",
+          label: "My Animal",
+        },
+        canRun && { onClick: viewAsMember, icon: "eye", label: "Member View" },
+      ],
+    },
+  ];
 
   return (
     <AppShell>
       <header className="page-head">
-        <h1 className="page-title">Admin</h1>
-        <span className={`group-pill${isOwner ? " group-pill-owner" : ""}`}>
-          {isOwner ? "Owner" : group?.label || "No access"}
-        </span>
+        <h1 className="page-title admin-title">Admin</h1>
       </header>
 
-      <section className="section">
-        <div className="section-head">
-          <h2 className="section-title">Your sign-in</h2>
-        </div>
+      {error && <div className="error-banner">{error}</div>}
 
-        {/* Who is signed in, and the way out. The sidebar carried both, but on a
-            phone the sidebar is a bar of icons with no room for them, so they
-            live here — where everything else about signing in already is. */}
-        <div className="panel account-panel">
-          <div className="account-identity">
-            <div className="account-name">{user?.name}</div>
-            <div className="account-email">{user?.email}</div>
-          </div>
-          <button className="btn btn-secondary btn-inline" onClick={handleSignOut}>
-            Sign out
-          </button>
-        </div>
-
-        <PinSettings />
-
-        {/* Renders nothing once the app is installed, or where it cannot be —
-            so this is only here for whoever said "maybe later". */}
-        <InstallPrompt />
-      </section>
-
-      <section className="section">
-        <div className="section-head">
-          <h2 className="section-title">Your personality</h2>
-        </div>
-        {/* How someone who put the quiz off gets to it without waiting for the
-            next launch, and how anyone else sees or retakes theirs. */}
-        <div className="panel personality-panel">
-          {personalityType && <AnimalDoodle type={personalityType} className="doodle-small" />}
-          <div className="account-identity">
-            <div className="account-name">
-              {personalityType ? ANIMALS[personalityType] : "Which animal are you?"}
-            </div>
-            <div className="account-email">
-              {personalityType || "12 quick questions, about a minute"}
-            </div>
-          </div>
-          <button
-            className="btn btn-secondary btn-inline"
-            onClick={() => navigate("/personality", { state: { from: "/admin" } })}
-          >
-            {personalityType ? "See result" : "Take the quiz"}
-          </button>
-        </div>
-      </section>
-
-      <section className="section">
-        <div className="section-head">
-          <h2 className="section-title">Version</h2>
-        </div>
-        <AppVersion />
-      </section>
-
-      {can(PERMISSIONS.MANAGE_ACCOUNTS) && <AccountsPanel />}
+      <div className="admin-sections">
+        {sections.map((section) => {
+          const tiles = section.tiles.filter(Boolean);
+          if (tiles.length === 0) return null;
+          return (
+            <section className="admin-card" key={section.title}>
+              <h2 className="admin-card-title">{section.title}</h2>
+              <div className="admin-grid">
+                {tiles.map((tile) => (
+                  <Tile key={tile.label} tile={tile} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
     </AppShell>
   );
 }

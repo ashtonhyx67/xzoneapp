@@ -1,7 +1,7 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const { pool } = require("../db");
-const { requireAuth } = require("../middleware/auth");
+const { requireAuth, viewingAsMember } = require("../middleware/auth");
 const { isOwnerEmail } = require("../lib/owner");
 const { getGroup, permissionsFor, DEFAULT_GROUP } = require("../lib/groups");
 const { normalizeEmail, isValidEmail, EMAIL_ERROR } = require("../lib/email");
@@ -256,6 +256,16 @@ router.get(
     // The caller already holds a valid token; re-issuing one here would be
     // noise, so send everything except that.
     const { token, ...session } = sessionPayload(row);
+    if (viewingAsMember(req)) {
+      const member = getGroup("member");
+      return res.json({
+        ...session,
+        isOwner: false,
+        isAdmin: false,
+        group: { key: member.key, label: member.label },
+        permissions: permissionsFor(member.key, false),
+      });
+    }
     res.json(session);
   })
 );

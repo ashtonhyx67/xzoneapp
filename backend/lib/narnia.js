@@ -73,10 +73,13 @@ function cleanNote(value) {
     .slice(0, MAX_NOTE);
 }
 
-// Typed as "Mop, Bucket, Floor cleaner", or sent as a list. Repeats collapse, so
-// the same thing added twice is not listed twice on someone's phone.
+// Typed as "Mop, Bucket, Floor cleaner", or sent as a list that may have such a line
+// in it. Repeats collapse, so the same thing added twice is not listed twice on
+// someone's phone.
 function cleanLogistics(raw) {
-  const parts = Array.isArray(raw) ? raw : String(raw ?? "").split(/[,\n]/);
+  const parts = (Array.isArray(raw) ? raw : [raw]).flatMap((part) =>
+    String(part ?? "").split(/[,\n]/)
+  );
   const seen = new Set();
   const items = [];
   for (const part of parts) {
@@ -88,6 +91,13 @@ function cleanLogistics(raw) {
     if (items.length === MAX_LOGISTICS) break;
   }
   return items;
+}
+
+// A task uses things from its room's list, and only those: the room's list is the
+// one place an item is added, spelled or removed.
+function pickLogistics(roomItems, picks) {
+  const wanted = new Set(cleanLogistics(picks).map((item) => item.toLowerCase()));
+  return roomItems.filter((item) => wanted.has(item.toLowerCase()));
 }
 
 // The bytes decide the type, not what the upload claimed. These are served back
@@ -217,6 +227,7 @@ module.exports = {
   cleanText,
   cleanNote,
   cleanLogistics,
+  pickLogistics,
   imageType,
   decodePhoto,
   shareOut,

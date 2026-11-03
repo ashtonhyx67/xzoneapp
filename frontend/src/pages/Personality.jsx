@@ -327,7 +327,6 @@ export default function Personality() {
     return (
       <div className="quiz-shell quiz-shell-center">
         <span className="spinner spinner-dark" />
-        {phase === "saving" && <p className="quiz-saving">Working out your animal…</p>}
       </div>
     );
   }
@@ -365,14 +364,7 @@ export default function Personality() {
     return (
       <div className="quiz-shell quiz-shell-center">
         <div className="quiz-intro">
-          <div className="quiz-eyebrow">Getting to know you</div>
           <h1 className="quiz-intro-title">Which animal are you?</h1>
-          <p>
-            {questions.length} quick questions, about a minute. Just tap the answer that sounds most
-            like you. There are no wrong answers. We're all made differently, and that's what makes
-            a family.
-          </p>
-
           <button type="button" className="btn btn-primary" onClick={begin}>
             {hasDraft ? "Pick up where you left off" : "Start"}
           </button>
@@ -381,11 +373,6 @@ export default function Personality() {
               Start again
             </button>
           )}
-
-          <p className="quiz-intro-note">
-            Your result is saved to your profile, and leaders and admins can see it. It's a fun way
-            to start a conversation, not a verdict on who you are.
-          </p>
 
           <button type="button" className="link-btn quiz-later" onClick={later}>
             {personalityDue ? "Skip for now" : "Not now"}

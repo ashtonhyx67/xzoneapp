@@ -62,15 +62,3 @@ export function formatDay(value) {
   const [year, month, day] = String(value).split("-");
   return `${Number(day)} ${MONTHS[Number(month) - 1]} ${year}`;
 }
-
-// Everything a room's tasks use, once each, for the list to gather before starting.
-export function roomLogistics(room) {
-  const seen = new Map();
-  for (const task of room.tasks) {
-    for (const item of task.logistics) {
-      const key = item.toLowerCase();
-      if (!seen.has(key)) seen.set(key, item);
-    }
-  }
-  return [...seen.values()];
-}

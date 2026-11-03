@@ -56,7 +56,7 @@ router.get(
   "/summary",
   requireAuth,
   route(async (req, res) => {
-    const access = await loadAccess(req.userId);
+    const access = await loadAccess(req.userId, req);
 
     // The reminders are built from personal records, so they follow the same
     // permission as the directory itself.

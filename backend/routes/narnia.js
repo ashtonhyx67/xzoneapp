@@ -22,6 +22,7 @@ const {
   cleanText,
   cleanNote,
   cleanLogistics,
+  pickLogistics,
   decodePhoto,
   shareOut,
 } = require("../lib/narnia");
@@ -70,37 +71,34 @@ const photoUrl = (id) => `/api/narnia/photos/${id}`;
 // here; a phone asks for each photo by its address when it draws it.
 async function readStandard() {
   const [rooms, tasks, photos] = await Promise.all([
-    pool.query("SELECT id, name FROM narnia_rooms ORDER BY position, id"),
+    pool.query("SELECT id, name, logistics FROM narnia_rooms ORDER BY position, id"),
     pool.query(
       "SELECT id, room_id, title, note, logistics FROM narnia_tasks ORDER BY position, id"
     ),
-    pool.query(
-      "SELECT id, room_id, task_id, caption FROM narnia_photos ORDER BY created_at, id"
-    ),
+    pool.query("SELECT id, room_id, caption FROM narnia_photos ORDER BY created_at, id"),
   ]);
 
   const byRoom = new Map(
-    rooms.rows.map((room) => [room.id, { id: room.id, name: room.name, tasks: [], photos: [] }])
+    rooms.rows.map((room) => [
+      room.id,
+      { id: room.id, name: room.name, logistics: room.logistics, tasks: [], photos: [] },
+    ])
   );
-  const byTask = new Map();
 
   for (const task of tasks.rows) {
-    const shaped = {
+    byRoom.get(task.room_id)?.tasks.push({
       id: task.id,
       roomId: task.room_id,
       title: task.title,
       note: task.note,
       logistics: task.logistics,
-      photos: [],
-    };
-    byTask.set(task.id, shaped);
-    byRoom.get(task.room_id)?.tasks.push(shaped);
+    });
   }
 
   for (const photo of photos.rows) {
-    const shaped = { id: photo.id, caption: photo.caption, url: photoUrl(photo.id) };
-    if (photo.task_id !== null) byTask.get(photo.task_id)?.photos.push(shaped);
-    else byRoom.get(photo.room_id)?.photos.push(shaped);
+    byRoom
+      .get(photo.room_id)
+      ?.photos.push({ id: photo.id, caption: photo.caption, url: photoUrl(photo.id) });
   }
 
   return [...byRoom.values()];
@@ -243,9 +241,8 @@ async function readBoard(session) {
   };
 }
 
-// The person on the phone: their room, their tasks, what to use for each, and
-// what excellent looks like. This is the whole of what someone who only scanned
-// a code can read.
+// The person on the phone: their room and its photos, their tasks, and what to use
+// for each. This is the whole of what someone who only scanned a code can read.
 async function readJob(session, checkin) {
   const base = {
     session: {
@@ -508,7 +505,7 @@ router.get(
   "/",
   requireAuth,
   route(async (req, res) => {
-    const access = await loadAccess(req.userId);
+    const access = await loadAccess(req.userId, req);
     if (!access) return res.status(401).json({ error: "Not signed in." });
 
     const [rooms, open] = await Promise.all([
@@ -564,18 +561,44 @@ router.post(
   })
 );
 
+// Either or both of the room's name and its logistics list. Taking something off
+// the list takes it off every task in the room, which is what keeps the list the
+// one place an item lives.
 router.patch(
   "/rooms/:id",
   ...canRun,
   route(async (req, res) => {
     const id = toId(req.params.id);
-    const name = cleanText(req.body?.name, MAX_TITLE);
-    if (!name) return res.status(400).json({ error: "A room needs a name." });
+    const found = id ? await pool.query("SELECT id FROM narnia_rooms WHERE id = $1", [id]) : null;
+    if (!found?.rows[0]) return res.status(404).json({ error: "That room is gone." });
 
-    const updated = id
-      ? await pool.query("UPDATE narnia_rooms SET name = $1 WHERE id = $2", [name, id])
-      : { rowCount: 0 };
-    if (updated.rowCount === 0) return res.status(404).json({ error: "That room is gone." });
+    const body = req.body ?? {};
+    const name = body.name === undefined ? null : cleanText(body.name, MAX_TITLE);
+    if (name === "") return res.status(400).json({ error: "A room needs a name." });
+    const logistics = body.logistics === undefined ? null : cleanLogistics(body.logistics);
+
+    await withTransaction(async (client) => {
+      if (name !== null) {
+        await client.query("UPDATE narnia_rooms SET name = $1 WHERE id = $2", [name, id]);
+      }
+      if (logistics !== null) {
+        await client.query("UPDATE narnia_rooms SET logistics = $1 WHERE id = $2", [
+          JSON.stringify(logistics),
+          id,
+        ]);
+        const tasks = await client.query(
+          "SELECT id, logistics FROM narnia_tasks WHERE room_id = $1",
+          [id]
+        );
+        for (const task of tasks.rows) {
+          await client.query("UPDATE narnia_tasks SET logistics = $1 WHERE id = $2", [
+            JSON.stringify(pickLogistics(logistics, task.logistics)),
+            task.id,
+          ]);
+        }
+      }
+    });
+
     await sendStandard(res);
   })
 );
@@ -597,11 +620,11 @@ router.delete(
   })
 );
 
-function taskFields(body) {
+function taskFields(body, roomLogistics) {
   return {
     title: cleanText(body?.title, MAX_TITLE),
     note: cleanNote(body?.note),
-    logistics: cleanLogistics(body?.logistics),
+    logistics: pickLogistics(roomLogistics, body?.logistics),
   };
 }
 
@@ -610,17 +633,18 @@ router.post(
   ...canRun,
   route(async (req, res) => {
     const roomId = toId(req.params.id);
-    const { title, note, logistics } = taskFields(req.body);
-    if (!title) return res.status(400).json({ error: "A task needs a name." });
-
     const room = roomId
       ? await pool.query(
-          `SELECT r.id, (SELECT count(*)::int FROM narnia_tasks t WHERE t.room_id = r.id) AS tasks
+          `SELECT r.id, r.logistics,
+                  (SELECT count(*)::int FROM narnia_tasks t WHERE t.room_id = r.id) AS tasks
              FROM narnia_rooms r WHERE r.id = $1`,
           [roomId]
         )
       : { rows: [] };
     if (!room.rows[0]) return res.status(404).json({ error: "That room is gone." });
+
+    const { title, note, logistics } = taskFields(req.body, room.rows[0].logistics);
+    if (!title) return res.status(400).json({ error: "A task needs a name." });
     if (room.rows[0].tasks >= MAX_TASKS_PER_ROOM) {
       return res.status(400).json({ error: `At most ${MAX_TASKS_PER_ROOM} tasks in a room.` });
     }
@@ -640,16 +664,23 @@ router.patch(
   ...canRun,
   route(async (req, res) => {
     const id = toId(req.params.id);
-    const { title, note, logistics } = taskFields(req.body);
+    const task = id
+      ? await pool.query(
+          `SELECT r.logistics
+             FROM narnia_tasks t JOIN narnia_rooms r ON r.id = t.room_id
+            WHERE t.id = $1`,
+          [id]
+        )
+      : { rows: [] };
+    if (!task.rows[0]) return res.status(404).json({ error: "That task is gone." });
+
+    const { title, note, logistics } = taskFields(req.body, task.rows[0].logistics);
     if (!title) return res.status(400).json({ error: "A task needs a name." });
 
-    const updated = id
-      ? await pool.query(
-          "UPDATE narnia_tasks SET title = $1, note = $2, logistics = $3 WHERE id = $4",
-          [title, note, JSON.stringify(logistics), id]
-        )
-      : { rowCount: 0 };
-    if (updated.rowCount === 0) return res.status(404).json({ error: "That task is gone." });
+    await pool.query(
+      "UPDATE narnia_tasks SET title = $1, note = $2, logistics = $3 WHERE id = $4",
+      [title, note, JSON.stringify(logistics), id]
+    );
     await sendStandard(res);
   })
 );
@@ -664,7 +695,7 @@ router.delete(
   })
 );
 
-// A photo of the standard, for a whole room or for one task in it.
+// A photo of the room's standard.
 router.post(
   "/rooms/:id/photos",
   ...canRun,
@@ -687,25 +718,12 @@ router.post(
       return res.status(400).json({ error: `At most ${MAX_PHOTOS_PER_ROOM} photos in a room.` });
     }
 
-    let taskId = null;
-    if (req.body?.taskId != null) {
-      taskId = toId(req.body.taskId);
-      const task = taskId
-        ? await pool.query("SELECT 1 FROM narnia_tasks WHERE id = $1 AND room_id = $2", [
-            taskId,
-            roomId,
-          ])
-        : { rows: [] };
-      if (!task.rows[0]) return res.status(404).json({ error: "That task is gone." });
-    }
-
     await pool.query(
-      `INSERT INTO narnia_photos (id, room_id, task_id, caption, mime, data)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
+      `INSERT INTO narnia_photos (id, room_id, caption, mime, data)
+       VALUES ($1, $2, $3, $4, $5)`,
       [
         newPhotoId(),
         roomId,
-        taskId,
         cleanText(req.body?.caption, MAX_CAPTION),
         photo.mime,
         photo.data,

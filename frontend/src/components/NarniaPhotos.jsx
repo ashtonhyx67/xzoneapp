@@ -18,15 +18,14 @@ function Enlarged({ photo, onClose }) {
       <button type="button" className="narnia-enlarged-close" ref={closeRef} aria-label="Close">
         ×
       </button>
-      <img src={photo.url} alt={photo.caption || "The standard"} />
+      <img src={photo.url} alt={photo.caption || "How the room should look"} />
       {photo.caption && <p className="narnia-enlarged-caption">{photo.caption}</p>}
     </div>,
     document.body
   );
 }
 
-// The picture of what excellent looks like. A row that scrolls sideways rather than
-// a grid, so a room with many of them does not push the jobs off the screen.
+// How the room should look, as large as the card allows and never cropped.
 export default function NarniaPhotos({ photos, onRemove }) {
   const [open, setOpen] = useState(null);
 
@@ -42,7 +41,7 @@ export default function NarniaPhotos({ photos, onRemove }) {
             onClick={() => setOpen(photo)}
             aria-label={photo.caption ? `Enlarge: ${photo.caption}` : "Enlarge photo"}
           >
-            <img src={photo.url} alt={photo.caption || "The standard"} loading="lazy" />
+            <img src={photo.url} alt={photo.caption || "How the room should look"} loading="lazy" />
           </button>
           {photo.caption && <figcaption>{photo.caption}</figcaption>}
           {onRemove && (

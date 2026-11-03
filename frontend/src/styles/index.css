@@ -5700,7 +5700,7 @@ body.is-dragging * {
   /* iPhone zooms the whole page into any field whose text is under 16px, and
      leaves it zoomed. Every field gets 16px here — except the cells of the
      database grid, where zooming in to edit a tiny cell is actually welcome. */
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(.sheet-input),
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(.sheet-input):not(.narnia-room-name),
   select:not(.sheet-select),
   textarea {
     font-size: 16px;
@@ -5909,29 +5909,10 @@ body.is-dragging * {
   border-top-color: var(--ink);
 }
 
-.quiz-saving {
-  font-size: 14px;
-  color: var(--text-soft);
-}
-
-.quiz-eyebrow {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-soft);
-  margin-bottom: 10px;
-}
-
 /* Intro */
 
 .quiz-intro {
   width: 100%;
-}
-
-.quiz-intro p {
-  color: var(--text-soft);
-  margin-bottom: 20px;
 }
 
 .quiz-intro-title {
@@ -5941,16 +5922,11 @@ body.is-dragging * {
   font-weight: 600;
   line-height: 1.1;
   letter-spacing: -0.02em;
-  margin-bottom: 12px;
+  margin-bottom: 24px;
 }
 
 .quiz-intro-restart {
   margin-top: 10px;
-}
-
-.quiz-intro .quiz-intro-note {
-  margin: 20px 0 0;
-  font-size: 12px;
 }
 
 .quiz-later {
@@ -6378,36 +6354,6 @@ body.is-dragging * {
 
 /* ---------- Narnia BM ---------- */
 
-.narnia-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  margin-bottom: 16px;
-  background: var(--border);
-  border-radius: var(--radius-md);
-}
-
-.narnia-tab {
-  flex: 1;
-  min-height: 38px;
-  padding: 6px 10px;
-  background: none;
-  border: none;
-  border-radius: var(--radius-sm);
-  color: var(--text-soft);
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
-}
-
-.narnia-tab-on {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: var(--shadow-card);
-}
-
 .narnia-my-job {
   display: flex;
   align-items: center;
@@ -6422,12 +6368,6 @@ body.is-dragging * {
 .narnia-hint {
   margin: 0;
   font-size: 13px;
-  color: var(--text-soft);
-}
-
-.narnia-empty {
-  margin: 0 0 8px;
-  font-size: 14px;
   color: var(--text-soft);
 }
 
@@ -6474,18 +6414,10 @@ body.is-dragging * {
   margin-top: 10px;
 }
 
-.narnia-room-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .narnia-room-name,
 .narnia-room-name-text {
   font-family: "Fraunces", Georgia, serif;
-  font-size: 22px;
+  font-size: 34px;
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.01em;
@@ -6494,8 +6426,7 @@ body.is-dragging * {
 }
 
 .narnia-room-name {
-  flex: 1 1 160px;
-  min-width: 0;
+  width: calc(100% + 16px);
   padding: 4px 8px;
   margin-left: -8px;
   background: transparent;
@@ -6569,10 +6500,6 @@ body.is-dragging * {
   font-size: 13px;
 }
 
-.narnia-task-photo-add {
-  margin-top: 10px;
-}
-
 .narnia-task-form {
   padding: 12px;
   margin-top: 10px;
@@ -6606,20 +6533,14 @@ body.is-dragging * {
 
 .narnia-photos {
   display: flex;
+  flex-direction: column;
   gap: 10px;
-  margin-top: 8px;
-  padding-bottom: 4px;
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-  -webkit-overflow-scrolling: touch;
+  margin-top: 12px;
 }
 
 .narnia-photo {
   position: relative;
-  flex: 0 0 auto;
-  width: 200px;
   margin: 0;
-  scroll-snap-align: start;
 }
 
 .narnia-photo figcaption {
@@ -6632,7 +6553,6 @@ body.is-dragging * {
 .narnia-photo-open {
   display: block;
   width: 100%;
-  aspect-ratio: 4 / 3;
   padding: 0;
   background: var(--bg);
   border: none;
@@ -6644,8 +6564,9 @@ body.is-dragging * {
 .narnia-photo-open img {
   display: block;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  max-height: 80vh;
+  object-fit: contain;
 }
 
 .narnia-photo-remove {
@@ -6710,17 +6631,6 @@ body.is-dragging * {
 
 .narnia-start {
   max-width: 520px;
-}
-
-.narnia-start-title {
-  font-family: "Fraunces", Georgia, serif;
-  font-size: 24px;
-  font-weight: 600;
-  margin: 0 0 6px;
-}
-
-.narnia-start .btn {
-  margin-top: 14px;
 }
 
 /* The board */
@@ -6989,19 +6899,6 @@ body.is-dragging * {
   line-height: 1.3;
 }
 
-.narnia-board-task-logistics {
-  margin-top: 1px;
-  font-size: 12px;
-  color: var(--text-soft);
-}
-
-.narnia-board-task-empty {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--text-soft);
-  font-style: italic;
-}
-
 .narnia-tick {
   flex: 0 0 auto;
   width: 30px;
@@ -7046,7 +6943,7 @@ body.is-dragging * {
 .narnia-board-foot {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 10px;
 }
@@ -7177,13 +7074,6 @@ body.is-dragging * {
   margin-top: 8px;
 }
 
-.narnia-job-eyebrow {
-  margin-bottom: 2px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-soft);
-}
-
 .narnia-job-tick {
   display: flex;
   align-items: center;
@@ -7204,6 +7094,10 @@ body.is-dragging * {
   background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
+}
+
+.narnia-photos + .narnia-job-task {
+  margin-top: 14px;
 }
 
 .narnia-job-task {
@@ -7228,10 +7122,6 @@ body.is-dragging * {
   color: var(--text-soft);
 }
 
-.narnia-job-task .narnia-photo {
-  width: 240px;
-}
-
 .narnia-job-with {
   margin: 14px 0 0;
   font-size: 14px;
@@ -7250,7 +7140,7 @@ body.is-dragging * {
 }
 
 .narnia-job-section {
-  margin-bottom: 18px;
+  margin: 18px 0;
 }
 
 .narnia-rest {
@@ -7295,4 +7185,203 @@ body.is-dragging * {
     flex: 1 1 auto;
     width: auto;
   }
+}
+
+/* What everyone reads */
+
+.narnia-todo {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.narnia-todo li {
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+  font-weight: 500;
+}
+
+.narnia-todo li:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.narnia-logistic-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 2px !important;
+}
+
+.narnia-logistic-edit button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.narnia-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.narnia-pick {
+  min-height: 34px;
+  padding: 5px 12px;
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.narnia-pick-on {
+  background: var(--mark-soft);
+  border-color: var(--mark-edge);
+  font-weight: 700;
+}
+
+/* ---------- Admin dashboard ---------- */
+
+.admin-title {
+  font-size: 40px;
+}
+
+.admin-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.admin-card {
+  padding: 18px 16px 20px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.admin-card-title {
+  margin: 0 0 14px 6px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px 6px;
+}
+
+@media (min-width: 769px) {
+  .admin-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+}
+
+.admin-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 72px;
+  padding: 6px 2px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-family: inherit;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--dur-quick) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+
+.admin-tile:active {
+  transform: scale(0.96);
+}
+
+@media (hover: hover) {
+  .admin-tile:hover {
+    background: var(--bg);
+  }
+}
+
+.admin-tile-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.admin-tile-label {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.admin-page-head {
+  gap: 4px;
+}
+
+.admin-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-left: -12px;
+  color: var(--text);
+  border-radius: 50%;
+}
+
+.dashboard-shell-previewing .main-content {
+  padding-top: calc(60px + env(safe-area-inset-top));
+}
+
+/* Sits over the top of every page during a preview. */
+.member-view-bar {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top));
+  left: 50%;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 14px;
+  transform: translateX(-50%);
+  background: var(--mark);
+  border-radius: 999px;
+  box-shadow: var(--shadow-lift);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.member-view-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.member-view-bar button {
+  padding: 5px 12px;
+  background: var(--ink);
+  border: none;
+  border-radius: 999px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }

@@ -70,13 +70,6 @@ function TaskCard({ task, inRoom, onToggle, busy, locked }) {
 
       {task.note && <p className="narnia-note">{task.note}</p>}
 
-      {task.photos.length > 0 && (
-        <>
-          <h3 className="narnia-subhead">How it looks done well</h3>
-          <NarniaPhotos photos={task.photos} />
-        </>
-      )}
-
       {task.with.length > 0 && (
         <p className="narnia-job-with">
           <strong>Together with:</strong> {task.with.join(", ")}
@@ -191,7 +184,6 @@ export default function NarniaCheckIn() {
         <div className="narnia-job-hero">
           <h1>That didn't work</h1>
           <p>{fatal}</p>
-          <p className="narnia-hint">Try scanning the QR code again.</p>
         </div>
       </Frame>
     );
@@ -215,7 +207,6 @@ export default function NarniaCheckIn() {
         <Frame>
           <div className="narnia-job-hero">
             <h1>This BM has finished</h1>
-            <p>Thank you for coming! See you at the next one.</p>
           </div>
         </Frame>
       );
@@ -234,7 +225,6 @@ export default function NarniaCheckIn() {
         <Frame>
           <div className="narnia-job-hero">
             <h1>Welcome! 👋</h1>
-            <p>Thanks for serving today.</p>
           </div>
           <form className="narnia-checkin-form" onSubmit={checkIn}>
             {errorBanner}
@@ -256,7 +246,6 @@ export default function NarniaCheckIn() {
       <Frame>
         <div className="narnia-job-hero">
           <h1>{firstName ? `Welcome back, ${firstName}! 👋` : "Welcome! 👋"}</h1>
-          <p>Thanks for serving today. Let us know you're here.</p>
         </div>
 
         <div className="narnia-checkin-form">
@@ -315,26 +304,20 @@ export default function NarniaCheckIn() {
   const firstName = me.name.split(" ")[0];
   const myTaskIds = new Set(job.tasks.map((task) => task.id));
   const restOfRoom = job.room?.tasks.filter((task) => !myTaskIds.has(task.id)) ?? [];
-  const finished = job.tasks.length > 0 && job.tasks.every((task) => task.done);
 
   return (
     <Frame>
       {ended ? (
         <div className="narnia-job-hero">
-          <h1>That's a wrap! 🙌</h1>
-          <p>Thank you for serving today, {firstName}. Narnia looks better because you came.</p>
+          <h1>Thank you, {firstName}! 🙌</h1>
         </div>
       ) : job.tasks.length > 0 ? (
         <div className="narnia-job-hero">
-          <div className="narnia-job-eyebrow">Hi {firstName}, you're in</div>
           <h1>{job.room?.name ?? job.tasks[0].roomName}</h1>
-          {finished && <p>All done, thank you! Check with a leader in case anyone needs a hand.</p>}
         </div>
       ) : job.room ? (
         <div className="narnia-job-hero">
-          <div className="narnia-job-eyebrow">Hi {firstName}, you're in</div>
           <h1>{job.room.name}</h1>
-          <p>A leader will give you your task in a moment. This page updates by itself.</p>
         </div>
       ) : (
         <div className="narnia-job-hero">
@@ -342,9 +325,10 @@ export default function NarniaCheckIn() {
             ✓
           </div>
           <h1>You're checked in, {firstName}!</h1>
-          <p>Hang tight. A leader will give you your job soon, and it'll appear here by itself.</p>
         </div>
       )}
+
+      {job.room && <NarniaPhotos photos={job.room.photos} />}
 
       {error && (
         <div className="error-banner" role="alert">
@@ -362,13 +346,6 @@ export default function NarniaCheckIn() {
           locked={ended}
         />
       ))}
-
-      {job.room && job.room.photos.length > 0 && (
-        <section className="narnia-job-section">
-          <h2 className="narnia-subhead">The standard for {job.room.name}</h2>
-          <NarniaPhotos photos={job.room.photos} />
-        </section>
-      )}
 
       {restOfRoom.length > 0 && (
         <section className="narnia-job-section">
