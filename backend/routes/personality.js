@@ -47,8 +47,7 @@ router.get(
   })
 );
 
-// Each step of the quiz comes through here with everything answered so far, and
-// the answer says what to ask next. Only a finished quiz writes anything.
+// A finished quiz comes through here, and this is the only thing that writes.
 router.post(
   "/",
   route(async (req, res) => {
@@ -56,12 +55,11 @@ router.post(
       return res.status(409).json({ error: "The quiz has been updated, so it needs starting again." });
     }
 
-    const step = evaluate({ answers: req.body.answers, choices: req.body.choices });
+    const step = evaluate({ answers: req.body.answers });
 
     if (step.status === "incomplete") {
       return res.status(400).json({ error: "Some of the questions haven't been answered yet." });
     }
-    if (step.status !== "done") return res.json(step);
 
     const client = await pool.connect();
     let takenAt;
@@ -70,17 +68,15 @@ router.post(
 
       const saved = await client.query(
         `INSERT INTO personality_results
-           (user_id, quiz_version, type, measured_type, scores, answers, choices, careless)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           (user_id, quiz_version, type, measured_type, scores, answers, careless)
+         VALUES ($1, $2, $3, $3, $4, $5, $6)
          RETURNING created_at`,
         [
           req.userId,
           QUIZ_VERSION,
           step.type,
-          step.measuredType,
           JSON.stringify(step.scores),
           JSON.stringify(step.answers),
-          JSON.stringify(step.choices),
           step.careless,
         ]
       );

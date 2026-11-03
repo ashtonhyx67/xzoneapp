@@ -24,6 +24,23 @@ function requireAuth(req, res, next) {
   }
 }
 
+// For the few routes that work with or without a sign-in: says who is calling if
+// it can tell, and otherwise lets them through as nobody.
+function optionalAuth(req, res, next) {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+
+  if (token) {
+    try {
+      const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+      req.userId = payload.userId;
+    } catch {
+      /* an expired session is the same as no session here */
+    }
+  }
+  next();
+}
+
 // Access is read from the database on every request, never from the token, so
 // moving someone between groups takes effect immediately rather than whenever
 // their token happens to expire.
@@ -84,4 +101,4 @@ function requirePermission(permission) {
   };
 }
 
-module.exports = { requireAuth, loadAccess, requirePermission };
+module.exports = { requireAuth, optionalAuth, loadAccess, requirePermission };

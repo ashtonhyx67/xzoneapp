@@ -4,25 +4,16 @@ import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import AnimalDoodle from "../components/AnimalDoodle.jsx";
 
-// -2 is all the way to the left option, +2 all the way to the right. The server
-// knows which pole each side belongs to; this page does not.
-const SCALE = [
-  { value: -2, label: "Definitely" },
-  { value: -1, label: "Mostly" },
-  { value: 0, label: "Both" },
-  { value: 1, label: "Mostly" },
-  { value: 2, label: "Definitely" },
-];
-
-// How far a card has to be dragged to count, and to count for more.
-const SWIPE_MOSTLY = 50;
-const SWIPE_DEFINITELY = 120;
-
 // Long enough to see the answer land before the next card replaces it.
 const ADVANCE_MS = 170;
 
-// Five minutes is a long time on a phone, so answers are kept as they are given.
-// Keyed by account, since a device can be shared.
+// -1 is the first option and +1 the second. The server knows which pole each
+// side belongs to; this page does not.
+const FIRST = -1;
+const SECOND = 1;
+
+// Answers are kept as they are given, so stepping away loses nothing. Keyed by
+// account, since a device can be shared.
 function draftKey(userId) {
   return `personalityDraft:${userId}`;
 }
@@ -52,17 +43,7 @@ function clearDraft(userId) {
   }
 }
 
-function swipeValue(dx) {
-  const distance = Math.abs(dx);
-  if (distance < SWIPE_MOSTLY) return null;
-  const strength = distance >= SWIPE_DEFINITELY ? 2 : 1;
-  return dx < 0 ? -strength : strength;
-}
-
 function QuestionCard({ question, value, leaving, onAnswer }) {
-  const [dx, setDx] = useState(0);
-  const drag = useRef(null);
-  const dragged = useRef(false);
   const heading = useRef(null);
 
   // Each card replaces the last, so without this a screen reader is left on
@@ -71,75 +52,8 @@ function QuestionCard({ question, value, leaving, onAnswer }) {
     heading.current?.focus({ preventScroll: true });
   }, []);
 
-  // A vertical move is left to the page, so a long question can still be
-  // scrolled on a small phone. touch-action in the stylesheet is the other half.
-  function handlePointerDown(event) {
-    if (event.button !== 0 || event.target.closest(".quiz-dot")) return;
-    drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, active: false };
-    dragged.current = false;
-  }
-
-  function handlePointerMove(event) {
-    const current = drag.current;
-    if (!current || event.pointerId !== current.id) return;
-
-    const moveX = event.clientX - current.x;
-    const moveY = event.clientY - current.y;
-
-    if (!current.active) {
-      if (Math.abs(moveX) < 10) {
-        if (Math.abs(moveY) > 10) drag.current = null;
-        return;
-      }
-      current.active = true;
-      dragged.current = true;
-      event.currentTarget.setPointerCapture(current.id);
-    }
-
-    setDx(moveX);
-  }
-
-  function handlePointerEnd(event) {
-    const current = drag.current;
-    drag.current = null;
-    if (!current?.active) return;
-
-    const answer = event.type === "pointerup" ? swipeValue(dx) : null;
-    setDx(0);
-    if (answer !== null) onAnswer(answer);
-  }
-
-  function tapOption(answer) {
-    if (dragged.current) {
-      dragged.current = false;
-      return;
-    }
-    onAnswer(answer);
-  }
-
-  // While a card is being dragged the page shows where letting go would land.
-  const preview = dx === 0 ? null : swipeValue(dx);
-  const shown = preview ?? value;
-
-  const leanLeft = shown !== undefined && shown !== null && shown < 0;
-  const leanRight = shown !== undefined && shown !== null && shown > 0;
-
-  // The card moves less than the finger does, so the answer being swiped towards
-  // stays on screen where it can be read.
-  const style =
-    dx === 0 ? undefined : { transform: `translateX(${dx * 0.22}px) rotate(${dx * 0.012}deg)` };
-
   return (
-    <div
-      className={`quiz-card${leaving ? ` quiz-card-leaving-${leaving}` : ""}${
-        dx !== 0 ? " quiz-card-dragging" : ""
-      }`}
-      style={style}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerEnd}
-      onPointerCancel={handlePointerEnd}
-    >
+    <div className={`quiz-card${leaving ? " quiz-card-leaving" : ""}`}>
       <h1 className="quiz-prompt" ref={heading} tabIndex={-1}>
         {question.prompt}
       </h1>
@@ -147,39 +61,20 @@ function QuestionCard({ question, value, leaving, onAnswer }) {
       <div className="quiz-options">
         <button
           type="button"
-          className={`quiz-option${leanLeft ? " quiz-option-on" : ""}`}
-          onClick={() => tapOption(-1)}
+          className={`quiz-option${value === FIRST ? " quiz-option-on" : ""}`}
+          aria-pressed={value === FIRST}
+          onClick={() => onAnswer(FIRST)}
         >
           {question.a}
         </button>
         <button
           type="button"
-          className={`quiz-option${leanRight ? " quiz-option-on" : ""}`}
-          onClick={() => tapOption(1)}
+          className={`quiz-option${value === SECOND ? " quiz-option-on" : ""}`}
+          aria-pressed={value === SECOND}
+          onClick={() => onAnswer(SECOND)}
         >
           {question.b}
         </button>
-      </div>
-
-      <div className="quiz-scale" role="group" aria-label={question.prompt}>
-        {SCALE.map((point) => {
-          const side = point.value < 0 ? question.a : point.value > 0 ? question.b : null;
-          return (
-            <button
-              type="button"
-              key={point.value}
-              className={`quiz-dot quiz-dot-${Math.abs(point.value)}${
-                shown === point.value ? " quiz-dot-on" : ""
-              }`}
-              aria-label={side ? `${point.label}: ${side}` : "Both equally"}
-              aria-pressed={value === point.value}
-              onClick={() => onAnswer(point.value)}
-            >
-              <span className="quiz-dot-mark" />
-              <span className="quiz-dot-label">{point.label}</span>
-            </button>
-          );
-        })}
       </div>
     </div>
   );
@@ -236,8 +131,8 @@ function Result({ result, reveal, onRetake, onContinue, continueLabel }) {
       <div className="result-card">
         {result.careless && (
           <div className="result-warning">
-            Nearly all your answers were the same, so this may not say much about you. It's worth
-            another go when you have a few minutes.
+            Nearly all your answers were on the same side, so this may not say much about you. It's
+            worth another go when you have a minute.
           </div>
         )}
         {result.dimensions.map((dimension) => (
@@ -246,7 +141,7 @@ function Result({ result, reveal, onRetake, onContinue, continueLabel }) {
         <button type="button" className="result-retake" onClick={onRetake}>
           <SwapIcon />
           <span>
-            Not quite you? <u>Swipe again</u>
+            Not quite you? <u>Take it again</u>
           </span>
         </button>
       </div>
@@ -264,24 +159,20 @@ function Result({ result, reveal, onRetake, onContinue, continueLabel }) {
 export default function Personality() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { token, user, personalityDue, personalityType, setPersonality } = useAuth();
+  const { token, user, personalityDue, setPersonality } = useAuth();
 
   // Opened from somewhere inside the app, this returns there. As part of signing
   // up it goes on to the dashboard, where the route guard asks for a PIN next.
   const returnTo = location.state?.from || "/dashboard";
 
-  // loading | intro | asking | saving | choosing | result | failed
+  // loading | intro | asking | saving | result | failed
   const [phase, setPhase] = useState("loading");
   const [version, setVersion] = useState(null);
-  const [core, setCore] = useState([]);
   const [questions, setQuestions] = useState([]);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [choices, setChoices] = useState({});
-  const [dimensions, setDimensions] = useState([]);
-  const [leaving, setLeaving] = useState(null);
+  const [leaving, setLeaving] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
-  const [extraFrom, setExtraFrom] = useState(null);
   const [result, setResult] = useState(null);
   const [reveal, setReveal] = useState(false);
   const [error, setError] = useState("");
@@ -305,7 +196,7 @@ export default function Personality() {
       .then(([quiz, saved]) => {
         if (!active) return;
         setVersion(quiz.version);
-        setCore(quiz.questions);
+        setQuestions(quiz.questions);
 
         const draft = readDraft(userId, quiz.version);
         setHasDraft(Boolean(draft));
@@ -331,12 +222,8 @@ export default function Personality() {
 
   function begin() {
     const draft = readDraft(userId, version);
-    const list = draft?.questions?.length ? draft.questions : core;
-    setQuestions(list);
     setAnswers(draft?.answers || {});
-    setChoices(draft?.choices || {});
-    setExtraFrom(draft?.extraFrom ?? null);
-    setIndex(Math.min(draft?.index ?? 0, list.length - 1));
+    setIndex(Math.min(draft?.index ?? 0, questions.length - 1));
     setError("");
     setPhase("asking");
   }
@@ -346,10 +233,7 @@ export default function Personality() {
     setHasDraft(false);
     setResult(null);
     setReveal(false);
-    setQuestions(core);
     setAnswers({});
-    setChoices({});
-    setExtraFrom(null);
     setIndex(0);
     setError("");
     setPhase("asking");
@@ -367,44 +251,11 @@ export default function Personality() {
   }
 
   const submit = useCallback(
-    async (nextAnswers, nextChoices, currentQuestions) => {
+    async (nextAnswers) => {
       setPhase("saving");
       setError("");
       try {
-        const step = await api.submitPersonality(token, {
-          version,
-          answers: nextAnswers,
-          choices: nextChoices,
-        });
-
-        if (step.status === "more") {
-          // Added to the end rather than replacing anything, so going back still
-          // walks through every question that was asked.
-          const known = new Set(currentQuestions.map((q) => q.id));
-          const fresh = step.questions.filter((q) => !known.has(q.id));
-          const list = [...currentQuestions, ...fresh];
-          const start = list.findIndex((q) => nextAnswers[q.id] === undefined);
-          setQuestions(list);
-          setExtraFrom(currentQuestions.length);
-          setIndex(start);
-          setPhase("asking");
-          writeDraft(userId, {
-            version,
-            questions: list,
-            answers: nextAnswers,
-            choices: nextChoices,
-            index: start,
-            extraFrom: currentQuestions.length,
-          });
-          return;
-        }
-
-        if (step.status === "choose") {
-          setDimensions(step.dimensions);
-          setPhase("choosing");
-          return;
-        }
-
+        const step = await api.submitPersonality(token, { version, answers: nextAnswers });
         clearDraft(userId);
         setHasDraft(false);
         setPersonality(step.result.code);
@@ -430,53 +281,41 @@ export default function Personality() {
       advancing.current = true;
       const next = { ...answers, [question.id]: value };
       setAnswers(next);
-      setLeaving(value < 0 ? "left" : value > 0 ? "right" : "up");
+      setLeaving(true);
 
       const nextIndex = index + 1;
       writeDraft(userId, {
         version,
-        questions,
         answers: next,
-        choices,
         index: Math.min(nextIndex, questions.length - 1),
-        extraFrom,
       });
 
       timer.current = setTimeout(() => {
         advancing.current = false;
-        setLeaving(null);
+        setLeaving(false);
         if (nextIndex < questions.length) {
           setIndex(nextIndex);
         } else {
-          submit(next, choices, questions);
+          submit(next);
         }
       }, ADVANCE_MS);
     },
-    [answers, choices, extraFrom, index, questions, submit, userId, version]
+    [answers, index, questions, submit, userId, version]
   );
 
   function goBack() {
     if (index > 0 && !advancing.current) setIndex(index - 1);
   }
 
-  function choose(dimensionKey, pole) {
-    const next = { ...choices, [dimensionKey]: pole };
-    setChoices(next);
-    const remaining = dimensions.filter((d) => d.key !== dimensionKey);
-    setDimensions(remaining);
-    if (remaining.length === 0) submit(answers, next, questions);
-  }
-
-  // Number keys for the five points, arrows for a mild answer either way. Handled
-  // on the window so they work without having to focus anything first.
+  // 1 and 2 for the two options, Backspace to step back. Handled on the window so
+  // they work without having to focus anything first.
   useEffect(() => {
     if (phase !== "asking") return undefined;
 
     function handleKey(event) {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
-      if (event.key >= "1" && event.key <= "5") answer(SCALE[Number(event.key) - 1].value);
-      else if (event.key === "ArrowLeft") answer(-1);
-      else if (event.key === "ArrowRight") answer(1);
+      if (event.key === "1") answer(FIRST);
+      else if (event.key === "2") answer(SECOND);
       else if (event.key === "Backspace") goBack();
     }
 
@@ -484,7 +323,7 @@ export default function Personality() {
     return () => window.removeEventListener("keydown", handleKey);
   });
 
-  if (phase === "loading" || (phase === "saving" && !result)) {
+  if (phase === "loading" || phase === "saving") {
     return (
       <div className="quiz-shell quiz-shell-center">
         <span className="spinner spinner-dark" />
@@ -522,55 +361,17 @@ export default function Personality() {
     );
   }
 
-  if (phase === "choosing" && dimensions[0]) {
-    const dimension = dimensions[0];
-    return (
-      <div className="quiz-shell">
-        <div className="quiz-choose">
-          <div className="quiz-eyebrow">Too close to call</div>
-          <h1 className="quiz-prompt">Your answers landed right between these two. Which sounds more like you?</h1>
-          <div className="quiz-choose-options">
-            {dimension.options.map((option) => (
-              <button
-                type="button"
-                key={option.pole}
-                className="quiz-choice"
-                onClick={() => choose(dimension.key, option.pole)}
-              >
-                <span className="quiz-choice-label">{option.label}</span>
-                <span className="quiz-choice-text">{option.description}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (phase === "intro") {
-    const count = core.length;
     return (
       <div className="quiz-shell quiz-shell-center">
         <div className="quiz-intro">
-          <div className="quiz-eyebrow">One thing before you start</div>
+          <div className="quiz-eyebrow">Getting to know you</div>
           <h1 className="quiz-intro-title">Which animal are you?</h1>
           <p>
-            {count} quick questions, about 5 minutes. Each one has two sides. Go with what you
-            naturally do, not what you think you should do. There are no right answers.
+            {questions.length} quick questions, about a minute. Just tap the answer that sounds most
+            like you. There are no wrong answers. We're all made differently, and that's what makes
+            a family.
           </p>
-
-          <div className="quiz-demo" aria-hidden="true">
-            <span className="quiz-demo-option">Plan it</span>
-            <span className="quiz-demo-dots">
-              <i className="quiz-demo-dot-2" />
-              <i className="quiz-demo-dot-1 quiz-demo-dot-on" />
-              <i className="quiz-demo-dot-0" />
-              <i className="quiz-demo-dot-1" />
-              <i className="quiz-demo-dot-2" />
-            </span>
-            <span className="quiz-demo-option">Wing it</span>
-          </div>
-          <p className="quiz-intro-how">Tap the dot closest to you, or swipe the card towards your answer.</p>
 
           <button type="button" className="btn btn-primary" onClick={begin}>
             {hasDraft ? "Pick up where you left off" : "Start"}
@@ -582,8 +383,8 @@ export default function Personality() {
           )}
 
           <p className="quiz-intro-note">
-            Your result is saved to your profile, and leaders and admins can see it. It's a guide
-            to how you tend to work, not a verdict on who you are.
+            Your result is saved to your profile, and leaders and admins can see it. It's a fun way
+            to start a conversation, not a verdict on who you are.
           </p>
 
           <button type="button" className="link-btn quiz-later" onClick={later}>
@@ -631,10 +432,6 @@ export default function Personality() {
 
       {error && <div className="error-banner quiz-error">{error}</div>}
 
-      {extraFrom !== null && index >= extraFrom && (
-        <div className="quiz-extra">Some of your answers were close, so here are a few more to be sure.</div>
-      )}
-
       <QuestionCard
         key={question.id}
         question={question}
@@ -642,10 +439,6 @@ export default function Personality() {
         leaving={leaving}
         onAnswer={answer}
       />
-
-      {index === 0 && (
-        <p className="quiz-hint">Tap a dot, or swipe the card towards your answer.</p>
-      )}
 
       <div className="quiz-bottom">
         <button type="button" className="link-btn quiz-later" onClick={later}>

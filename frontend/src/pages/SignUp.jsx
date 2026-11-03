@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import PasswordField from "../components/PasswordField.jsx";
@@ -9,6 +9,7 @@ const MIN_PASSWORD_LENGTH = 8;
 
 export default function SignUp() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signIn } = useAuth();
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState("");
@@ -41,8 +42,9 @@ export default function SignUp() {
         personalityType: data.personalityType,
       });
       // The quiz first, then choosing a PIN, which the route guard asks for once
-      // the quiz is out of the way.
-      navigate("/personality", { replace: true });
+      // the quiz is out of the way. Someone signing up to check in goes back to
+      // that instead, and the guard asks them both next time they open the app.
+      navigate(location.state?.from || "/personality", { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -110,7 +112,10 @@ export default function SignUp() {
         </form>
 
         <div className="auth-switch">
-          Already have an account? <Link to="/login">Sign in</Link>
+          Already have an account?{" "}
+          <Link to="/login" state={location.state}>
+            Sign in
+          </Link>
         </div>
       </div>
     </div>

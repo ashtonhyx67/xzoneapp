@@ -44,6 +44,15 @@ const ICONS = {
       <rect x="13.5" y="13.5" width="7" height="7" rx="1.8" />
     </>
   ),
+  // The wardrobe.
+  narnia: (
+    <>
+      <rect x="5" y="3" width="14" height="16.5" rx="1.8" />
+      <path d="M12 3v16.5" />
+      <path d="M9.8 10.5v2.5M14.2 10.5v2.5" />
+      <path d="M7.8 19.5V21.5M16.2 19.5V21.5" />
+    </>
+  ),
   split: (
     <>
       <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3.5" />
@@ -132,6 +141,8 @@ function Frame({ children }) {
           {can(PERMISSIONS.VIEW_DIRECTORY) && link("/members", "members", "Members")}
           {can(PERMISSIONS.VIEW_DIRECTORY) && link("/attendance", "attendance", "Attendance")}
           {can(PERMISSIONS.VIEW_SEATING) && link("/seating", "seating", "Seating")}
+          {/* For everyone: a person being given a job needs no permissions. */}
+          {link("/narnia", "narnia", "Narnia BM")}
           {can(PERMISSIONS.USE_EXPENSES) && link("/split", "split", "Split")}
           {can(PERMISSIONS.EDIT_DATABASE) && link("/database", "database", "Database")}
           {/* Everyone needs somewhere to set a PIN and sign out, so Admin is

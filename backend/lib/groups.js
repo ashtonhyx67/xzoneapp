@@ -30,6 +30,9 @@ const PERMISSIONS = {
   // needs to see it as much as the leader who paid. It is a named permission
   // all the same, so it can be taken away without inventing a new role.
   USE_EXPENSES: "useExpenses",
+  // Run a Narnia BM: edit the standard, start a check-in, delegate. Anyone can
+  // check in and be given a job without this.
+  RUN_NARNIA: "runNarnia",
 };
 
 const ALL = Object.values(PERMISSIONS);
@@ -39,6 +42,7 @@ const ADMIN_PERMISSIONS = [
   PERMISSIONS.MANAGE_ACCOUNTS,
   PERMISSIONS.VIEW_SEATING,
   PERMISSIONS.EDIT_SEATING,
+  PERMISSIONS.RUN_NARNIA,
 ];
 
 const GROUPS = [
@@ -51,12 +55,13 @@ const GROUPS = [
   {
     key: "leader",
     label: "Leader",
-    description: "The database, the registers and the structure.",
+    description: "The database, the registers, the structure and running Narnia BM.",
     permissions: [
       PERMISSIONS.VIEW_DIRECTORY,
       PERMISSIONS.EDIT_DATABASE,
       PERMISSIONS.VIEW_SEATING,
       PERMISSIONS.USE_EXPENSES,
+      PERMISSIONS.RUN_NARNIA,
     ],
   },
   {

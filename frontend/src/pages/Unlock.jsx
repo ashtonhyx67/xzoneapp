@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import PinPad, { PIN_LENGTH } from "../components/PinPad.jsx";
@@ -12,8 +12,12 @@ import BrandMark from "../components/BrandMark.jsx";
 // card with four digits.
 export default function Unlock() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signIn } = useAuth();
   const account = useRef(getDeviceAccount()).current;
+
+  // Sent here from a check-in page, it goes back there rather than to the app.
+  const from = location.state?.from;
 
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -25,8 +29,8 @@ export default function Unlock() {
 
   // Nothing remembered on this device means there is no PIN to ask for.
   useEffect(() => {
-    if (!account?.hasPin) navigate("/login", { replace: true });
-  }, [account, navigate]);
+    if (!account?.hasPin) navigate("/login", { replace: true, state: location.state });
+  }, [account, location.state, navigate]);
 
   const finish = useCallback(
     (data) => {
@@ -38,9 +42,9 @@ export default function Unlock() {
         personalityDue: data.personalityDue,
         personalityType: data.personalityType,
       });
-      navigate("/dashboard", { replace: true });
+      navigate(from || "/dashboard", { replace: true });
     },
-    [navigate, signIn]
+    [from, navigate, signIn]
   );
 
   const fail = useCallback((message) => {
@@ -77,7 +81,7 @@ export default function Unlock() {
 
   function useAnotherAccount() {
     forgetDeviceAccount();
-    navigate("/login", { replace: true });
+    navigate("/login", { replace: true, state: location.state });
   }
 
   if (!account?.hasPin) return null;
@@ -112,7 +116,7 @@ export default function Unlock() {
         />
 
         <div className="auth-switch">
-          <button type="button" className="link-btn" onClick={() => navigate("/login")}>
+          <button type="button" className="link-btn" onClick={() => navigate("/login", { state: location.state })}>
             Use password instead
           </button>
         </div>

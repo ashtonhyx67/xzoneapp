@@ -1,11 +1,12 @@
 const BASE = "/api";
 
-async function request(path, { method = "GET", body, token, signal } = {}) {
+async function request(path, { method = "GET", body, token, signal, headers } = {}) {
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
     },
     body: body ? JSON.stringify(body) : undefined,
     signal,
@@ -138,6 +139,70 @@ export const api = {
     if (!res.ok) throw new Error("That group could not be exported.");
     return res.text();
   },
+
+  // ---- Narnia BM ----
+  // The standard answers every change with all the rooms, and a running session
+  // with the whole board, so nothing on screen is half old and half new.
+  narnia: (token, signal) => request("/narnia", { token, signal }),
+  narniaAddRoom: (token, body) => request("/narnia/rooms", { method: "POST", body, token }),
+  narniaUpdateRoom: (token, id, body) =>
+    request(`/narnia/rooms/${id}`, { method: "PATCH", body, token }),
+  narniaDeleteRoom: (token, id) => request(`/narnia/rooms/${id}`, { method: "DELETE", token }),
+  narniaAddTask: (token, roomId, body) =>
+    request(`/narnia/rooms/${roomId}/tasks`, { method: "POST", body, token }),
+  narniaUpdateTask: (token, id, body) =>
+    request(`/narnia/tasks/${id}`, { method: "PATCH", body, token }),
+  narniaDeleteTask: (token, id) => request(`/narnia/tasks/${id}`, { method: "DELETE", token }),
+  narniaAddPhoto: (token, roomId, body) =>
+    request(`/narnia/rooms/${roomId}/photos`, { method: "POST", body, token }),
+  narniaDeletePhoto: (token, id) => request(`/narnia/photos/${id}`, { method: "DELETE", token }),
+
+  narniaCurrent: (token, signal) => request("/narnia/sessions/current", { token, signal }),
+  narniaHistory: (token, signal) => request("/narnia/sessions", { token, signal }),
+  narniaStart: (token, body) => request("/narnia/sessions", { method: "POST", body, token }),
+  narniaEnd: (token, id) => request(`/narnia/sessions/${id}/end`, { method: "POST", token }),
+  narniaAllowNames: (token, id, allowNames) =>
+    request(`/narnia/sessions/${id}/allow-names`, {
+      method: "POST",
+      body: { allowNames },
+      token,
+    }),
+  narniaAddCheckin: (token, id, body) =>
+    request(`/narnia/sessions/${id}/checkins`, { method: "POST", body, token }),
+  narniaRemoveCheckin: (token, id, checkinId) =>
+    request(`/narnia/sessions/${id}/checkins/${checkinId}`, { method: "DELETE", token }),
+  narniaAssign: (token, id, body) =>
+    request(`/narnia/sessions/${id}/assign`, { method: "POST", body, token }),
+  narniaUnassign: (token, id, body) =>
+    request(`/narnia/sessions/${id}/unassign`, { method: "POST", body, token }),
+  narniaSendToRoom: (token, id, body) =>
+    request(`/narnia/sessions/${id}/room`, { method: "POST", body, token }),
+  narniaShareOut: (token, id) =>
+    request(`/narnia/sessions/${id}/share-out`, { method: "POST", token }),
+  narniaSetDone: (token, id, body) =>
+    request(`/narnia/sessions/${id}/done`, { method: "POST", body, token }),
+
+  // Checking in, by whoever scanned the code. The key is how a phone finds its
+  // own check-in again, with or without a sign-in.
+  narniaJob: (code, { token, key }) =>
+    request(`/narnia/join/${code}`, {
+      token,
+      headers: key ? { "X-Narnia-Key": key } : undefined,
+    }),
+  narniaJoin: (code, { token, key, name }) =>
+    request(`/narnia/join/${code}`, {
+      method: "POST",
+      body: { name },
+      token,
+      headers: key ? { "X-Narnia-Key": key } : undefined,
+    }),
+  narniaTick: (code, taskId, { token, key, done }) =>
+    request(`/narnia/join/${code}/tasks/${taskId}`, {
+      method: "PUT",
+      body: { done },
+      token,
+      headers: key ? { "X-Narnia-Key": key } : undefined,
+    }),
 
   getAccounts: (token, signal) => request("/admin/accounts", { token, signal }),
   createAccount: (token, account) =>

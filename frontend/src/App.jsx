@@ -20,6 +20,7 @@ const pages = {
   Admin: () => import("./pages/Admin.jsx"),
   Split: () => import("./pages/Split.jsx"),
   SplitGroup: () => import("./pages/SplitGroup.jsx"),
+  Narnia: () => import("./pages/Narnia.jsx"),
 };
 
 const Members = lazy(pages.Members);
@@ -29,6 +30,8 @@ const Seating = lazy(pages.Seating);
 const Admin = lazy(pages.Admin);
 const Split = lazy(pages.Split);
 const SplitGroup = lazy(pages.SplitGroup);
+const Narnia = lazy(pages.Narnia);
+const NarniaCheckIn = lazy(() => import("./pages/NarniaCheckIn.jsx"));
 const Personality = lazy(() => import("./pages/Personality.jsx"));
 
 // Once someone is signed in and the dashboard has drawn, the other pages are
@@ -93,6 +96,9 @@ export default function App() {
         <Route path="/signup" element={<SignUp />} />
         <Route path="/login" element={<Login />} />
         <Route path="/unlock" element={<Unlock />} />
+        {/* Where a QR code lands. Outside the sign-in guard on purpose: someone
+            with a broom in hand is not asked to set a PIN or take a quiz first. */}
+        <Route path="/narnia/in/:code" element={<NarniaCheckIn />} />
         <Route
           path="/set-pin"
           element={
@@ -129,6 +135,7 @@ export default function App() {
           {/* A group is its own address, so a link to one can be shared and the
               back button steps out of it rather than out of the app. */}
           <Route path="/split/:groupId" element={<SplitGroup />} />
+          <Route path="/narnia" element={<Narnia />} />
           <Route path="/database" element={<Database />} />
           <Route path="/admin" element={<Admin />} />
         </Route>

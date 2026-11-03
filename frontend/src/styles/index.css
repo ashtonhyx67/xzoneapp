@@ -774,7 +774,7 @@ button {
     display: none;
   }
 
-  /* Seven links for an owner, five for most people. Rather than sizing for
+  /* Eight links for an owner, six for most people. Rather than sizing for
      the common case and letting the rest run off the end of the pill, the
      row scrolls as a last resort — nothing is ever unreachable. */
   .sidebar-nav {
@@ -5944,60 +5944,6 @@ body.is-dragging * {
   margin-bottom: 12px;
 }
 
-.quiz-demo {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 16px;
-  background: var(--surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
-  margin-bottom: 10px;
-}
-
-.quiz-demo-option {
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.quiz-demo-dots {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.quiz-demo-dots i {
-  display: block;
-  border-radius: 50%;
-  border: 2px solid var(--border-strong);
-}
-
-.quiz-demo-dot-2 {
-  width: 20px;
-  height: 20px;
-}
-
-.quiz-demo-dot-1 {
-  width: 15px;
-  height: 15px;
-}
-
-.quiz-demo-dot-0 {
-  width: 10px;
-  height: 10px;
-}
-
-.quiz-demo-dots .quiz-demo-dot-on {
-  background: var(--mark);
-  border-color: var(--mark-edge);
-}
-
-.quiz-intro .quiz-intro-how {
-  font-size: 13px;
-}
-
 .quiz-intro-restart {
   margin-top: 10px;
 }
@@ -6075,32 +6021,13 @@ body.is-dragging * {
   margin-bottom: 14px;
 }
 
-.quiz-extra {
-  background: var(--mark-soft);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  padding: 10px 12px;
-  margin-bottom: 14px;
-}
-
-/* pan-y hands vertical drags to the browser, so the page still scrolls, and
-   keeps horizontal ones for the swipe. */
 .quiz-card {
   background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lift);
-  padding: 24px 18px 16px;
-  touch-action: pan-y;
-  user-select: none;
-  -webkit-user-select: none;
-  cursor: grab;
+  padding: 24px 18px 18px;
   animation: quiz-card-in 0.2s ease both;
   transition: transform 0.17s ease, opacity 0.17s ease;
-}
-
-.quiz-card-dragging {
-  cursor: grabbing;
-  transition: none;
 }
 
 @keyframes quiz-card-in {
@@ -6111,25 +6038,9 @@ body.is-dragging * {
 }
 
 /* The entrance animation holds its end state, which would otherwise outrank the
-   inline transform a drag sets and the classes below. */
-.quiz-card-dragging,
-.quiz-card-leaving-left,
-.quiz-card-leaving-right,
-.quiz-card-leaving-up {
+   class below. */
+.quiz-card-leaving {
   animation: none;
-}
-
-.quiz-card-leaving-left {
-  opacity: 0;
-  transform: translateX(-70px) rotate(-3deg);
-}
-
-.quiz-card-leaving-right {
-  opacity: 0;
-  transform: translateX(70px) rotate(3deg);
-}
-
-.quiz-card-leaving-up {
   opacity: 0;
   transform: translateY(-14px);
 }
@@ -6151,156 +6062,45 @@ body.is-dragging * {
 }
 
 .quiz-options {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
-  margin-bottom: 18px;
 }
 
 .quiz-option {
-  min-height: 112px;
-  padding: 12px;
+  width: 100%;
+  min-height: 76px;
+  padding: 14px 16px;
   background: var(--bg);
   border: 2px solid transparent;
   border-radius: var(--radius-md);
   color: var(--text);
-  font-size: 15px;
+  font-family: inherit;
+  font-size: 16px;
   font-weight: 500;
   line-height: 1.35;
   text-align: left;
-  cursor: inherit;
+  cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 
-.quiz-option-on {
-  background: var(--mark-soft);
-  border-color: var(--mark-edge);
-}
-
-.quiz-scale {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-}
-
-.quiz-dot {
-  min-height: 62px;
-  padding: 4px 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  background: none;
-  border: none;
-  border-radius: var(--radius-sm);
-  color: var(--text-soft);
-  cursor: pointer;
-}
-
-.quiz-dot-mark {
-  display: flex;
-  margin: auto 0;
-  border-radius: 50%;
-  border: 2px solid var(--border-strong);
-  background: var(--surface);
-  transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
-}
-
-.quiz-dot-2 .quiz-dot-mark {
-  width: 34px;
-  height: 34px;
-}
-
-.quiz-dot-1 .quiz-dot-mark {
-  width: 26px;
-  height: 26px;
-}
-
-.quiz-dot-0 .quiz-dot-mark {
-  width: 18px;
-  height: 18px;
-}
-
 /* Mouse only. A touch leaves :hover stuck on whatever was tapped, and the next
-   card's dot in that spot would look already chosen. */
+   card's option in that spot would look already chosen. */
 @media (hover: hover) {
-  .quiz-dot:hover .quiz-dot-mark {
-    border-color: var(--ink);
+  .quiz-option:hover {
+    border-color: var(--border-strong);
   }
 }
 
-.quiz-dot-on {
-  color: var(--ink);
-}
-
-.quiz-dot-on .quiz-dot-mark {
-  background: var(--mark);
+.quiz-option-on,
+.quiz-option-on:hover {
+  background: var(--mark-soft);
   border-color: var(--mark-edge);
-  transform: scale(1.08);
-}
-
-.quiz-dot-label {
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.quiz-hint {
-  margin-top: 16px;
-  font-size: 13px;
-  color: var(--text-soft);
-  text-align: center;
 }
 
 .quiz-bottom {
   margin-top: auto;
   padding-top: 8px;
-}
-
-/* A close call, settled by reading both */
-
-.quiz-choose-options {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.quiz-choose .quiz-prompt {
-  min-height: 0;
-}
-
-.quiz-choice {
-  padding: 18px;
-  background: var(--surface);
-  border: 2px solid transparent;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.12s ease, background 0.12s ease;
-}
-
-@media (hover: hover) {
-  .quiz-choice:hover {
-    border-color: var(--mark-edge);
-    background: var(--mark-soft);
-  }
-}
-
-.quiz-choice-label {
-  display: block;
-  font-family: "Fraunces", Georgia, serif;
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.quiz-choice-text {
-  display: block;
-  font-size: 14px;
-  line-height: 1.45;
-  color: var(--text-soft);
 }
 
 /* The result */
@@ -6573,5 +6373,926 @@ body.is-dragging * {
   .quiz-option {
     min-height: 100px;
     font-size: 14px;
+  }
+}
+
+/* ---------- Narnia BM ---------- */
+
+.narnia-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 16px;
+  background: var(--border);
+  border-radius: var(--radius-md);
+}
+
+.narnia-tab {
+  flex: 1;
+  min-height: 38px;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
+}
+
+.narnia-tab-on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-card);
+}
+
+.narnia-my-job {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  background: var(--mark-soft);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.narnia-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.narnia-empty {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--text-soft);
+}
+
+.narnia-note {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--text-soft);
+  white-space: pre-line;
+}
+
+.narnia-subhead {
+  margin: 18px 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.narnia-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* The rooms sit side by side where there is room for two, and stack on a phone. */
+.narnia-rooms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+/* Grid items would otherwise keep the bottom margin a panel has on its own. */
+.narnia-rooms .panel {
+  margin: 0;
+}
+
+.narnia-add-room {
+  margin-top: 16px;
+}
+
+.narnia-add-row {
+  margin-top: 10px;
+}
+
+.narnia-room-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.narnia-room-name,
+.narnia-room-name-text {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin: 0;
+}
+
+.narnia-room-name {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 4px 8px;
+  margin-left: -8px;
+  background: transparent;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+.narnia-room-name:hover,
+.narnia-room-name:focus {
+  background: var(--bg);
+  border-color: var(--border-strong);
+  outline: none;
+}
+
+/* What to use: read at a glance, standing up, so each one is its own pill. */
+.narnia-logistics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.narnia-logistics li {
+  padding: 3px 10px;
+  background: var(--card-head);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.narnia-logistics-large li {
+  padding: 7px 14px;
+  background: var(--mark-soft);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.narnia-task-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.narnia-task {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.narnia-task:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.narnia-task-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.narnia-task-title {
+  font-weight: 600;
+}
+
+.narnia-task-tools {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.narnia-task-photo-add {
+  margin-top: 10px;
+}
+
+.narnia-task-form {
+  padding: 12px;
+  margin-top: 10px;
+  background: var(--bg);
+  border-radius: var(--radius-md);
+}
+
+.narnia-task .narnia-task-form {
+  margin-top: 0;
+}
+
+.narnia-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.narnia-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Photos of the standard */
+
+.narnia-photos {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  padding-bottom: 4px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.narnia-photo {
+  position: relative;
+  flex: 0 0 auto;
+  width: 200px;
+  margin: 0;
+  scroll-snap-align: start;
+}
+
+.narnia-photo figcaption {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-soft);
+}
+
+.narnia-photo-open {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  background: var(--bg);
+  border: none;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.narnia-photo-open img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.narnia-photo-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 30px;
+  height: 30px;
+  background: rgba(25, 21, 53, 0.72);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.narnia-enlarged {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: calc(16px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom));
+  background: rgba(15, 12, 32, 0.94);
+  cursor: zoom-out;
+}
+
+.narnia-enlarged img {
+  max-width: 100%;
+  min-height: 0;
+  flex: 0 1 auto;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+}
+
+.narnia-enlarged-caption {
+  margin: 0;
+  color: #fff;
+  font-size: 15px;
+  text-align: center;
+}
+
+.narnia-enlarged-close {
+  position: absolute;
+  top: calc(10px + env(safe-area-inset-top));
+  right: 10px;
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.16);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+/* Starting one */
+
+.narnia-start {
+  max-width: 520px;
+}
+
+.narnia-start-title {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.narnia-start .btn {
+  margin-top: 14px;
+}
+
+/* The board */
+
+.narnia-board {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.narnia-board > .panel {
+  margin: 0;
+}
+
+.narnia-checkin {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.qr-code {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.narnia-qr-small {
+  flex: 0 0 auto;
+  width: 124px;
+  padding: 0;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.narnia-checkin-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.narnia-checkin-body .narnia-form-actions {
+  margin-top: 12px;
+}
+
+.narnia-count {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.narnia-count-number {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* White whatever the app's own colours are, because the camera needs the quiet
+   zone around the code. */
+.narnia-qr-full {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  background: #fff;
+  color: #000;
+  text-align: center;
+  cursor: pointer;
+}
+
+.narnia-qr-full h2 {
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: clamp(24px, 5vh, 44px);
+  font-weight: 600;
+}
+
+.narnia-qr-full p {
+  margin: 0;
+  font-size: clamp(14px, 2.2vh, 20px);
+}
+
+.narnia-qr-big {
+  width: min(92vw, calc(100vh - 230px));
+  max-width: 900px;
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.narnia-qr-full .narnia-code-text {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: clamp(16px, 3vh, 26px);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.narnia-pool .section-head {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.narnia-share {
+  margin-left: auto;
+}
+
+.narnia-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.narnia-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 5px 12px;
+  background: var(--ink);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: pan-y;
+}
+
+.narnia-chip:active {
+  cursor: grabbing;
+}
+
+.narnia-chip-held {
+  background: var(--mark);
+  color: var(--ink);
+  outline: 2px solid var(--mark-edge);
+}
+
+.narnia-chip-lifted {
+  opacity: 0.35;
+}
+
+.narnia-chip-flag {
+  font-size: 11px;
+  opacity: 0.65;
+}
+
+.narnia-chip-clear {
+  margin: -5px -8px -5px 0;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 17px;
+  line-height: 1;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.narnia-add-person {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.narnia-add-person input {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-h);
+  padding: 0 12px;
+  background: var(--bg);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.narnia-add-person input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+@media (max-width: 768px) {
+  /* iOS zooms into any field under 16px. */
+  .narnia-add-person input,
+  .narnia-textarea {
+    font-size: 16px;
+  }
+}
+
+.narnia-add-person .btn {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.narnia-board-room-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+}
+
+.narnia-room-stats {
+  font-size: 13px;
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.narnia-waiting {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--mark-soft);
+  border-radius: var(--radius-md);
+}
+
+.narnia-waiting-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.narnia-board-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.narnia-board-task {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  transition: border-color var(--dur-quick) var(--ease-out), background var(--dur-quick) var(--ease-out);
+}
+
+.narnia-board-task-done {
+  opacity: 0.6;
+}
+
+.narnia-board-task-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.narnia-board-task-title {
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.narnia-board-task-logistics {
+  margin-top: 1px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.narnia-board-task-empty {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-soft);
+  font-style: italic;
+}
+
+.narnia-tick {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: var(--surface);
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.narnia-tick-on {
+  background: var(--mark);
+  border-color: var(--mark-edge);
+}
+
+/* Somewhere a name can go. Dashed once one is in hand, solid under the drag. */
+.narnia-target-armed {
+  outline: 1.5px dashed var(--accent);
+  outline-offset: 1px;
+  cursor: pointer;
+}
+
+.narnia-board-room-head.narnia-target-armed {
+  padding: 6px 8px;
+}
+
+.narnia-target-over {
+  border-color: var(--mark-edge);
+  background: var(--mark-soft);
+}
+
+.narnia-room.narnia-target-over,
+.narnia-pool.narnia-target-over {
+  box-shadow: 0 0 0 2px var(--mark-edge);
+}
+
+.narnia-board-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.narnia-board-foot .btn {
+  width: auto;
+}
+
+.narnia-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.narnia-toggle input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--ink);
+}
+
+.narnia-not-here summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+/* A link dressed as the main button, since it leads to the sign-in page. */
+.narnia-signin-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.narnia-checkin-form .auth-switch {
+  margin-bottom: 0;
+}
+
+.narnia-name-form {
+  margin-top: 14px;
+}
+
+/* History */
+
+.narnia-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.narnia-history-row {
+  margin: 0;
+}
+
+.narnia-history-row summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  cursor: pointer;
+}
+
+.narnia-history-day {
+  font-weight: 600;
+}
+
+.narnia-history-names {
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--text-soft);
+}
+
+/* The phone in someone's hand */
+
+.narnia-phone {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: calc(18px + env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom));
+}
+
+.narnia-phone-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.narnia-phone-center {
+  display: flex;
+  justify-content: center;
+  padding: 80px 0;
+}
+
+.narnia-job-hero {
+  margin-bottom: 20px;
+}
+
+.narnia-job-hero h1 {
+  margin: 0 0 6px;
+  font-family: "Fraunces", Georgia, serif;
+  font-variation-settings: "SOFT" 40, "WONK" 1;
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.narnia-job-hero p {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-soft);
+}
+
+.narnia-job-hero p + p {
+  margin-top: 8px;
+}
+
+.narnia-job-eyebrow {
+  margin-bottom: 2px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.narnia-job-tick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 14px;
+  background: var(--mark);
+  border-radius: 50%;
+  color: var(--ink);
+  font-size: 28px;
+  font-weight: 700;
+  animation: result-pop 0.5s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+
+.narnia-checkin-form {
+  padding: 18px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.narnia-job-task {
+  padding: 18px;
+  margin-bottom: 14px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+}
+
+.narnia-job-task-title {
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.narnia-job-task-room {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.narnia-job-task .narnia-photo {
+  width: 240px;
+}
+
+.narnia-job-with {
+  margin: 14px 0 0;
+  font-size: 14px;
+}
+
+.narnia-job-done {
+  margin-top: 16px;
+  min-height: 52px;
+  font-size: 16px;
+}
+
+.narnia-job-task-done .narnia-job-task-title {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  color: var(--text-soft);
+}
+
+.narnia-job-section {
+  margin-bottom: 18px;
+}
+
+.narnia-rest {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.narnia-rest li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.narnia-rest small {
+  flex-shrink: 0;
+  max-width: 50%;
+  font-size: 12px;
+  color: var(--text-soft);
+  text-align: right;
+}
+
+.narnia-rest-done {
+  color: var(--text-soft);
+}
+
+@media (max-width: 480px) {
+  .narnia-checkin {
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .narnia-qr-small {
+    width: 104px;
+  }
+
+  .narnia-checkin-body .btn {
+    flex: 1 1 auto;
+    width: auto;
   }
 }

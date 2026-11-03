@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import PasswordField from "../components/PasswordField.jsx";
@@ -8,6 +8,7 @@ import BrandMark from "../components/BrandMark.jsx";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signIn } = useAuth();
 
   // A device that has been signed into before starts with the email filled in,
@@ -27,7 +28,8 @@ export default function Login() {
       personalityDue: data.personalityDue,
       personalityType: data.personalityType,
     });
-    navigate("/dashboard", { replace: true });
+    // Sent here from a check-in page, it goes back there rather than to the app.
+    navigate(location.state?.from || "/dashboard", { replace: true });
   }
 
   function update(field) {
@@ -89,12 +91,17 @@ export default function Login() {
 
         {remembered?.hasPin && (
           <div className="auth-switch">
-            <Link to="/unlock">Use your PIN instead</Link>
+            <Link to="/unlock" state={location.state}>
+              Use your PIN instead
+            </Link>
           </div>
         )}
 
         <div className="auth-switch">
-          New here? <Link to="/signup">Create an account</Link>
+          New here?{" "}
+          <Link to="/signup" state={location.state}>
+            Create an account
+          </Link>
         </div>
       </div>
     </div>

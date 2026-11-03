@@ -7,4 +7,5 @@ export const PERMISSIONS = {
   EDIT_SEATING: "editSeating",
   MANAGE_ACCOUNTS: "manageAccounts",
   USE_EXPENSES: "useExpenses",
+  RUN_NARNIA: "runNarnia",
 };

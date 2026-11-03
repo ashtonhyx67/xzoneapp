@@ -3,6 +3,7 @@ const { Pool, types } = require("pg");
 const { OWNER_EMAIL } = require("./lib/owner");
 const { DEFAULT_GROUP } = require("./lib/groups");
 const { DEFAULT_TEAM } = require("./lib/teams");
+const { STARTER_ROOMS } = require("./lib/narnia");
 
 // A DATE has no time and no timezone, but node-pg turns it into a local-midnight
 // JS Date, which JSON.stringify then shifts to UTC — sending every birthday a
@@ -765,6 +766,129 @@ async function initSchema() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS personality_results_user_idx
       ON personality_results (user_id, created_at DESC);
+  `);
+
+  // ---------- Narnia BM ----------
+  // The standard: the rooms, what has to be done in them, what to use for it,
+  // and photos of how it looks when it is done excellently. lib/narnia.js has the
+  // reasoning; this is only where it is kept.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS narnia_rooms (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      position INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS narnia_tasks (
+      id SERIAL PRIMARY KEY,
+      room_id INTEGER NOT NULL REFERENCES narnia_rooms(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      logistics JSONB NOT NULL DEFAULT '[]',
+      position INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+
+  // The image itself is kept here: a room's reference photos are a small, fixed
+  // set, and the app has no other place to put a file. Listing photos never reads
+  // this column. The id is random because it doubles as the photo's address.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS narnia_photos (
+      id TEXT PRIMARY KEY,
+      room_id INTEGER NOT NULL REFERENCES narnia_rooms(id) ON DELETE CASCADE,
+      task_id INTEGER REFERENCES narnia_tasks(id) ON DELETE CASCADE,
+      caption TEXT NOT NULL DEFAULT '',
+      mime TEXT NOT NULL,
+      data BYTEA NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`CREATE INDEX IF NOT EXISTS narnia_tasks_room_idx ON narnia_tasks (room_id);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS narnia_photos_room_idx ON narnia_photos (room_id);`);
+
+  // A brand new installation opens on something to edit rather than a blank page.
+  // The app will not delete the last room, so this can never run a second time.
+  const narniaRooms = await pool.query("SELECT 1 FROM narnia_rooms LIMIT 1");
+  if (!narniaRooms.rows[0]) {
+    for (const [roomIndex, room] of STARTER_ROOMS.entries()) {
+      const created = await pool.query(
+        "INSERT INTO narnia_rooms (name, position) VALUES ($1, $2) RETURNING id",
+        [room.name, roomIndex]
+      );
+      for (const [taskIndex, task] of room.tasks.entries()) {
+        await pool.query(
+          "INSERT INTO narnia_tasks (room_id, title, logistics, position) VALUES ($1, $2, $3, $4)",
+          [created.rows[0].id, task.title, JSON.stringify(task.logistics), taskIndex]
+        );
+      }
+    }
+  }
+
+  // One clean-up. held_on is the day as the leader's phone had it. allow_names is
+  // whether someone can check in by typing a name rather than with an account.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS narnia_sessions (
+      id SERIAL PRIMARY KEY,
+      code TEXT UNIQUE NOT NULL,
+      held_on DATE NOT NULL DEFAULT CURRENT_DATE,
+      status TEXT NOT NULL DEFAULT 'open',
+      allow_names BOOLEAN NOT NULL DEFAULT true,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      ended_at TIMESTAMPTZ
+    );
+  `);
+
+  // Two running at once would mean two QR codes, and two lists of who came.
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS narnia_sessions_one_open_idx
+      ON narnia_sessions ((status)) WHERE status = 'open';
+  `);
+
+  // Who came. user_id is empty for someone who just typed their name, and the
+  // name is copied in either way so the record survives an account being removed.
+  // access_key is what lets a phone come back to its own job.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS narnia_checkins (
+      id SERIAL PRIMARY KEY,
+      session_id INTEGER NOT NULL REFERENCES narnia_sessions(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      name TEXT NOT NULL,
+      access_key TEXT UNIQUE NOT NULL,
+      room_id INTEGER REFERENCES narnia_rooms(id) ON DELETE SET NULL,
+      by_hand BOOLEAN NOT NULL DEFAULT false,
+      checked_in_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS narnia_checkins_session_user_idx
+      ON narnia_checkins (session_id, user_id) WHERE user_id IS NOT NULL;
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS narnia_checkins_session_idx ON narnia_checkins (session_id);
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS narnia_assignments (
+      checkin_id INTEGER NOT NULL REFERENCES narnia_checkins(id) ON DELETE CASCADE,
+      task_id INTEGER NOT NULL REFERENCES narnia_tasks(id) ON DELETE CASCADE,
+      PRIMARY KEY (checkin_id, task_id)
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS narnia_task_done (
+      session_id INTEGER NOT NULL REFERENCES narnia_sessions(id) ON DELETE CASCADE,
+      task_id INTEGER NOT NULL REFERENCES narnia_tasks(id) ON DELETE CASCADE,
+      done_by TEXT NOT NULL DEFAULT '',
+      done_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (session_id, task_id)
+    );
   `);
 
   console.log("Database schema ready.");

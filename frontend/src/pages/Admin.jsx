@@ -67,7 +67,7 @@ export default function Admin() {
               {personalityType ? ANIMALS[personalityType] : "Which animal are you?"}
             </div>
             <div className="account-email">
-              {personalityType || "48 quick questions, about 5 minutes"}
+              {personalityType || "12 quick questions, about a minute"}
             </div>
           </div>
           <button
