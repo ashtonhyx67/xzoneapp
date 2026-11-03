@@ -67,7 +67,7 @@ export default function UpdatePrompt() {
 
         {/* Dismissing is for this session only — closing the app and coming
             back asks again. Someone in the middle of marking a register should
-            be able to finish, and Admin carries a permanent Update button for
+            be able to finish, and My Account carries a permanent Update button for
             whenever they are ready. */}
         <button className="update-card-later" onClick={() => setDismissed(true)}>
           Not now

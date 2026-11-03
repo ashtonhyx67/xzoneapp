@@ -6,6 +6,5 @@ export const PERMISSIONS = {
   VIEW_SEATING: "viewSeating",
   EDIT_SEATING: "editSeating",
   MANAGE_ACCOUNTS: "manageAccounts",
-  USE_EXPENSES: "useExpenses",
   RUN_NARNIA: "runNarnia",
 };

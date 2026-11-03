@@ -10,7 +10,7 @@ import { SkeletonRows } from "../components/Skeleton.jsx";
 const POLL_MS = 15000;
 
 // The same page for everyone: each room, the photo of how it should look, what to
-// use and what to do. Running a BM and editing all of this is under Admin.
+// use and what to do. Running a BM and editing all of this is under All.
 export default function Narnia() {
   const { token } = useAuth();
   const [overview, setOverview] = useState(null);

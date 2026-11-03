@@ -53,13 +53,6 @@ const ICONS = {
       <path d="M7.8 19.5V21.5M16.2 19.5V21.5" />
     </>
   ),
-  split: (
-    <>
-      <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3.5" />
-      <path d="M4 7.5V18a2 2 0 0 0 2 2h14V9H6.5A2.5 2.5 0 0 1 4 7.5Z" />
-      <circle cx="16" cy="14.5" r="1.3" />
-    </>
-  ),
   database: (
     <>
       <ellipse cx="12" cy="5.5" rx="7.5" ry="2.5" />
@@ -75,7 +68,7 @@ const ICONS = {
       <circle cx="17" cy="17.5" r="2" />
     </>
   ),
-  // The rest are only on the Admin dashboard.
+  // The rest are only on the All page.
   qr: (
     <>
       <rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1.2" />
@@ -201,11 +194,10 @@ function Frame({ children }) {
           {can(PERMISSIONS.VIEW_SEATING) && link("/seating", "seating", "Seating")}
           {/* For everyone: a person being given a job needs no permissions. */}
           {link("/narnia", "narnia", "Narnia BM")}
-          {can(PERMISSIONS.USE_EXPENSES) && link("/split", "split", "Split")}
           {can(PERMISSIONS.EDIT_DATABASE) && link("/database", "database", "Database")}
-          {/* Everyone needs somewhere to set a PIN and sign out, so Admin is
-              always reachable; each account sees only the tiles it can open. */}
-          {link("/admin", "admin", "Admin")}
+          {/* Everyone needs somewhere to set a PIN and sign out, so All is always
+              reachable; each account sees only the tiles it can open. */}
+          {link("/admin", "admin", "All")}
         </nav>
 
         <div className="sidebar-footer">

@@ -18,8 +18,6 @@ const pages = {
   Attendance: () => import("./pages/Attendance.jsx"),
   Seating: () => import("./pages/Seating.jsx"),
   Admin: () => import("./pages/Admin.jsx"),
-  Split: () => import("./pages/Split.jsx"),
-  SplitGroup: () => import("./pages/SplitGroup.jsx"),
   Narnia: () => import("./pages/Narnia.jsx"),
   NarniaRun: () => import("./pages/NarniaRun.jsx"),
   NarniaRooms: () => import("./pages/NarniaRooms.jsx"),
@@ -33,8 +31,6 @@ const Database = lazy(pages.Database);
 const Attendance = lazy(pages.Attendance);
 const Seating = lazy(pages.Seating);
 const Admin = lazy(pages.Admin);
-const Split = lazy(pages.Split);
-const SplitGroup = lazy(pages.SplitGroup);
 const Narnia = lazy(pages.Narnia);
 const NarniaRun = lazy(pages.NarniaRun);
 const NarniaRooms = lazy(pages.NarniaRooms);
@@ -141,10 +137,6 @@ export default function App() {
           <Route path="/members" element={<Members />} />
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/seating" element={<Seating />} />
-          <Route path="/split" element={<Split />} />
-          {/* A group is its own address, so a link to one can be shared and the
-              back button steps out of it rather than out of the app. */}
-          <Route path="/split/:groupId" element={<SplitGroup />} />
           <Route path="/narnia" element={<Narnia />} />
           <Route path="/database" element={<Database />} />
           <Route path="/admin" element={<Admin />} />

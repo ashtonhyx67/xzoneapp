@@ -52,7 +52,7 @@ function viewingAsMember(req) {
 // their token happens to expire. Pass the request so a preview is honoured.
 async function loadAccess(userId, req) {
   const result = await pool.query(
-    "SELECT id, name, email, group_key, is_admin, person_id FROM users WHERE id = $1",
+    "SELECT id, name, email, group_key, is_admin FROM users WHERE id = $1",
     [userId]
   );
   const row = result.rows[0];
@@ -80,10 +80,6 @@ async function loadAccess(userId, req) {
     permissions: permissionsFor(groupKey, isAdmin),
     isAdmin,
     isOwner: !asMember && isOwnerEmail(row.email),
-    // Which person in the directory this account *is*. Shared expenses are
-    // split between people, not accounts, so this is how "you" is found among
-    // the members of a group. Null until the names match or one is chosen.
-    personId: row.person_id ?? null,
     // Teams this account has been put in. A team that has since been removed
     // from lib/teams.js drops out here rather than lingering as a dead key.
     teams: assigned.rows.map((r) => normalizeTeam(r.team)).filter(Boolean),

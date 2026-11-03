@@ -116,7 +116,7 @@ default, so it works on real devices once deployed.
   the scorecard, the database grid and the accounts list; every sitting's answers
   are kept in `personality_results`. `npm test --prefix backend` checks the
   scoring and that the questions stay balanced.
-- An Admin dashboard at `/admin`: a grid of tiles for everything in the app, each
+- The All page at `/admin`: a grid of tiles for everything in the app, each
   account seeing only what it can open. Leaders can also preview the whole app as a
   member from there (`X-View-As`, which only ever takes access away).
 - Narnia BM, for cleaning the two big rooms together. `/narnia` is what everyone

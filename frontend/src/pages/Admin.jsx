@@ -74,7 +74,6 @@ export default function Admin() {
           label: "Attendance",
         },
         can(PERMISSIONS.VIEW_SEATING) && { to: "/seating", icon: "seating", label: "Seating" },
-        can(PERMISSIONS.USE_EXPENSES) && { to: "/split", icon: "split", label: "Split" },
       ],
     },
     {
@@ -95,7 +94,7 @@ export default function Admin() {
   return (
     <AppShell>
       <header className="page-head">
-        <h1 className="page-title admin-title">Admin</h1>
+        <h1 className="page-title admin-title">All</h1>
       </header>
 
       {error && <div className="error-banner">{error}</div>}
