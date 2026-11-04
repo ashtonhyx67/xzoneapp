@@ -6769,27 +6769,24 @@ body.is-dragging * {
   gap: 10px;
 }
 
-.outing-chosen {
-  margin-bottom: 10px;
-}
-
 .outing-people {
-  max-height: 300px;
+  max-height: 264px;
   margin-top: 8px;
   overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  background: var(--surface);
 }
 
-.field .outing-person {
+.outing-person {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 44px;
+  min-height: 42px;
   margin: 0;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 }
@@ -6798,7 +6795,11 @@ body.is-dragging * {
   border-bottom: none;
 }
 
-.field .outing-person input[type="checkbox"] {
+.outing-person:has(input:checked) {
+  background: var(--mark-soft);
+}
+
+.outing-person input[type="checkbox"] {
   flex-shrink: 0;
   width: 18px;
   height: 18px;
@@ -7046,5 +7047,242 @@ body.is-dragging * {
   .friend-add-row input,
   .friend-add-row select {
     font-size: 16px;
+  }
+}
+
+/* ---------- Planning an outing: numbered steps ---------- */
+
+.outing-form:not(.panel) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  /* A form, not a spreadsheet: past this width the fields only get emptier. */
+  max-width: 680px;
+}
+
+.outing-step {
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.outing-step-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.outing-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 700;
+  transition: background var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
+}
+
+.outing-step-done .outing-step-num {
+  background: var(--ink);
+  color: var(--mark);
+}
+
+.outing-step-title {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.outing-step-hint {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.outing-label {
+  display: block;
+  margin: 12px 0 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.outing-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--dur-quick) var(--ease-out),
+    box-shadow var(--dur-quick) var(--ease-out);
+}
+
+.outing-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(75, 63, 168, 0.14);
+}
+
+.outing-input::placeholder {
+  color: var(--text-soft);
+  opacity: 0.7;
+}
+
+/* iOS draws date and time fields centred and wider than their box; this keeps
+   them inside it and reading from the left like every other field. */
+.outing-input[type="date"],
+.outing-input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+  text-align: left;
+}
+
+.outing-input::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+textarea.outing-input {
+  height: auto;
+  padding: 10px 12px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.outing-other {
+  margin-top: 10px;
+}
+
+.outing-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.outing-type {
+  height: 32px;
+  padding: 0 14px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--dur-quick) var(--ease-out),
+    border-color var(--dur-quick) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+
+.outing-type:active {
+  transform: scale(0.96);
+}
+
+.outing-type-on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+  font-weight: 600;
+}
+
+.outing-times {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 8px;
+}
+
+.outing-times-dash {
+  height: 40px;
+  line-height: 40px;
+  color: var(--text-soft);
+}
+
+.outing-step .outing-friends {
+  grid-template-columns: 88px minmax(0, 1fr);
+}
+
+.outing-chosen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.outing-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 6px 0 10px;
+  background: var(--mark-soft);
+  border: 1px solid var(--mark-edge);
+  border-radius: 999px;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.outing-chip span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(36, 31, 71, 0.08);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.outing-step .search-box {
+  max-width: none;
+}
+
+.outing-step .search-box-input {
+  height: 40px;
+}
+
+.outing-submit {
+  margin-top: 4px;
+}
+
+/* Clear of the floating tab bar, so the last button is never hidden under it. */
+@media (max-width: 768px) {
+  .outing-form:not(.panel) {
+    padding-bottom: 24px;
+  }
+
+  .outing-step {
+    padding: 14px;
+  }
+}
+
+/* iOS Safari zooms the whole page in when a field under 16px is focused, and
+   does not zoom back out — which is what left screens looking oversized. On
+   touch phones every typed-in field is 16px, whatever its own rule says. */
+@media (max-width: 768px) and (hover: none) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px !important;
   }
 }

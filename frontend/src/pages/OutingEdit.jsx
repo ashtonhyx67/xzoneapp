@@ -108,6 +108,9 @@ export default function OutingEdit() {
     [people, picked]
   );
 
+  const whatDone =
+    (form.type === OTHER ? form.otherType.trim() : form.type) && form.location.trim();
+
   async function submit(event) {
     event.preventDefault();
     setSaving(true);
@@ -154,15 +157,14 @@ export default function OutingEdit() {
       {!people && !error && <SkeletonRows count={6} label="Loading" />}
 
       {people && (
-        <form className="panel outing-form" onSubmit={submit} noValidate>
-          <div className="field">
-            <label>Type of hangout</label>
-            <div className="narnia-picks">
+        <form className="outing-form" onSubmit={submit} noValidate>
+          <Step number={1} title="What are you doing?" done={Boolean(whatDone)}>
+            <div className="outing-types">
               {[...HANGOUT_TYPES, OTHER].map((type) => (
                 <button
                   type="button"
                   key={type}
-                  className={`narnia-pick${form.type === type ? " narnia-pick-on" : ""}`}
+                  className={`outing-type${form.type === type ? " outing-type-on" : ""}`}
                   aria-pressed={form.type === type}
                   onClick={() => setForm((current) => ({ ...current, type }))}
                 >
@@ -170,105 +172,92 @@ export default function OutingEdit() {
                 </button>
               ))}
             </div>
-          </div>
 
-          {form.type === OTHER && (
-            <div className="field">
-              <label htmlFor="outing-other">Other</label>
+            {form.type === OTHER && (
               <input
-                id="outing-other"
+                className="outing-input outing-other"
+                aria-label="What kind of hangout"
+                placeholder="What kind of hangout?"
                 value={form.otherType}
                 onChange={update("otherType")}
                 maxLength={60}
                 autoFocus
               />
-            </div>
-          )}
+            )}
 
-          <div className="field">
-            <label htmlFor="outing-location">Location</label>
+            <label className="outing-label" htmlFor="outing-location">
+              Where
+            </label>
             <input
               id="outing-location"
+              className="outing-input"
+              placeholder="e.g. Bishan Park"
               value={form.location}
               onChange={update("location")}
               maxLength={160}
             />
-          </div>
+          </Step>
 
-          <div className="event-when">
-            <div className="field">
-              <label htmlFor="outing-date">Date</label>
-              <input id="outing-date" type="date" value={form.heldOn} onChange={update("heldOn")} />
-            </div>
-            <div className="field">
-              <label htmlFor="outing-start">From</label>
-              <input
-                id="outing-start"
-                type="time"
-                value={form.startTime}
-                onChange={update("startTime")}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="outing-end">To</label>
-              <input
-                id="outing-end"
-                type="time"
-                value={form.endTime}
-                onChange={update("endTime")}
-              />
-            </div>
-          </div>
-
-          <div className="field">
-            <label htmlFor="outing-goals">Goals</label>
-            <textarea
-              id="outing-goals"
-              className="outing-textarea"
-              rows={3}
-              value={form.goals}
-              onChange={update("goals")}
-              maxLength={2000}
+          <Step number={2} title="When?" done={Boolean(form.heldOn && form.startTime)}>
+            <label className="outing-label" htmlFor="outing-date">
+              Date
+            </label>
+            <input
+              id="outing-date"
+              className="outing-input"
+              type="date"
+              value={form.heldOn}
+              onChange={update("heldOn")}
             />
-          </div>
-
-          <div className="outing-friends">
-            <div className="field">
-              <label htmlFor="outing-count">Friends</label>
-              <input
-                id="outing-count"
-                type="number"
-                inputMode="numeric"
-                min="0"
-                max="500"
-                value={form.friendsCount}
-                onChange={update("friendsCount")}
-              />
+            <div className="outing-times">
+              <div>
+                <label className="outing-label" htmlFor="outing-start">
+                  From
+                </label>
+                <input
+                  id="outing-start"
+                  className="outing-input"
+                  type="time"
+                  value={form.startTime}
+                  onChange={update("startTime")}
+                />
+              </div>
+              <span className="outing-times-dash" aria-hidden="true">
+                –
+              </span>
+              <div>
+                <label className="outing-label" htmlFor="outing-end">
+                  To
+                </label>
+                <input
+                  id="outing-end"
+                  className="outing-input"
+                  type="time"
+                  value={form.endTime}
+                  onChange={update("endTime")}
+                />
+              </div>
             </div>
-            <div className="field">
-              <label htmlFor="outing-who">Who</label>
-              <input
-                id="outing-who"
-                value={form.friendsWho}
-                onChange={update("friendsWho")}
-                maxLength={2000}
-              />
-            </div>
-          </div>
+          </Step>
 
-          <div className="field">
-            <label>Who's going ({picked.size})</label>
+          <Step
+            number={3}
+            title="Who's going?"
+            hint={picked.size ? `${picked.size} picked` : "Tick everyone from the group"}
+            done={picked.size > 0}
+          >
             {chosen.length > 0 && (
-              <div className="narnia-picks outing-chosen">
+              <div className="outing-chosen">
                 {chosen.map((person) => (
                   <button
                     type="button"
                     key={person.id}
-                    className="narnia-pick narnia-pick-on"
+                    className="outing-chip"
                     onClick={() => toggle(person.id)}
                     aria-label={`Take ${person.name} off`}
                   >
-                    {person.name} ×
+                    {person.name}
+                    <span aria-hidden="true">×</span>
                   </button>
                 ))}
               </div>
@@ -288,12 +277,64 @@ export default function OutingEdit() {
               ))}
               {visible.length === 0 && <div className="list-empty">Nothing here</div>}
             </div>
-          </div>
+          </Step>
+
+          <Step
+            number={4}
+            title="Bringing friends?"
+            hint="Optional"
+            done={Boolean(form.friendsCount || form.friendsWho)}
+          >
+            <div className="outing-friends">
+              <div>
+                <label className="outing-label" htmlFor="outing-count">
+                  How many
+                </label>
+                <input
+                  id="outing-count"
+                  className="outing-input"
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  max="500"
+                  placeholder="0"
+                  value={form.friendsCount}
+                  onChange={update("friendsCount")}
+                />
+              </div>
+              <div>
+                <label className="outing-label" htmlFor="outing-who">
+                  Their names
+                </label>
+                <input
+                  id="outing-who"
+                  className="outing-input"
+                  placeholder="e.g. Ben, Clara"
+                  value={form.friendsWho}
+                  onChange={update("friendsWho")}
+                  maxLength={2000}
+                />
+              </div>
+            </div>
+          </Step>
+
+          <Step number={5} title="Goals" hint="Optional" done={Boolean(form.goals.trim())}>
+            <textarea
+              id="outing-goals"
+              className="outing-input outing-textarea"
+              aria-label="Goals"
+              placeholder="What do you hope comes out of it?"
+              rows={3}
+              value={form.goals}
+              onChange={update("goals")}
+              maxLength={2000}
+            />
+          </Step>
 
           {error && <div className="error-banner">{error}</div>}
 
-          <button className="btn btn-primary" type="submit" disabled={saving}>
-            {saving ? <span className="spinner" /> : editing ? "Save" : "Add outing"}
+          <button className="btn btn-primary outing-submit" type="submit" disabled={saving}>
+            {saving ? <span className="spinner" /> : editing ? "Save changes" : "Add outing"}
           </button>
         </form>
       )}
@@ -302,3 +343,34 @@ export default function OutingEdit() {
     </AppShell>
   );
 }
+
+// One numbered section of the form. The number turns into a tick once the
+// section has what it needs, so it is clear at a glance what is left to do.
+function Step({ number, title, hint, done, children }) {
+  return (
+    <section className={`outing-step${done ? " outing-step-done" : ""}`}>
+      <div className="outing-step-head">
+        <span className="outing-step-num" aria-hidden="true">
+          {done ? (
+            <svg viewBox="0 0 16 16" width="13" height="13">
+              <path
+                d="M3.5 8.5l3 3 6-7"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          ) : (
+            number
+          )}
+        </span>
+        <h2 className="outing-step-title">{title}</h2>
+        {hint && <span className="outing-step-hint">{hint}</span>}
+      </div>
+      <div className="outing-step-body">{children}</div>
+    </section>
+  );
+}
+
