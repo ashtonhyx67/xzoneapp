@@ -7819,3 +7819,50 @@ textarea.outing-input {
   justify-content: center;
   text-align: center;
 }
+
+/* Someone ticked who has no account yet. Loud enough to notice in a long list. */
+.outing-person-badge {
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #fde7e6;
+  color: #b42318;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* An empty time field on an iPhone is a blank grey box; this says what it is for.
+   The label sits under the input, which stays on top so a tap still opens the wheel. */
+.time-pill-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.time-pill-empty::before {
+  content: "Add time";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.time-pill-empty .time-pill {
+  color: transparent;
+  background: transparent;
+}
+
+.time-pill-empty {
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.time-pill-empty .time-pill::-webkit-datetime-edit,
+.time-pill-empty .time-pill::-webkit-calendar-picker-indicator {
+  opacity: 0;
+}

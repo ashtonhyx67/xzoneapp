@@ -229,23 +229,27 @@ export default function OutingEdit() {
             <div className="time-rows">
               <label className="time-row" htmlFor="outing-start">
                 <span>Starts</span>
-                <input
-                  id="outing-start"
-                  className="time-pill"
-                  type="time"
-                  value={form.startTime}
-                  onChange={update("startTime")}
-                />
+                <span className={`time-pill-wrap${form.startTime ? "" : " time-pill-empty"}`}>
+                  <input
+                    id="outing-start"
+                    className="time-pill"
+                    type="time"
+                    value={form.startTime}
+                    onChange={update("startTime")}
+                  />
+                </span>
               </label>
               <label className="time-row" htmlFor="outing-end">
                 <span>Ends</span>
-                <input
-                  id="outing-end"
-                  className="time-pill"
-                  type="time"
-                  value={form.endTime}
-                  onChange={update("endTime")}
-                />
+                <span className={`time-pill-wrap${form.endTime ? "" : " time-pill-empty"}`}>
+                  <input
+                    id="outing-end"
+                    className="time-pill"
+                    type="time"
+                    value={form.endTime}
+                    onChange={update("endTime")}
+                  />
+                </span>
               </label>
             </div>
           </Step>
@@ -269,10 +273,6 @@ export default function OutingEdit() {
                 </button>
               ))}
             </div>
-            <p className="outing-step-note">
-              Everyone you tick sees this outing in their app — straight away, or as soon
-              as they sign up.
-            </p>
             <SearchBox value={search} onChange={setSearch} label="Search people" />
             <div className="outing-people">
               {visible.map((person) => {
@@ -292,7 +292,7 @@ export default function OutingEdit() {
                       {person.name}
                       {isOrganiser && <span className="outing-person-tag">Organiser</span>}
                       {!isOrganiser && !person.hasAccount && (
-                        <span className="outing-person-soft">not on the app yet</span>
+                        <span className="outing-person-badge">Not Onboarded</span>
                       )}
                     </span>
                     {person.team && <span className="pool-team">{person.team}</span>}
