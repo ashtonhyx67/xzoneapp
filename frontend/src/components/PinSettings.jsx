@@ -101,7 +101,7 @@ export default function PinSettings() {
     try {
       await api.removePin(token);
       setPinSet(false);
-      setNotice("PIN sign-in is off. You'll sign in with your password from now on.");
+      setNotice("PIN sign-in is off.");
       reset(false);
     } catch (err) {
       setError(err.message);
@@ -111,9 +111,9 @@ export default function PinSettings() {
   }
 
   const prompts = {
-    current: "Enter your current PIN",
-    choose: "Choose a new 4-digit PIN",
-    confirm: "Enter it once more",
+    current: "Current PIN",
+    choose: "New PIN",
+    confirm: "New PIN again",
   };
 
   return (
@@ -139,14 +139,6 @@ export default function PinSettings() {
           )}
         </div>
       </div>
-
-      {!open && (
-        <div className="list-empty">
-          {pinSet
-            ? "Closing the app signs you out; your PIN gets you back in."
-            : "Set a 4-digit PIN so you can get back in without typing your password."}
-        </div>
-      )}
 
       {error && <div className="error-banner panel-notice">{error}</div>}
       {notice && !open && <div className="success-banner panel-notice">{notice}</div>}

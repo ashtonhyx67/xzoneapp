@@ -131,7 +131,6 @@ function TaskForm({ initial, roomLogistics, submitLabel, onSubmit, onCancel }) {
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Sweep the floor"
           maxLength={120}
           required
         />

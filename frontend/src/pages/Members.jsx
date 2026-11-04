@@ -155,7 +155,7 @@ export default function Members() {
         </div>
       ) : people.length === 0 ? (
         <div className="panel">
-          <div className="panel-title">No one in the database yet.</div>
+          <div className="list-empty">Nothing here</div>
         </div>
       ) : (
         <div className="members-layout">

@@ -50,10 +50,6 @@ export default function UpdatePrompt() {
   return (
     <div className="update-backdrop" role="dialog" aria-modal="true" aria-label="Update available">
       <div className="update-card">
-        <p className="update-card-text">
-          The app is updated, please press the update button below
-        </p>
-
         <button
           className="btn btn-primary update-card-btn"
           onClick={() => {

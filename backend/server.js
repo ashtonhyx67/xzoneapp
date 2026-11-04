@@ -16,6 +16,7 @@ const seatingRoutes = require("./routes/seating");
 const askRoutes = require("./routes/ask");
 const personalityRoutes = require("./routes/personality");
 const narniaRoutes = require("./routes/narnia");
+const { router: outingRoutes } = require("./routes/outings");
 
 if (!process.env.JWT_SECRET) {
   console.error(
@@ -93,6 +94,7 @@ app.use("/api/seating", seatingRoutes);
 app.use("/api/ask", askRoutes);
 app.use("/api/personality", personalityRoutes);
 app.use("/api/narnia", narniaRoutes);
+app.use("/api/outings", outingRoutes);
 
 app.use("/api/dashboard", dashboardRoutes);
 

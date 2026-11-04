@@ -129,20 +129,12 @@ function Result({ result, reveal, onRetake, onContinue, continueLabel }) {
       </div>
 
       <div className="result-card">
-        {result.careless && (
-          <div className="result-warning">
-            Nearly all your answers were on the same side, so this may not say much about you. It's
-            worth another go when you have a minute.
-          </div>
-        )}
         {result.dimensions.map((dimension) => (
           <ResultBar key={dimension.key} dimension={dimension} />
         ))}
         <button type="button" className="result-retake" onClick={onRetake}>
           <SwapIcon />
-          <span>
-            Not quite you? <u>Take it again</u>
-          </span>
+          <span>Take it again</span>
         </button>
       </div>
 

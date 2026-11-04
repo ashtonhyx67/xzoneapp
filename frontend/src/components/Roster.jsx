@@ -265,9 +265,7 @@ export default function Roster({ token, people = [] }) {
             <button className="btn btn-secondary btn-inline" onClick={startEditing}>
               Edit
             </button>
-          ) : (
-            <span className="roster-readonly-note">Read-only — not your team</span>
-          )}
+          ) : null}
         </div>
       </div>
 

@@ -116,6 +116,10 @@ default, so it works on real devices once deployed.
   the scorecard, the database grid and the accounts list; every sitting's answers
   are kept in `personality_results`. `npm test --prefix backend` checks the
   scoring and that the questions stay balanced.
+- Outings at `/outings`: a leader plans one and picks who goes from the database,
+  starts it and ends it. Everyone on it is then asked how it went, which only leaders
+  can read. Someone is matched to their account through their person record or their
+  exact name, so anyone without one shows as "No account". See `backend/lib/outings.js`.
 - Passwords: anyone can change their own under My Account, and someone who has
   forgotten theirs asks an admin, who resets it from Accounts. Nobody else can reset
   the owner's password.

@@ -12,6 +12,7 @@ import {
 } from "../lib/narnia.js";
 import { useDragAndDrop } from "../lib/useDragAndDrop.js";
 import { usePoll } from "../lib/usePoll.js";
+import { refreshNavStatus } from "../lib/navStatus.js";
 import QrCode from "./QrCode.jsx";
 import TwoTapButton from "./TwoTapButton.jsx";
 import { SkeletonRows } from "./Skeleton.jsx";
@@ -103,7 +104,7 @@ function CheckInCard({ session, count, onAllowNames }) {
             checked={session.allowNames}
             onChange={(e) => onAllowNames(e.target.checked)}
           />
-          <span>Let people without an account check in with their name</span>
+          <span>Allow check-in by name</span>
         </label>
       </div>
       {big && <FullScreenQr url={url} code={session.code} onClose={() => setBig(false)} />}
@@ -182,6 +183,12 @@ export default function NarniaBoard() {
   }, [token]);
 
   usePoll(load, POLL_MS);
+
+  const sessionId = session?.id ?? null;
+  useEffect(() => {
+    if (session !== undefined) refreshNavStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
 
   async function change(call, optimistic) {
     revision.current += 1;
@@ -358,7 +365,7 @@ export default function NarniaBoard() {
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Add someone without a phone"
+            placeholder="Add someone"
             aria-label="Name to add"
             maxLength={80}
           />
@@ -518,7 +525,6 @@ export default function NarniaBoard() {
       {held && !drag && (
         <div className="carrying" role="status">
           <span className="carrying-name">{held.name}</span>
-          <span className="carrying-hint">tap a task or room</span>
           {!held.fromTaskId && (
             <TwoTapButton
               className="carrying-cancel"

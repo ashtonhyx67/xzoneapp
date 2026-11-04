@@ -112,7 +112,6 @@ export default function SignUp() {
         </form>
 
         <div className="auth-switch">
-          Already have an account?{" "}
           <Link to="/login" state={location.state}>
             Sign in
           </Link>

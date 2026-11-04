@@ -99,7 +99,6 @@ export default function Unlock() {
         <h1 className="auth-title">
           {firstName ? `Welcome back, ${firstName}` : "Welcome back"}
         </h1>
-        <p className="auth-subtitle">Enter your 4-digit PIN to continue</p>
 
         {error && (
           <div className="error-banner" role="alert" key={errorKey}>
@@ -120,8 +119,7 @@ export default function Unlock() {
             Use password instead
           </button>
         </div>
-        <div className="auth-switch auth-switch-quiet">
-          Not {account.name || account.email}?{" "}
+        <div className="auth-switch">
           <button type="button" className="link-btn" onClick={useAnotherAccount}>
             Sign in as someone else
           </button>

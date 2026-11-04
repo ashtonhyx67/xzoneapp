@@ -1,0 +1,101 @@
+// Outings: leaders and regulars going out each week to make friends, and in time
+// to bring them to church. A leader plans one and picks who goes from the people
+// database, starts it, and ends it. Everyone on it is then asked how it went.
+//
+// This file holds the parts that are decisions rather than database work, so they
+// can be tested without one. routes/outings.js does the rest.
+
+const MAX_TYPE = 60;
+const MAX_LOCATION = 160;
+const MAX_LONG_TEXT = 2000;
+const MAX_FRIENDS = 500;
+const MAX_PEOPLE = 200;
+
+function cleanLine(value, max) {
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
+// Goals and evaluations keep their line breaks, since they may well be a list.
+function cleanLong(value) {
+  return String(value ?? "")
+    .replace(/\r\n?/g, "\n")
+    .trim()
+    .slice(0, MAX_LONG_TEXT);
+}
+
+function validDate(value) {
+  const text = String(value ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+  const parsed = new Date(`${text}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === text
+    ? text
+    : null;
+}
+
+// "" means not decided yet. Anything else has to be a real 24-hour time.
+function cleanTime(value) {
+  const text = String(value ?? "").trim();
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(text) ? text : "";
+}
+
+// Blank is "not sure yet", which is different from nobody.
+function cleanCount(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const count = Number(value);
+  return Number.isInteger(count) && count >= 0 && count <= MAX_FRIENDS ? count : null;
+}
+
+function cleanPersonIds(value) {
+  if (!Array.isArray(value)) return [];
+  const ids = value
+    .map(Number)
+    .filter((id) => Number.isInteger(id) && id > 0 && id < 2 ** 31);
+  return [...new Set(ids)].slice(0, MAX_PEOPLE);
+}
+
+// Everything a leader fills in. Answers { error } or { fields }.
+function cleanOuting(body) {
+  const type = cleanLine(body?.type, MAX_TYPE);
+  if (!type) return { error: "Choose a type of hangout." };
+
+  const heldOn = validDate(body?.heldOn);
+  if (!heldOn) return { error: "Choose a date." };
+
+  const personIds = cleanPersonIds(body?.personIds);
+  if (personIds.length === 0) return { error: "Choose who's going." };
+
+  return {
+    fields: {
+      type,
+      heldOn,
+      startTime: cleanTime(body?.startTime),
+      endTime: cleanTime(body?.endTime),
+      location: cleanLine(body?.location, MAX_LOCATION),
+      goals: cleanLong(body?.goals),
+      friendsCount: cleanCount(body?.friendsCount),
+      friendsWho: cleanLong(body?.friendsWho),
+      personIds,
+    },
+  };
+}
+
+// Answers { error } or { fields }. Saying yes to meeting someone unexpected asks
+// who, because that is the part someone will want to follow up on.
+function cleanEvaluation(body) {
+  const how = cleanLong(body?.how);
+  if (!how) return { error: "Tell us how the outing was." };
+
+  if (typeof body?.metNf !== "boolean") {
+    return { error: "Tell us if we met any unexpected NFs." };
+  }
+
+  const nfDetails = body.metNf ? cleanLong(body?.nfDetails) : "";
+  if (body.metNf && !nfDetails) return { error: "Tell us who we met." };
+
+  return { fields: { how, metNf: body.metNf, nfDetails } };
+}
+
+module.exports = { cleanOuting, cleanEvaluation, cleanCount, cleanTime, validDate };

@@ -42,12 +42,6 @@ export default function Narnia() {
         </Link>
       )}
 
-      {overview?.running && !overview.myCode && (
-        <div className="panel narnia-my-job">
-          <strong>BM is on now. Scan the QR code to check in.</strong>
-        </div>
-      )}
-
       {!overview ? (
         !error && <SkeletonRows count={5} label="Loading Narnia BM" />
       ) : (

@@ -119,6 +119,21 @@ export const api = {
     request(`/seating?cg=${encodeURIComponent(cg)}&year=${year}&week=${week}`, { token, signal }),
   saveSeating: (token, body) => request("/seating", { method: "PUT", body, token }),
 
+  // What the menu needs on every page.
+  navStatus: (token, signal) => request("/dashboard/nav", { token, signal }),
+
+  // ---- Outings ----
+  outings: (token, signal) => request("/outings", { token, signal }),
+  outing: (token, id, signal) => request(`/outings/${id}`, { token, signal }),
+  outingPeople: (token, signal) => request("/outings/people", { token, signal }),
+  createOuting: (token, body) => request("/outings", { method: "POST", body, token }),
+  updateOuting: (token, id, body) => request(`/outings/${id}`, { method: "PUT", body, token }),
+  deleteOuting: (token, id) => request(`/outings/${id}`, { method: "DELETE", token }),
+  startOuting: (token, id) => request(`/outings/${id}/start`, { method: "POST", token }),
+  endOuting: (token, id) => request(`/outings/${id}/end`, { method: "POST", token }),
+  submitOutingEvaluation: (token, id, body) =>
+    request(`/outings/${id}/evaluation`, { method: "POST", body, token }),
+
   // ---- Narnia BM ----
   // The standard answers every change with all the rooms, and a running session
   // with the whole board, so nothing on screen is half old and half new.

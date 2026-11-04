@@ -1,10 +1,15 @@
-import React, { createContext, Suspense, useContext, useLayoutEffect } from "react";
+import React, { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { initials } from "../lib/photo.js";
 import { PERMISSIONS } from "../lib/permissions.js";
+import { usePoll } from "../lib/usePoll.js";
+import { onNavStatusChanged } from "../lib/navStatus.js";
+import { api } from "../api.js";
 import UpdatePrompt from "./UpdatePrompt.jsx";
 import BrandMark from "./BrandMark.jsx";
+
+const NAV_POLL_MS = 30000;
 
 // Set while a page is being drawn inside the shared frame, so a page that still
 // wraps itself in <AppShell> does not draw a second frame inside the first.
@@ -42,6 +47,13 @@ const ICONS = {
       <rect x="13.5" y="3.5" width="7" height="7" rx="1.8" />
       <rect x="3.5" y="13.5" width="7" height="7" rx="1.8" />
       <rect x="13.5" y="13.5" width="7" height="7" rx="1.8" />
+    </>
+  ),
+  // A map pin.
+  outings: (
+    <>
+      <path d="M12 21.5s7-6.4 7-12a7 7 0 1 0-14 0c0 5.6 7 12 7 12Z" />
+      <circle cx="12" cy="9.5" r="2.5" />
     </>
   ),
   // The wardrobe.
@@ -137,8 +149,25 @@ export function NavIcon({ name, className = "nav-icon" }) {
 }
 
 function Frame({ children }) {
-  const { user, can, group, isOwner, signOut, viewingAsMember, setViewAsMember } = useAuth();
+  const { token, user, can, group, isOwner, signOut, viewingAsMember, setViewAsMember } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  // What the menu itself depends on. Kept fresh on a timer, and on moving to another
+  // page, so finishing an evaluation takes its mark away straight away.
+  const [navStatus, setNavStatus] = useState(null);
+  const loadNav = useCallback(async () => {
+    try {
+      setNavStatus(await api.navStatus(token));
+    } catch {
+      /* the menu simply keeps what it last knew */
+    }
+  }, [token]);
+  usePoll(loadNav, NAV_POLL_MS);
+  useEffect(() => {
+    loadNav();
+  }, [loadNav, pathname, viewingAsMember]);
+  useEffect(() => onNavStatusChanged(loadNav), [loadNav]);
 
   async function exitMemberView() {
     try {
@@ -165,14 +194,17 @@ function Frame({ children }) {
     }
   }
 
-  const link = (to, icon, label, extra = "") => (
+  const link = (to, icon, label, { extra = "", alsoActiveOn = [], mark = false } = {}) => (
     <NavLink
       to={to}
-      className={({ isActive }) => `${navClass({ isActive })}${extra}`}
+      className={({ isActive }) =>
+        `${navClass({ isActive: isActive || alsoActiveOn.includes(pathname) })}${extra}`
+      }
       onClick={(event) => toTop(event, to)}
     >
       <NavIcon name={icon} />
       <span className="nav-label">{label}</span>
+      {mark && <span className="nav-mark" aria-label="Needs attention" />}
     </NavLink>
   );
 
@@ -188,13 +220,18 @@ function Frame({ children }) {
           {/* Home is its own thing — the page you come back to — so on a phone
               it sits apart from the working pages rather than in the row with
               them. */}
-          {link("/dashboard", "home", "Dashboard", " nav-home")}
+          {link("/dashboard", "home", "Dashboard", { extra: " nav-home" })}
           {can(PERMISSIONS.VIEW_DIRECTORY) && link("/members", "members", "Members")}
-          {can(PERMISSIONS.VIEW_DIRECTORY) && link("/attendance", "attendance", "Attendance")}
-          {can(PERMISSIONS.VIEW_SEATING) && link("/seating", "seating", "Seating")}
-          {/* For everyone: a person being given a job needs no permissions. */}
-          {link("/narnia", "narnia", "Narnia BM")}
-          {can(PERMISSIONS.EDIT_DATABASE) && link("/database", "database", "Database")}
+          {/* Attendance and seating are one tab with a switch inside it. Someone who
+              cannot read the registers just has the seating. */}
+          {can(PERMISSIONS.VIEW_DIRECTORY)
+            ? link("/attendance", "attendance", "Weekly", { alsoActiveOn: ["/seating"] })
+            : can(PERMISSIONS.VIEW_SEATING) && link("/seating", "seating", "Seating")}
+          {link("/outings", "outings", "Outings", {
+            mark: (navStatus?.outingsToEvaluate.length ?? 0) > 0,
+          })}
+          {/* Only while one is running. The rest of the time it is under All. */}
+          {navStatus?.narniaRunning && link("/narnia", "narnia", "Narnia BM")}
           {/* Everyone needs somewhere to set a PIN and sign out, so All is always
               reachable; each account sees only the tiles it can open. */}
           {link("/admin", "admin", "All")}

@@ -33,7 +33,7 @@ export default function NarniaHistory() {
     <AdminPage title="History">
       {error && <div className="error-banner">{error}</div>}
       {!sessions && !error && <SkeletonRows count={3} label="Loading past clean-ups" />}
-      {sessions?.length === 0 && <div className="list-empty">No past BMs yet.</div>}
+      {sessions?.length === 0 && <div className="list-empty">Nothing here</div>}
       {sessions?.length > 0 && (
         <div className="narnia-history">
           {sessions.map((session) => (

@@ -110,9 +110,6 @@ export default function SetPin() {
       </div>
         <div className="auth-card">
           <h1 className="auth-title">You're all set</h1>
-          <p className="auth-subtitle">
-            Your PIN is saved. One last thing worth doing.
-          </p>
 
           <InstallPrompt onDone={() => navigate("/dashboard", { replace: true })} />
 
@@ -140,11 +137,6 @@ export default function SetPin() {
         <h1 className="auth-title">
           {step === "choose" ? "Create a PIN" : "Confirm your PIN"}
         </h1>
-        <p className="auth-subtitle">
-          {step === "choose"
-            ? "You'll use these 4 digits to get back in each time you open the app."
-            : "Enter the same 4 digits once more."}
-        </p>
 
         {error && (
           <div className="error-banner" role="alert" key={errorKey}>

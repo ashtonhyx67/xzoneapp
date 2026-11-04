@@ -4,6 +4,7 @@ const { pool } = require("../db");
 const { requireAuth, loadAccess } = require("../middleware/auth");
 const { PERMISSIONS } = require("../lib/groups");
 const { normalizeTeam, teamsInCg } = require("../lib/teams");
+const { outingsToEvaluate } = require("./outings");
 
 const router = express.Router();
 
@@ -125,6 +126,20 @@ router.get(
       birthdays,
       followUps,
     });
+  })
+);
+
+// What the menu needs to know, asked for on every page: whether Narnia BM is running,
+// which is what puts it on the menu, and which outings this person owes an answer on.
+router.get(
+  "/nav",
+  requireAuth,
+  route(async (req, res) => {
+    const [narnia, toEvaluate] = await Promise.all([
+      pool.query("SELECT 1 FROM narnia_sessions WHERE status = 'open' LIMIT 1"),
+      outingsToEvaluate(req.userId),
+    ]);
+    res.json({ narniaRunning: Boolean(narnia.rows[0]), outingsToEvaluate: toEvaluate });
   })
 );
 

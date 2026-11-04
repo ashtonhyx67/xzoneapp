@@ -111,14 +111,11 @@ canvas {
 .page-title,
 .auth-title,
 .section-title,
-.panel-title,
-.update-card-text {
+.panel-title {
   text-wrap: balance;
 }
 
 p,
-.panel-note,
-.auth-subtitle,
 .list-empty {
   text-wrap: pretty;
 }
@@ -774,7 +771,7 @@ button {
     display: none;
   }
 
-  /* Seven links for an owner, four for a member. Rather than sizing for
+  /* Six links for a leader, up to five for a member. Rather than sizing for
      the common case and letting the rest run off the end of the pill, the
      row scrolls as a last resort — nothing is ever unreachable. */
   .sidebar-nav {
@@ -1546,13 +1543,6 @@ button {
   font-weight: 700;
 }
 
-.install-text {
-  margin: 4px 0 12px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text-soft);
-}
-
 .install-btn {
   width: 100%;
 }
@@ -1571,13 +1561,6 @@ button {
 
 .install-glyph {
   font-size: 14px;
-}
-
-.panel-note {
-  margin: 10px 0 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text-soft);
 }
 
 /* Asking about the records. Sits at the top of the dashboard, so it reads as
@@ -1652,29 +1635,6 @@ button {
   cursor: default;
 }
 
-.ask-suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.ask-suggestion {
-  padding: 5px 11px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg);
-  font-family: inherit;
-  font-size: 12px;
-  color: var(--text-soft);
-  cursor: pointer;
-}
-
-.ask-suggestion:hover {
-  border-color: var(--border-strong);
-  color: var(--text);
-}
-
 .ask-answer {
   margin-top: 14px;
   padding: 14px 16px;
@@ -1688,13 +1648,6 @@ button {
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-/* What it read. An answer you can check is worth more than one you cannot. */
-.ask-source {
-  margin: 10px 0 0;
-  font-size: 12px;
-  color: var(--text-soft);
 }
 
 @media (max-width: 560px) {
@@ -2296,11 +2249,6 @@ button {
   color: var(--danger);
 }
 
-.seating-empty {
-  font-size: 13px;
-  color: var(--text-soft);
-}
-
 .seating-pool {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -2654,11 +2602,6 @@ button {
   overflow-wrap: anywhere;
 }
 
-.carrying-hint {
-  font-size: 13px;
-  opacity: 0.7;
-}
-
 .carrying-cancel {
   margin-left: auto;
   flex-shrink: 0;
@@ -2865,11 +2808,6 @@ button {
   font-weight: 600;
 }
 
-.roster-readonly-note {
-  font-size: 13px;
-  color: var(--text-soft);
-}
-
 /* ---------- Dashboard week banner ---------- */
 
 /* Attendance and SA are weekly, so the week owns the top of the dashboard.
@@ -2930,13 +2868,6 @@ button {
 .week-date {
   font-size: 15px;
   color: rgba(255, 255, 255, 0.82);
-}
-
-.week-greeting {
-  margin-top: 6px;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.72);
-  overflow-wrap: anywhere;
 }
 
 .week-tags {
@@ -3332,17 +3263,6 @@ button {
   margin: 14px 0 0;
 }
 
-.auth-subtitle {
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--text-soft);
-}
-
-.auth-switch-quiet {
-  font-size: 12px;
-  color: var(--text-soft);
-}
-
 .pinpad {
   margin-top: 22px;
 }
@@ -3669,13 +3589,6 @@ button {
   box-shadow: 0 16px 48px rgba(25, 21, 53, 0.34);
   text-align: center;
   animation: update-rise 0.2s ease-out;
-}
-
-.update-card-text {
-  font-size: 15px;
-  line-height: 1.45;
-  font-weight: 500;
-  overflow-wrap: anywhere;
 }
 
 /* Sized to its words rather than stretched across the card, which is what made
@@ -4185,7 +4098,6 @@ button {
 .icon-btn,
 .cg-chip,
 .team-chip,
-.ask-suggestion,
 .legend-chip,
 .week-tag-link,
 .picker-team {
@@ -4202,7 +4114,6 @@ button {
 .icon-btn:active:not(:disabled),
 .cg-chip:active:not(:disabled),
 .team-chip:active:not(:disabled),
-.ask-suggestion:active,
 .week-tag-link:active {
   transform: scale(0.97);
   transition-duration: var(--dur-press);
@@ -4245,11 +4156,6 @@ button {
   .pin-key:hover:not(:disabled) {
     background: var(--surface);
     border-color: var(--border);
-  }
-
-  .ask-suggestion:hover {
-    border-color: var(--border);
-    color: var(--text-soft);
   }
 }
 
@@ -4339,23 +4245,6 @@ button {
 .seating-pool-over {
   border-color: var(--danger);
   background: var(--danger-bg);
-}
-
-.seating-pool-hint {
-  margin-top: 10px;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-soft);
-  text-align: center;
-  animation: banner-in var(--dur-move) var(--ease-out);
-}
-
-.seating-pool-over .seating-pool-hint {
-  background: transparent;
-  color: var(--danger);
 }
 
 /* The card in your hand. Fixed to the window and moved by script; it never
@@ -4494,14 +4383,6 @@ body.is-dragging * {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.6);
   overflow-wrap: anywhere;
-}
-
-/* Nothing to show yet reads as an instruction, not as an empty box. */
-.event-preview-empty {
-  background: var(--bg);
-  color: var(--text-soft);
-  font-size: 13px;
-  line-height: 1.5;
 }
 
 .event-actions {
@@ -5512,15 +5393,6 @@ body.is-dragging * {
   padding: 22px;
   margin-bottom: 24px;
   box-shadow: var(--shadow-card);
-}
-
-.result-warning {
-  background: var(--mark-soft);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  line-height: 1.4;
-  padding: 10px 12px;
-  margin-bottom: 18px;
 }
 
 .result-bar {
@@ -6743,4 +6615,292 @@ body.is-dragging * {
 .account-reset input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* The title now sits straight above the button, with nothing between them. */
+.install-title {
+  margin-bottom: 10px;
+}
+
+/* ---------- Attendance and seating, one tab ---------- */
+
+.weekly-head {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.weekly-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--border);
+  border-radius: var(--radius-md);
+}
+
+.weekly-tab {
+  flex: 1;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  transition: background var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
+}
+
+.weekly-tab-on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-card);
+}
+
+/* The menu's mark for something waiting on you. */
+.nav-item {
+  position: relative;
+}
+
+.nav-mark {
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  flex-shrink: 0;
+  background: var(--mark);
+  border-radius: 50%;
+}
+
+@media (max-width: 768px) {
+  .nav-mark {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    margin: 0;
+  }
+
+  .nav-item.active .nav-mark {
+    background: var(--danger);
+  }
+}
+
+/* ---------- Outings ---------- */
+
+.outing-new {
+  margin-left: auto;
+  text-decoration: none;
+}
+
+.outing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.outing-list .panel {
+  margin: 0;
+}
+
+.outing-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.outing-card-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.outing-card-type {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.outing-card-line {
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.outing-status {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  background: var(--bg);
+  border-radius: 999px;
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.outing-status-active {
+  background: var(--mark);
+  color: var(--ink);
+}
+
+.outing-form .field {
+  margin-bottom: 16px;
+}
+
+.outing-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.outing-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.outing-friends {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 10px;
+}
+
+.outing-chosen {
+  margin-bottom: 10px;
+}
+
+.outing-people {
+  max-height: 300px;
+  margin-top: 8px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.field .outing-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.outing-person:last-child {
+  border-bottom: none;
+}
+
+.field .outing-person input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--ink);
+}
+
+.outing-person-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.outing-detail .narnia-subhead {
+  margin-top: 0;
+  margin-bottom: 4px;
+}
+
+.outing-detail + .outing-detail {
+  margin-top: 16px;
+}
+
+.outing-detail-value {
+  white-space: pre-line;
+}
+
+.outing-names {
+  margin: 0;
+}
+
+.outing-name {
+  padding: 3px 10px;
+  background: var(--card-head);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.outing-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.outing-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.outing-actions-row .btn {
+  width: auto;
+  text-decoration: none;
+}
+
+.section-head .outing-edit-evaluation {
+  flex: 0 0 auto;
+  width: auto;
+  margin-left: auto;
+}
+
+.outing-evaluation-name {
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+
+.outing-evaluation-text {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.outing-evaluation .narnia-subhead {
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+
+.outing-waiting {
+  margin: 0 0 8px;
+}
+
+.outing-waiting .narnia-subhead {
+  margin-top: 0;
+}
+
+.outing-waiting-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.outing-waiting-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.home-evaluate {
+  margin-top: 16px;
+  margin-bottom: 0;
 }

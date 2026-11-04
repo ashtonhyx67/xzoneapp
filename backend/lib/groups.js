@@ -29,6 +29,10 @@ const PERMISSIONS = {
   // Run a Narnia BM: edit the standard, start a check-in, delegate. Anyone can
   // check in and be given a job without this.
   RUN_NARNIA: "runNarnia",
+  // Plan, start and end an outing, and read everyone's evaluations. Choosing who
+  // goes means reading names from the database, so this sits with leaders rather
+  // than with the admin flag. Anyone on an outing can evaluate it without this.
+  RUN_OUTINGS: "runOutings",
 };
 
 const ALL = Object.values(PERMISSIONS);
@@ -51,12 +55,13 @@ const GROUPS = [
   {
     key: "leader",
     label: "Leader",
-    description: "The database, the registers, the structure and running Narnia BM.",
+    description: "The database, the registers, the structure, and running Narnia BM and outings.",
     permissions: [
       PERMISSIONS.VIEW_DIRECTORY,
       PERMISSIONS.EDIT_DATABASE,
       PERMISSIONS.VIEW_SEATING,
       PERMISSIONS.RUN_NARNIA,
+      PERMISSIONS.RUN_OUTINGS,
     ],
   },
   {

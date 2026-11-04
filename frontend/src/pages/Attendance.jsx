@@ -16,6 +16,7 @@ import {
 import AppShell from "../components/AppShell.jsx";
 import { SkeletonRows, Ticker } from "../components/Skeleton.jsx";
 import WeekPicker from "../components/WeekPicker.jsx";
+import WeeklyTabs from "../components/WeeklyTabs.jsx";
 
 const SAVE_DELAY = 700;
 
@@ -465,9 +466,7 @@ export default function Attendance() {
 
   return (
     <AppShell>
-      <header className="page-head">
-        <h1 className="page-title">Attendance</h1>
-      </header>
+      <WeeklyTabs />
 
       <div className="panel">
         <div className="attendance-toolbar">
@@ -512,9 +511,6 @@ export default function Attendance() {
         </div>
 
         {error && <div className="error-banner panel-notice">{error}</div>}
-        {!canEdit && record && (
-          <div className="panel-notice list-empty">Read-only — not your team</div>
-        )}
 
         {/* The register as the chat wants it. Editable before it is copied —
             the heading carries a term and its week, which is wording this app
@@ -522,7 +518,7 @@ export default function Attendance() {
         {exporting && record && (
           <div className="export-box">
             <div className="export-head">
-              <span className="export-title">Paste this into Telegram</span>
+              <span className="export-title">Telegram</span>
               <button
                 type="button"
                 className="btn btn-primary btn-inline"
@@ -641,7 +637,7 @@ export default function Attendance() {
                 <input
                   className="status-form-label"
                   value={newStatus.label}
-                  placeholder="What is it called?"
+                  placeholder="Name"
                   aria-label="Status name"
                   onChange={(e) => setNewStatus((v) => ({ ...v, label: e.target.value }))}
                 />

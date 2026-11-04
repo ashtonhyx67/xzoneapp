@@ -56,6 +56,7 @@ export default function Admin() {
           label: "Attendance",
         },
         can(PERMISSIONS.VIEW_SEATING) && { to: "/seating", icon: "seating", label: "Seating" },
+        { to: "/outings", icon: "outings", label: "Outings" },
       ],
     },
     {

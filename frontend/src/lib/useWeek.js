@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { isoWeek, sameWeek } from "./weeks.js";
 
 // The week a page is showing.
@@ -14,8 +14,24 @@ import { isoWeek, sameWeek } from "./weeks.js";
 // and the page moves on if the week has genuinely rolled over. Someone reading
 // last week's register is left where they are: only a real rollover moves the
 // page, and only if they had not gone looking elsewhere.
+//
+// Attendance and seating sit either side of one switch, so the week chosen on one is
+// still chosen on the other. It is forgotten once the real week has moved on, or a
+// page reopened days later would be back on the wrong week.
+let remembered = null; // { week, currentWhenChosen }
+
+function openingWeek() {
+  const now = isoWeek();
+  return remembered && sameWeek(remembered.currentWhenChosen, now) ? remembered.week : now;
+}
+
 export function useWeek() {
-  const [week, setWeek] = useState(() => isoWeek());
+  const [week, setWeekState] = useState(openingWeek);
+
+  const setWeek = useCallback((next) => {
+    remembered = { week: next, currentWhenChosen: isoWeek() };
+    setWeekState(next);
+  }, []);
 
   // What the current week was the last time this was checked. Comparing
   // against it is what separates "the week has rolled over" from "they are
@@ -47,7 +63,7 @@ export function useWeek() {
       document.removeEventListener("visibilitychange", recheck);
       clearInterval(timer);
     };
-  }, [week]);
+  }, [setWeek, week]);
 
   return [week, setWeek];
 }

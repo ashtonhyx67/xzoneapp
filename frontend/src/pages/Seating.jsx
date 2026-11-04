@@ -7,6 +7,7 @@ import { SEATING_CGS } from "../lib/teams.js";
 import { useWeek } from "../lib/useWeek.js";
 import AppShell from "../components/AppShell.jsx";
 import WeekPicker from "../components/WeekPicker.jsx";
+import WeeklyTabs from "../components/WeeklyTabs.jsx";
 import { useFlip } from "../lib/flip.js";
 import { useDragAndDrop } from "../lib/useDragAndDrop.js";
 import { SkeletonRows } from "../components/Skeleton.jsx";
@@ -335,9 +336,7 @@ export default function Seating() {
 
   return (
     <AppShell>
-      <header className="page-head">
-        <h1 className="page-title">Seating Arrangement</h1>
-      </header>
+      <WeeklyTabs />
 
       <div className="panel">
         <div className="attendance-toolbar">
@@ -392,11 +391,7 @@ export default function Seating() {
                 {status === "saving" ? "Saving…" : status === "error" ? "Not saved" : ""}
               </span>
             </span>
-          ) : (
-            <span className="roster-readonly-note">
-              {record?.finalised ? "Read-only" : ""}
-            </span>
-          )}
+          ) : null}
         </div>
 
         {error && <div className="error-banner panel-notice">{error}</div>}
@@ -407,7 +402,7 @@ export default function Seating() {
           <div className="seating-layout" ref={layoutRef}>
             <div className={`seating-plan${drag ? " seating-plan-dragging" : ""}`} ref={planRef}>
               {rows.length === 0 ? (
-                <div className="list-empty">{canEdit ? "No rows yet." : "Not ready yet."}</div>
+                canEdit ? null : <div className="list-empty">Not ready yet</div>
               ) : (
                 rows.map((row, rowIndex) => {
                   const target = drag?.target;
@@ -550,7 +545,6 @@ export default function Seating() {
 
                       <div className="seating-seats">
                         {items}
-                        {shown === 0 && !gapHere && <span className="seating-empty">Empty</span>}
                       </div>
                     </div>
                   );
@@ -570,18 +564,7 @@ export default function Seating() {
                   <span className="section-count">{unplaced.length}</span>
                 </div>
 
-                {drag && drag.item.from != null && (
-                  <div className="seating-pool-hint">Drop here to take them out of their row</div>
-                )}
-
-                {roll.length === 0 ? (
-                  <div className="list-empty">
-                    Nobody is marked present for week {when.week} yet. Mark the
-                    register and they will appear here.
-                  </div>
-                ) : unplaced.length === 0 ? (
-                  <div className="list-empty">Everyone has a seat.</div>
-                ) : (
+                {unplaced.length > 0 && (
                   <div className="seating-pool-list">
                     {unplaced.map((person) => {
                       const item = { name: person.name, from: null, key: null };
@@ -625,7 +608,6 @@ export default function Seating() {
       {canEdit && held && !drag && (
         <div className="carrying" role="status">
           <span className="carrying-name">{held.name}</span>
-          <span className="carrying-hint">tap a row</span>
           <button className="carrying-cancel" onClick={() => setHeld(null)}>
             Cancel
           </button>

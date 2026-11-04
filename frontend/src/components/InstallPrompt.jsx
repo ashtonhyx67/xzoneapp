@@ -37,9 +37,6 @@ export default function InstallPrompt({ onDone }) {
 
       <div className="install-body">
         <div className="install-title">Add to your home screen</div>
-        <p className="install-text">
-          Opens like an app, and keeps you signed in.
-        </p>
 
         {/* Chrome and Edge can do it in one tap. */}
         {canPromptToInstall() && (

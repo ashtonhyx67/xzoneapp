@@ -85,10 +85,6 @@ export default function EventInvite() {
       <div className="panel-row">
         <div>
           <div className="panel-title">Put something in the calendar</div>
-          <p className="panel-note">
-            Build the event, then paste the link in the group — whoever taps it saves it to
-            their own calendar.
-          </p>
         </div>
         <button
           type="button"
@@ -107,7 +103,7 @@ export default function EventInvite() {
             <input
               id="event-title"
               value={event.title}
-              placeholder="X3A — Week 44"
+              
               onChange={set("title")}
             />
           </div>
@@ -147,7 +143,7 @@ export default function EventInvite() {
             <input
               id="event-location"
               value={event.location}
-              placeholder="Hall 2"
+              
               onChange={set("location")}
             />
           </div>
@@ -159,7 +155,7 @@ export default function EventInvite() {
               className="event-details"
               rows={2}
               value={event.details}
-              placeholder="Bring a friend"
+              
               onChange={set("details")}
             />
           </div>
@@ -175,11 +171,7 @@ export default function EventInvite() {
                 <div className="event-preview-where">{event.location.trim()}</div>
               )}
             </div>
-          ) : (
-            <div className="event-preview event-preview-empty">
-              Give it a name and a time and the link appears here.
-            </div>
-          )}
+          ) : null}
 
           <div className="event-actions">
             <button

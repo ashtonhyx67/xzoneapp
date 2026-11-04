@@ -8,6 +8,7 @@ import AskPanel from "../components/AskPanel.jsx";
 import MemberRow from "../components/MemberRow.jsx";
 import EventInvite from "../components/EventInvite.jsx";
 import AdminTile from "../components/AdminTile.jsx";
+import { formatDay as fullDate } from "../lib/narnia.js";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -44,7 +45,7 @@ function isoWeek(date) {
 
 // The top of the dashboard. Attendance and SA are recorded every week, so the
 // week and the day are the first thing the page says.
-function WeekBanner({ firstName, teams, showRecords }) {
+function WeekBanner({ teams, showRecords }) {
   // Tick over at midnight rather than only when the tab is reopened.
   const [now, setNow] = useState(() => new Date());
 
@@ -69,9 +70,6 @@ function WeekBanner({ firstName, teams, showRecords }) {
       <div className="week-banner-side">
         <div className="week-day">{dayName}</div>
         <div className="week-date">{dateLine}</div>
-        <div className="week-greeting">
-          Welcome back{firstName ? `, ${firstName}` : ""}
-        </div>
         <div className="week-tags">
           {/* Which teams these birthdays and follow-ups are for. Nothing shown
               while the summary is still loading, or for an account that has
@@ -129,13 +127,12 @@ function MemberSection({ title, count, people, empty, renderDetail, renderBadge 
 }
 
 export default function Dashboard() {
-  const { user, token, can } = useAuth();
+  const { token, can } = useAuth();
   const canView = can(PERMISSIONS.VIEW_DIRECTORY);
 
   const [summary, setSummary] = useState(null);
   const [summaryError, setSummaryError] = useState("");
-
-  const firstName = user?.name ? user.name.split(" ")[0] : "";
+  const [toEvaluate, setToEvaluate] = useState([]);
 
   useEffect(() => {
     if (!token) return;
@@ -158,14 +155,37 @@ export default function Dashboard() {
     };
   }, [token]);
 
+  useEffect(() => {
+    if (!token) return undefined;
+    const controller = new AbortController();
+    api
+      .navStatus(token, controller.signal)
+      .then((data) => setToEvaluate(data.outingsToEvaluate))
+      .catch(() => {
+        /* a reminder, not something to report an error over */
+      });
+    return () => controller.abort();
+  }, [token]);
+
   const birthdays = summary?.birthdays ?? [];
   const followUps = summary?.followUps ?? [];
 
   return (
     <AppShell>
-      <WeekBanner firstName={firstName} teams={summary?.scope ?? []} showRecords={canView} />
+      <WeekBanner teams={summary?.scope ?? []} showRecords={canView} />
 
       {summaryError && <div className="error-banner">{summaryError}</div>}
+
+      {toEvaluate.map((outing) => (
+        <Link className="panel narnia-my-job home-evaluate" to={`/outings/${outing.id}`} key={outing.id}>
+          <span>
+            <strong>How was the outing?</strong>
+            <br />
+            {[outing.type, outing.location, fullDate(outing.heldOn)].filter(Boolean).join(" · ")}
+          </span>
+          <span aria-hidden="true">→</span>
+        </Link>
+      ))}
 
       {!canView ? (
         <section className="admin-card home-shortcuts">
@@ -199,7 +219,7 @@ export default function Dashboard() {
             title="Birthdays"
             count={birthdays.length}
             people={birthdays}
-            empty="Nothing in the next 30 days"
+            empty="Nothing here"
             renderDetail={(person) => `${formatDay(person.birthday)} — turning ${person.turning}`}
             renderBadge={(person) => ({
               text: whenLabel(person.daysAway),
@@ -211,7 +231,7 @@ export default function Dashboard() {
             title="Follow-ups"
             count={followUps.length}
             people={followUps}
-            empty="Everyone is marked Done"
+            empty="Nothing here"
             renderDetail={(person) => person.teamKey ?? ""}
             renderBadge={(person) => ({ text: person.status, tone: "off" })}
           />

@@ -83,7 +83,7 @@ function TaskCard({ task, inRoom, onToggle, busy, locked }) {
           onClick={() => onToggle(task)}
           disabled={busy}
         >
-          {task.done ? "Done ✓ (tap to undo)" : "Mark as done"}
+          {task.done ? "Done ✓" : "Mark as done"}
         </button>
       )}
       {locked && task.done && <p className="narnia-job-with">Done ✓</p>}
@@ -258,7 +258,6 @@ export default function NarniaCheckIn() {
             {firstName ? `Check in as ${firstName}` : "Sign in to check in"}
           </Link>
           <div className="auth-switch">
-            {firstName ? "Not you? " : "New here? "}
             <Link to={firstName ? "/login" : "/signup"} state={returnHere}>
               {firstName ? "Use another account" : "Create an account"}
             </Link>
@@ -292,7 +291,7 @@ export default function NarniaCheckIn() {
           ) : (
             <div className="auth-switch">
               <button type="button" className="link-btn" onClick={() => setTypingName(true)}>
-                No account yet? Just type your name
+                Type my name instead
               </button>
             </div>
           ))}

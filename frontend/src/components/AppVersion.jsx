@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { isStandalone, reloadApp, updateAvailable } from "../lib/updates.js";
+import { reloadApp, updateAvailable } from "../lib/updates.js";
 
 // A permanent way to update, for anyone who dismissed the prompt or simply
 // wants to be sure they are on the current version. On the home screen there is
@@ -23,15 +23,6 @@ export default function AppVersion() {
     <div className="panel account-panel">
       <div className="account-identity">
         <div className="account-name">This app</div>
-        <div className="account-email">
-          {state === "ready"
-            ? "A new version is ready to install."
-            : state === "current"
-              ? "You are on the latest version."
-              : isStandalone()
-                ? "Added to your home screen."
-                : "Running in the browser."}
-        </div>
         {error && <div className="account-email">{error}</div>}
       </div>
 
@@ -43,9 +34,9 @@ export default function AppVersion() {
         <button
           className="btn btn-secondary btn-inline"
           onClick={check}
-          disabled={state === "checking"}
+          disabled={state === "checking" || state === "current"}
         >
-          {state === "checking" ? "Checking…" : "Check for updates"}
+          {state === "checking" ? "Checking…" : state === "current" ? "Up to date" : "Check for updates"}
         </button>
       )}
     </div>

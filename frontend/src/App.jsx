@@ -24,6 +24,9 @@ const pages = {
   NarniaHistory: () => import("./pages/NarniaHistory.jsx"),
   AdminAccount: () => import("./pages/AdminAccount.jsx"),
   AdminAccounts: () => import("./pages/AdminAccounts.jsx"),
+  Outings: () => import("./pages/Outings.jsx"),
+  OutingDetail: () => import("./pages/OutingDetail.jsx"),
+  OutingEdit: () => import("./pages/OutingEdit.jsx"),
 };
 
 const Members = lazy(pages.Members);
@@ -37,6 +40,9 @@ const NarniaRooms = lazy(pages.NarniaRooms);
 const NarniaHistory = lazy(pages.NarniaHistory);
 const AdminAccount = lazy(pages.AdminAccount);
 const AdminAccounts = lazy(pages.AdminAccounts);
+const Outings = lazy(pages.Outings);
+const OutingDetail = lazy(pages.OutingDetail);
+const OutingEdit = lazy(pages.OutingEdit);
 const NarniaCheckIn = lazy(() => import("./pages/NarniaCheckIn.jsx"));
 const Personality = lazy(() => import("./pages/Personality.jsx"));
 
@@ -138,6 +144,10 @@ export default function App() {
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/seating" element={<Seating />} />
           <Route path="/narnia" element={<Narnia />} />
+          <Route path="/outings" element={<Outings />} />
+          <Route path="/outings/new" element={<OutingEdit />} />
+          <Route path="/outings/:id" element={<OutingDetail />} />
+          <Route path="/outings/:id/edit" element={<OutingEdit />} />
           <Route path="/database" element={<Database />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/account" element={<AdminAccount />} />

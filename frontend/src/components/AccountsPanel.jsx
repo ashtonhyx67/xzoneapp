@@ -136,7 +136,7 @@ export default function AccountsPanel() {
       await api.resetAccountPassword(token, account.id, password);
       setResetting(null);
       setNotice(
-        `${account.name}'s new password is ${password}. Send it to them privately, and ask them to change it under My Account.`
+        `${account.name}'s new password is ${password}`
       );
     } catch (err) {
       setError(err.message);
@@ -404,18 +404,6 @@ export default function AccountsPanel() {
           ))}
         </div>
       )}
-
-      <div className="panel-note">
-        <p>
-          <strong>Leader</strong> — the database, the registers and the structure.
-          <br />
-          <strong>Member</strong> — the dashboard, and the seating once it is finalised.
-          <br />
-          <strong>Admin</strong> — this page, and arranging the seating. A job rather
-          than a rank, so a Member can hold it too.
-        </p>
-        <p>Teams decide whose members someone works on, not what they may do.</p>
-      </div>
 
     </section>
   );

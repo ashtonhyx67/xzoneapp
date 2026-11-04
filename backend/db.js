@@ -801,6 +801,59 @@ async function initSchema() {
     );
   `);
 
+  // ---------- Outings ----------
+  // Going out each week to make friends. lib/outings.js has the reasoning. A person's
+  // name is copied in, so removing someone later does not blank out who went.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS outings (
+      id SERIAL PRIMARY KEY,
+      hangout_type TEXT NOT NULL,
+      held_on DATE NOT NULL,
+      start_time TEXT NOT NULL DEFAULT '',
+      end_time TEXT NOT NULL DEFAULT '',
+      location TEXT NOT NULL DEFAULT '',
+      goals TEXT NOT NULL DEFAULT '',
+      friends_count INTEGER,
+      friends_who TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'planned',
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      started_at TIMESTAMPTZ,
+      ended_at TIMESTAMPTZ
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS outing_people (
+      id SERIAL PRIMARY KEY,
+      outing_id INTEGER NOT NULL REFERENCES outings(id) ON DELETE CASCADE,
+      person_id INTEGER REFERENCES people(id) ON DELETE SET NULL,
+      name TEXT NOT NULL
+    );
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS outing_people_person_idx
+      ON outing_people (outing_id, person_id) WHERE person_id IS NOT NULL;
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS outing_people_outing_idx ON outing_people (outing_id);
+  `);
+
+  // One answer per person per outing. Submitting again replaces it.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS outing_evaluations (
+      id SERIAL PRIMARY KEY,
+      outing_person_id INTEGER UNIQUE NOT NULL REFERENCES outing_people(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      how TEXT NOT NULL,
+      met_nf BOOLEAN NOT NULL,
+      nf_details TEXT NOT NULL DEFAULT '',
+      submitted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
   console.log("Database schema ready.");
 }
 
