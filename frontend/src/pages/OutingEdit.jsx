@@ -34,6 +34,9 @@ export default function OutingEdit() {
   const [form, setForm] = useState(() => ({ ...BLANK, heldOn: localDay() }));
   const [picked, setPicked] = useState(() => new Set());
   const [people, setPeople] = useState(null);
+  // The organiser is on the outing whatever else is picked: their person record
+  // when the database has one, and their name either way.
+  const [organiser, setOrganiser] = useState({ personId: null, name: "", isMe: true });
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -52,12 +55,19 @@ export default function OutingEdit() {
         setPeople(names.people);
 
         if (!existing) {
-          // Whoever plans an outing is usually on it. Easy to take off if not.
-          if (names.me) setPicked(new Set([names.me]));
+          setOrganiser({ personId: names.me, name: names.myName, isMe: true });
           return;
         }
 
         const { outing } = existing;
+        const organiserRow = outing.people.find(
+          (person) => person.name.toLowerCase() === outing.organiser.toLowerCase()
+        );
+        setOrganiser({
+          personId: outing.isOrganiser ? names.me : organiserRow?.personId ?? null,
+          name: outing.organiser,
+          isMe: outing.isOrganiser,
+        });
         const preset = HANGOUT_TYPES.includes(outing.type);
         setForm({
           type: preset ? outing.type : OTHER,
@@ -86,6 +96,7 @@ export default function OutingEdit() {
     setForm((current) => ({ ...current, [field]: event.target.value }));
 
   function toggle(personId) {
+    if (personId === organiser.personId) return;
     setPicked((current) => {
       const next = new Set(current);
       if (next.has(personId)) next.delete(personId);
@@ -104,9 +115,13 @@ export default function OutingEdit() {
   }, [people, search]);
 
   const chosen = useMemo(
-    () => (people ?? []).filter((person) => picked.has(person.id)),
-    [people, picked]
+    () =>
+      (people ?? []).filter(
+        (person) => picked.has(person.id) && person.id !== organiser.personId
+      ),
+    [people, picked, organiser.personId]
   );
+  const goingCount = chosen.length + 1;
 
   const whatDone =
     (form.type === OTHER ? form.otherType.trim() : form.type) && form.location.trim();
@@ -124,7 +139,7 @@ export default function OutingEdit() {
       goals: form.goals,
       friendsCount: form.friendsCount,
       friendsWho: form.friendsWho,
-      personIds: [...picked],
+      personIds: [...picked].filter((personId) => personId !== organiser.personId),
     };
     try {
       const saved = editing
@@ -240,41 +255,57 @@ export default function OutingEdit() {
             </div>
           </Step>
 
-          <Step
-            number={3}
-            title="Who's going?"
-            hint={picked.size ? `${picked.size} picked` : "Tick everyone from the group"}
-            done={picked.size > 0}
-          >
-            {chosen.length > 0 && (
-              <div className="outing-chosen">
-                {chosen.map((person) => (
-                  <button
-                    type="button"
-                    key={person.id}
-                    className="outing-chip"
-                    onClick={() => toggle(person.id)}
-                    aria-label={`Take ${person.name} off`}
-                  >
-                    {person.name}
-                    <span aria-hidden="true">×</span>
-                  </button>
-                ))}
-              </div>
-            )}
+          <Step number={3} title="Who's going?" hint={`${goingCount} going`} done>
+            <div className="outing-chosen">
+              <span className="outing-chip outing-chip-organiser">
+                {organiser.isMe ? "You" : organiser.name || "Organiser"}
+                <em>organiser</em>
+              </span>
+              {chosen.map((person) => (
+                <button
+                  type="button"
+                  key={person.id}
+                  className="outing-chip"
+                  onClick={() => toggle(person.id)}
+                  aria-label={`Take ${person.name} off`}
+                >
+                  {person.name}
+                  <span aria-hidden="true">×</span>
+                </button>
+              ))}
+            </div>
+            <p className="outing-step-note">
+              Everyone you tick sees this outing in their app — straight away, or as soon
+              as they sign up.
+            </p>
             <SearchBox value={search} onChange={setSearch} label="Search people" />
             <div className="outing-people">
-              {visible.map((person) => (
-                <label className="outing-person" key={person.id}>
-                  <input
-                    type="checkbox"
-                    checked={picked.has(person.id)}
-                    onChange={() => toggle(person.id)}
-                  />
-                  <span className="outing-person-name">{person.name}</span>
-                  {person.team && <span className="pool-team">{person.team}</span>}
-                </label>
-              ))}
+              {visible.map((person) => {
+                const isOrganiser = person.id === organiser.personId;
+                return (
+                  <label
+                    className={`outing-person${isOrganiser ? " outing-person-fixed" : ""}`}
+                    key={person.id}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isOrganiser || picked.has(person.id)}
+                      disabled={isOrganiser}
+                      onChange={() => toggle(person.id)}
+                    />
+                    <span className="outing-person-name">
+                      {person.name}
+                      {isOrganiser && <span className="outing-person-tag">Organiser</span>}
+                      {!isOrganiser && !person.hasAccount && (
+                        <span className="outing-person-tag outing-person-tag-soft">
+                          Not on the app yet
+                        </span>
+                      )}
+                    </span>
+                    {person.team && <span className="pool-team">{person.team}</span>}
+                  </label>
+                );
+              })}
               {visible.length === 0 && <div className="list-empty">Nothing here</div>}
             </div>
           </Step>

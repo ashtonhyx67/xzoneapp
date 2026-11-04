@@ -45,6 +45,7 @@ const IS_ME = `(op.person_id = me.person_id OR lower(op.name) = lower(me.name))`
 
 const SELECT_OUTINGS = `
   SELECT o.*,
+         (SELECT u.name FROM users u WHERE u.id = o.created_by) AS organiser_name,
          COALESCE(
            (SELECT json_agg(
                      json_build_object(
@@ -79,7 +80,8 @@ const SELECT_OUTINGS = `
 
 // Who has and has not evaluated is for whoever runs outings. Everyone on one sees
 // where it is and who is going.
-function publicOuting(row, canManage) {
+function publicOuting(row, canManage, userId) {
+  const isOrganiser = row.created_by === userId;
   return {
     id: row.id,
     type: row.hangout_type,
@@ -91,6 +93,11 @@ function publicOuting(row, canManage) {
     friendsCount: row.friends_count,
     friendsWho: row.friends_who,
     status: row.status,
+    organiser: row.organiser_name ?? "",
+    isOrganiser,
+    // The organiser runs their own outing; leaders can step in on any. Everyone
+    // else on it sees it as it was planned.
+    canEdit: canManage || isOrganiser,
     mine: row.my_row !== null,
     toEvaluate: row.status === "ended" && row.my_row !== null && row.i_submitted === false,
     people: row.people.map((person) =>
@@ -159,7 +166,7 @@ router.get(
 
     const found = await pool.query(
       `SELECT * FROM (${SELECT_OUTINGS}) AS listed
-        WHERE $2::boolean OR my_row IS NOT NULL
+        WHERE $2::boolean OR my_row IS NOT NULL OR created_by = $1
         ORDER BY held_on DESC, id DESC
         LIMIT 200`,
       [req.userId, canManage]
@@ -167,7 +174,7 @@ router.get(
 
     res.json({
       canRun: canManage,
-      outings: found.rows.map((row) => publicOuting(row, canManage)),
+      outings: found.rows.map((row) => publicOuting(row, canManage, req.userId)),
     });
   })
 );
@@ -179,7 +186,15 @@ router.get(
   canRun,
   route(async (req, res) => {
     const [people, me] = await Promise.all([
-      pool.query("SELECT id, name, team_key FROM people ORDER BY lower(name)"),
+      pool.query(
+        `SELECT p.id, p.name, p.team_key,
+                EXISTS (
+                  SELECT 1 FROM users u
+                   WHERE u.person_id = p.id OR lower(u.name) = lower(p.name)
+                ) AS has_account
+           FROM people p
+          ORDER BY lower(p.name)`
+      ),
       pool.query(
         `SELECT p.id FROM people p, users me
           WHERE me.id = $1 AND (p.id = me.person_id OR lower(p.name) = lower(me.name))
@@ -188,8 +203,14 @@ router.get(
       ),
     ]);
     res.json({
-      people: people.rows.map((row) => ({ id: row.id, name: row.name, team: row.team_key })),
+      people: people.rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        team: row.team_key,
+        hasAccount: row.has_account,
+      })),
       me: me.rows[0]?.id ?? null,
+      myName: req.access.user.name,
     });
   })
 );
@@ -204,7 +225,7 @@ router.get(
     const id = toId(req.params.id);
     const outing = id ? await findOuting(id, req.userId) : null;
     // The same answer for one that exists and is not yours as for one that does not.
-    if (!outing || (!canManage && outing.my_row === null)) {
+    if (!outing || (!canManage && outing.my_row === null && outing.created_by !== req.userId)) {
       return res.status(404).json({ error: "That outing could not be found." });
     }
 
@@ -225,7 +246,7 @@ router.get(
 
     res.json({
       canRun: canManage,
-      outing: publicOuting(outing, canManage),
+      outing: publicOuting(outing, canManage, req.userId),
       evaluations: evaluations.rows.map((row) => ({
         name: row.name,
         mine: row.row_id === outing.my_row,
@@ -274,6 +295,64 @@ async function addPeople(client, outingId, people) {
   }
 }
 
+// Whoever plans an outing is on it. Through their person record when the account
+// has one (linked, or the same name); otherwise by the account's name, which is
+// enough for the outing to show up for them.
+async function organiserOf(userId) {
+  const found = await pool.query(
+    `SELECT me.name, p.id AS person_id, p.name AS person_name
+       FROM users me
+       LEFT JOIN people p ON p.id = me.person_id OR lower(p.name) = lower(me.name)
+      WHERE me.id = $1
+      ORDER BY (p.id = me.person_id) DESC NULLS LAST
+      LIMIT 1`,
+    [userId]
+  );
+  const row = found.rows[0];
+  if (!row) return null;
+  return row.person_id
+    ? { id: row.person_id, name: row.person_name }
+    : { id: null, name: row.name };
+}
+
+async function addOrganiser(client, outingId, organiser) {
+  if (!organiser) return;
+  if (organiser.id) {
+    await addPeople(client, outingId, [organiser]);
+    return;
+  }
+  await client.query(
+    `INSERT INTO outing_people (outing_id, person_id, name)
+     SELECT $1, NULL, $2
+      WHERE NOT EXISTS (
+        SELECT 1 FROM outing_people WHERE outing_id = $1 AND lower(name) = lower($2)
+      )`,
+    [outingId, organiser.name]
+  );
+}
+
+// Changing, starting, ending and deleting an outing: its organiser, or anyone who
+// runs outings. Answers with the outing's status, or sends the refusal itself.
+async function editableOuting(req, res) {
+  const id = toId(req.params.id);
+  const found = id
+    ? await pool.query("SELECT id, status, created_by FROM outings WHERE id = $1", [id])
+    : { rows: [] };
+  const outing = found.rows[0];
+  if (!outing) {
+    res.status(404).json({ error: "That outing could not be found." });
+    return null;
+  }
+  if (outing.created_by !== req.userId) {
+    const access = await loadAccess(req.userId, req);
+    if (!access?.permissions.includes(PERMISSIONS.RUN_OUTINGS)) {
+      res.status(403).json({ error: "Only the person who planned this outing can change it." });
+      return null;
+    }
+  }
+  return outing;
+}
+
 router.post(
   "/",
   canRun,
@@ -281,8 +360,10 @@ router.post(
     const { error, fields } = cleanOuting(req.body);
     if (error) return res.status(400).json({ error });
 
-    const people = await peopleFor(fields.personIds);
-    if (people.length === 0) return res.status(400).json({ error: "Choose who's going." });
+    const [people, organiser] = await Promise.all([
+      peopleFor(fields.personIds),
+      organiserOf(req.userId),
+    ]);
 
     const id = await withTransaction(async (client) => {
       const created = await client.query(
@@ -304,6 +385,7 @@ router.post(
         ]
       );
       await addPeople(client, created.rows[0].id, people);
+      await addOrganiser(client, created.rows[0].id, organiser);
       return created.rows[0].id;
     });
 
@@ -315,20 +397,25 @@ router.post(
 // stays as it was, because people are answering about what actually happened.
 router.put(
   "/:id",
-  canRun,
   route(async (req, res) => {
-    const id = toId(req.params.id);
-    const found = id ? await pool.query("SELECT status FROM outings WHERE id = $1", [id]) : null;
-    if (!found?.rows[0]) return res.status(404).json({ error: "That outing could not be found." });
-    if (found.rows[0].status === "ended") {
+    const outing = await editableOuting(req, res);
+    if (!outing) return;
+    const { id } = outing;
+    if (outing.status === "ended") {
       return res.status(409).json({ error: "This outing has already ended." });
     }
 
     const { error, fields } = cleanOuting(req.body);
     if (error) return res.status(400).json({ error });
 
-    const people = await peopleFor(fields.personIds);
-    if (people.length === 0) return res.status(400).json({ error: "Choose who's going." });
+    // The organiser stays on it, whoever is making the change.
+    const [people, organiser] = await Promise.all([
+      peopleFor(fields.personIds),
+      outing.created_by ? organiserOf(outing.created_by) : null,
+    ]);
+    if (organiser?.id && !people.some((person) => person.id === organiser.id)) {
+      people.push(organiser);
+    }
 
     await withTransaction(async (client) => {
       await client.query(
@@ -350,10 +437,12 @@ router.put(
       );
       await client.query(
         `DELETE FROM outing_people
-          WHERE outing_id = $1 AND (person_id IS NULL OR NOT person_id = ANY($2::int[]))`,
-        [id, people.map((person) => person.id)]
+          WHERE outing_id = $1 AND (person_id IS NULL OR NOT person_id = ANY($2::int[]))
+            AND NOT (person_id IS NULL AND lower(name) = lower($3))`,
+        [id, people.map((person) => person.id), organiser && !organiser.id ? organiser.name : ""]
       );
       await addPeople(client, id, people);
+      await addOrganiser(client, id, organiser);
     });
 
     res.json({ id });
@@ -362,27 +451,26 @@ router.put(
 
 router.delete(
   "/:id",
-  canRun,
   route(async (req, res) => {
-    const id = toId(req.params.id);
-    if (id) {
-      await withTransaction(async (client) => {
-        // Pictures of anyone not added to the database have nothing left to belong
-        // to. Those of people who were added stay, because their record still uses them.
-        await client.query(
-          `DELETE FROM person_photos
-            WHERE id IN (
-              SELECT f.photo_id
-                FROM outing_friends f
-                JOIN outing_evaluations e ON e.id = f.evaluation_id
-                JOIN outing_people op ON op.id = e.outing_person_id
-               WHERE op.outing_id = $1 AND f.person_id IS NULL AND f.photo_id IS NOT NULL
-            )`,
-          [id]
-        );
-        await client.query("DELETE FROM outings WHERE id = $1", [id]);
-      });
-    }
+    const outing = await editableOuting(req, res);
+    if (!outing) return;
+    const { id } = outing;
+    await withTransaction(async (client) => {
+      // Pictures of anyone not added to the database have nothing left to belong
+      // to. Those of people who were added stay, because their record still uses them.
+      await client.query(
+        `DELETE FROM person_photos
+          WHERE id IN (
+            SELECT f.photo_id
+              FROM outing_friends f
+              JOIN outing_evaluations e ON e.id = f.evaluation_id
+              JOIN outing_people op ON op.id = e.outing_person_id
+             WHERE op.outing_id = $1 AND f.person_id IS NULL AND f.photo_id IS NOT NULL
+          )`,
+        [id]
+      );
+      await client.query("DELETE FROM outings WHERE id = $1", [id]);
+    });
     res.json({ deleted: id });
   })
 );
@@ -391,7 +479,9 @@ router.delete(
 // pressing at once, or an old screen, cannot put one back.
 function moveTo(status, from, stamp, wrongStep) {
   return route(async (req, res) => {
-    const id = toId(req.params.id);
+    const outing = await editableOuting(req, res);
+    if (!outing) return;
+    const { id } = outing;
     const updated = id
       ? await pool.query(
           `UPDATE outings SET status = $1, ${stamp} = now()
@@ -410,13 +500,11 @@ function moveTo(status, from, stamp, wrongStep) {
 
 router.post(
   "/:id/start",
-  canRun,
   moveTo("active", "planned", "started_at", "This outing has already started.")
 );
 
 router.post(
   "/:id/end",
-  canRun,
   moveTo("ended", "active", "ended_at", "This outing isn't running.")
 );
 

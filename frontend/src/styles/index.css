@@ -7286,3 +7286,79 @@ textarea.outing-input {
     font-size: 16px !important;
   }
 }
+
+/* ---------- Outings: organiser and the view of everyone else on it ---------- */
+
+.outing-chip-organiser {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+  cursor: default;
+  padding-right: 10px;
+}
+
+.outing-chip-organiser em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--mark);
+}
+
+.outing-step-note {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-soft);
+}
+
+.outing-person-fixed {
+  cursor: default;
+}
+
+.outing-person-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.outing-person-tag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.outing-person-tag-soft {
+  background: var(--bg);
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.outing-goals {
+  background: var(--ink);
+  color: #fff;
+}
+
+.outing-goals-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mark);
+}
+
+.outing-goals-text {
+  margin: 8px 0 0;
+  font-size: 17px;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.outing-goals-empty {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}

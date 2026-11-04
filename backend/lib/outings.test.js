@@ -13,13 +13,14 @@ const {
 
 const good = { type: "Sports", heldOn: "2026-11-07", personIds: [1, 2] };
 
-test("an outing needs a type, a date and someone going", () => {
+test("an outing needs a type and a date", () => {
   assert.ok(cleanOuting(good).fields);
   assert.match(cleanOuting({ ...good, type: "  " }).error, /type/);
   assert.match(cleanOuting({ ...good, heldOn: "" }).error, /date/);
   assert.match(cleanOuting({ ...good, heldOn: "2026-02-31" }).error, /date/);
-  assert.match(cleanOuting({ ...good, personIds: [] }).error, /going/);
-  assert.match(cleanOuting({ ...good, personIds: ["x", -1] }).error, /going/);
+  // The organiser is added on the server, so nobody else is needed.
+  assert.deepEqual(cleanOuting({ ...good, personIds: [] }).fields.personIds, []);
+  assert.deepEqual(cleanOuting({ ...good, personIds: ["x", -1] }).fields.personIds, []);
   assert.match(cleanOuting(undefined).error, /type/);
 });
 

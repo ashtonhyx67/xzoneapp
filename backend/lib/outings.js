@@ -71,8 +71,8 @@ function cleanOuting(body) {
   const heldOn = validDate(body?.heldOn);
   if (!heldOn) return { error: "Choose a date." };
 
+  // Whoever plans it is always going, so picking nobody else is fine.
   const personIds = cleanPersonIds(body?.personIds);
-  if (personIds.length === 0) return { error: "Choose who's going." };
 
   return {
     fields: {

@@ -212,6 +212,7 @@ export default function OutingDetail() {
   }
 
   const { outing, canRun, evaluations } = data;
+  const canEdit = outing.canEdit;
   const mine = evaluations.find((evaluation) => evaluation.mine);
   const others = evaluations.filter((evaluation) => !evaluation.mine);
   const ended = outing.status === "ended";
@@ -229,11 +230,28 @@ export default function OutingDetail() {
 
       {error && <div className="error-banner">{error}</div>}
 
+      {/* Everyone else on the outing sees it as planned, with the goals first:
+          that is what they are there to do. Only the organiser changes it. */}
+      {!canEdit && (
+        <div className="panel outing-goals">
+          <div className="outing-goals-label">Goals</div>
+          {outing.goals ? (
+            <p className="outing-goals-text">{outing.goals}</p>
+          ) : (
+            <p className="outing-goals-empty">
+              {outing.organiser || "The organiser"} hasn't set any goals yet.
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="panel outing-summary">
         <Detail label="When">{whenText(outing)}</Detail>
-        <Detail label="Location">{outing.location}</Detail>
-        <Detail label="Goals">{outing.goals}</Detail>
-        <Detail label="Friends">{friendsText(outing)}</Detail>
+        <Detail label="Where">{outing.location}</Detail>
+        {canEdit && <Detail label="Goals">{outing.goals}</Detail>}
+        <Detail label="Organised by">
+          {outing.isOrganiser ? "You" : outing.organiser}
+        </Detail>
         <Detail label="Who's going">
           <span className="narnia-logistics outing-names">
             {outing.people.map((person) => (
@@ -243,9 +261,10 @@ export default function OutingDetail() {
             ))}
           </span>
         </Detail>
+        <Detail label="Friends coming">{friendsText(outing)}</Detail>
       </div>
 
-      {canRun && (
+      {canEdit && (
         <div className="outing-actions">
           {outing.status === "planned" && (
             <button
