@@ -4,34 +4,13 @@ import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { STATUS_LABELS, dayText, friendsText, timesText } from "../lib/outings.js";
 import DateTile from "../components/DateTile.jsx";
+import { initials } from "../lib/photo.js";
 import { refreshNavStatus } from "../lib/navStatus.js";
 import AppShell from "../components/AppShell.jsx";
 import TwoTapButton from "../components/TwoTapButton.jsx";
 import FriendCard from "../components/FriendCard.jsx";
 import FriendFields, { blankFriend, friendFromSaved } from "../components/FriendFields.jsx";
 import { SkeletonRows } from "../components/Skeleton.jsx";
-
-const ICONS = {
-  person: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0",
-  people: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9a6 6 0 0 1 12 0M16 4.5a3.5 3.5 0 0 1 0 6.5M21 20a6 6 0 0 0-4-5.6",
-  plus: "M12 5v14M5 12h14",
-};
-
-// One line of the outing, iPhone-settings style: an icon, what it is, the answer.
-function Row({ icon, label, children }) {
-  if (!children) return null;
-  return (
-    <div className="outing-row">
-      <svg className="outing-row-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-        <path d={ICONS[icon]} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <div className="outing-row-body">
-        <div className="outing-row-label">{label}</div>
-        <div className="outing-row-value">{children}</div>
-      </div>
-    </div>
-  );
-}
 
 function EvaluationForm({ outingId, mine, onSaved }) {
   const { token } = useAuth();
@@ -233,62 +212,83 @@ export default function OutingDetail() {
 
   return (
     <AppShell>
-      <header className="page-head admin-page-head">
+      <header className="od-head">
         {back}
-        <h1 className="page-title">{outing.type}</h1>
-        <span className={`outing-status outing-status-${outing.status}`}>
-          {STATUS_LABELS[outing.status]}
-        </span>
+        {canEdit && !ended && (
+          <Link className="od-edit" to={`/outings/${id}/edit`}>
+            Edit
+          </Link>
+        )}
       </header>
+
+      <h1 className="od-title">{outing.type}</h1>
+      <div className="od-meta">
+        <span className={`od-status od-status-${outing.status}`}>
+          {outing.status === "active" ? "Happening now" : STATUS_LABELS[outing.status]}
+        </span>
+        <span>
+          Organised by {outing.isOrganiser ? "you" : outing.organiser || "a leader"}
+        </span>
+      </div>
 
       {error && <div className="error-banner">{error}</div>}
 
-      <div className="panel outing-hero">
-        <DateTile date={outing.heldOn} size="lg" />
-        <div className="outing-hero-text">
-          <div className="outing-hero-day">{dayText(outing.heldOn)}</div>
-          {timesText(outing) && <div className="outing-hero-line">{timesText(outing)}</div>}
-          {outing.location && (
-            <div className="outing-hero-line outing-hero-place">{outing.location}</div>
-          )}
+      <div className="panel od-card">
+        <div className="od-when">
+          <DateTile date={outing.heldOn} size="lg" />
+          <div className="od-when-text">
+            <div className="od-day">{dayText(outing.heldOn)}</div>
+            <div className="od-line">{timesText(outing) || "Time not set"}</div>
+            {outing.location && <div className="od-line od-place">{outing.location}</div>}
+          </div>
         </div>
-      </div>
 
-      {/* The goals come first for everyone: that is what the outing is for.
-          Only the organiser changes them. */}
-      {(outing.goals || !canEdit) && (
-        <div className="panel outing-goals">
-          <div className="outing-goals-label">Goals</div>
+        <div className="od-section">
+          <div className="od-label">Goals</div>
           {outing.goals ? (
-            <p className="outing-goals-text">{outing.goals}</p>
+            <p className="od-goals">{outing.goals}</p>
           ) : (
-            <p className="outing-goals-empty">
-              {outing.organiser || "The organiser"} hasn't set any goals yet.
+            <p className="od-empty">
+              {canEdit && !ended ? (
+                <Link to={`/outings/${id}/edit`}>Add goals</Link>
+              ) : (
+                "No goals set yet."
+              )}
             </p>
           )}
         </div>
-      )}
 
-      <div className="panel outing-rows">
-        <Row icon="person" label="Organised by">
-          {outing.isOrganiser ? "You" : outing.organiser}
-        </Row>
-        <Row icon="people" label={`Going · ${outing.people.length}`}>
-          <span className="outing-names">
+        <div className="od-section">
+          <div className="od-label">Going · {outing.people.length}</div>
+          <ul className="od-people">
             {outing.people.map((person) => (
-              <span className="outing-name" key={person.id}>
-                {person.name}
-              </span>
+              <li key={person.id}>
+                <span className="od-avatar" aria-hidden="true">
+                  {initials(person.name)}
+                </span>
+                <span className="od-name">{person.name}</span>
+                {person.name.toLowerCase() === (outing.organiser || "").toLowerCase() && (
+                  <span className="od-tag">Organiser</span>
+                )}
+              </li>
             ))}
-          </span>
-        </Row>
-        <Row icon="plus" label="Friends coming">
-          {friendsText(outing)}
-        </Row>
+          </ul>
+          {friendsText(outing) && (
+            <div className="od-friends">
+              <span className="od-avatar od-avatar-plus" aria-hidden="true">
+                +{outing.friendsCount ?? ""}
+              </span>
+              <span>
+                {outing.friendsCount === 1 ? "1 friend" : outing.friendsCount ? `${outing.friendsCount} friends` : "Friends"}
+                {outing.friendsWho && <span className="od-friends-who"> · {outing.friendsWho}</span>}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {canEdit && (
-        <div className="outing-actions">
+        <div className="od-actions">
           {outing.status === "planned" && (
             <button
               type="button"
@@ -309,21 +309,14 @@ export default function OutingDetail() {
               End outing
             </TwoTapButton>
           )}
-          <div className="outing-actions-row">
-            {!ended && (
-              <Link className="btn btn-secondary btn-inline" to={`/outings/${id}/edit`}>
-                Edit
-              </Link>
-            )}
-            <TwoTapButton
-              className="btn btn-secondary btn-inline outing-delete"
-              confirmLabel="Tap again to delete"
-              disabled={busy}
-              onConfirm={remove}
-            >
-              Delete
-            </TwoTapButton>
-          </div>
+          <TwoTapButton
+            className="od-delete"
+            confirmLabel="Tap again to delete"
+            disabled={busy}
+            onConfirm={remove}
+          >
+            Delete outing
+          </TwoTapButton>
         </div>
       )}
 
