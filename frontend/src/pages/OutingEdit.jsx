@@ -4,9 +4,10 @@ import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
 import { localDay } from "../lib/narnia.js";
-import { HANGOUT_TYPES } from "../lib/outings.js";
+import { HANGOUT_TYPES, dayText } from "../lib/outings.js";
 import AppShell from "../components/AppShell.jsx";
 import SearchBox from "../components/SearchBox.jsx";
+import MonthCalendar from "../components/MonthCalendar.jsx";
 import { SkeletonRows } from "../components/Skeleton.jsx";
 
 const OTHER = "Other";
@@ -213,45 +214,39 @@ export default function OutingEdit() {
             />
           </Step>
 
-          <Step number={2} title="When?" done={Boolean(form.heldOn && form.startTime)}>
-            <label className="outing-label" htmlFor="outing-date">
-              Date
-            </label>
-            <input
-              id="outing-date"
-              className="outing-input"
-              type="date"
+          <Step
+            number={2}
+            title="When?"
+            hint={form.heldOn ? dayText(form.heldOn) : ""}
+            done={Boolean(form.heldOn && form.startTime)}
+          >
+            <MonthCalendar
               value={form.heldOn}
-              onChange={update("heldOn")}
+              onChange={(heldOn) => setForm((current) => ({ ...current, heldOn }))}
             />
-            <div className="outing-times">
-              <div>
-                <label className="outing-label" htmlFor="outing-start">
-                  From
-                </label>
+            {/* Laid out like a new event in the iPhone's Calendar; tapping a time
+                opens the phone's own time wheel. */}
+            <div className="time-rows">
+              <label className="time-row" htmlFor="outing-start">
+                <span>Starts</span>
                 <input
                   id="outing-start"
-                  className="outing-input"
+                  className="time-pill"
                   type="time"
                   value={form.startTime}
                   onChange={update("startTime")}
                 />
-              </div>
-              <span className="outing-times-dash" aria-hidden="true">
-                –
-              </span>
-              <div>
-                <label className="outing-label" htmlFor="outing-end">
-                  To
-                </label>
+              </label>
+              <label className="time-row" htmlFor="outing-end">
+                <span>Ends</span>
                 <input
                   id="outing-end"
-                  className="outing-input"
+                  className="time-pill"
                   type="time"
                   value={form.endTime}
                   onChange={update("endTime")}
                 />
-              </div>
+              </label>
             </div>
           </Step>
 
@@ -297,9 +292,7 @@ export default function OutingEdit() {
                       {person.name}
                       {isOrganiser && <span className="outing-person-tag">Organiser</span>}
                       {!isOrganiser && !person.hasAccount && (
-                        <span className="outing-person-tag outing-person-tag-soft">
-                          Not on the app yet
-                        </span>
+                        <span className="outing-person-soft">not on the app yet</span>
                       )}
                     </span>
                     {person.team && <span className="pool-team">{person.team}</span>}

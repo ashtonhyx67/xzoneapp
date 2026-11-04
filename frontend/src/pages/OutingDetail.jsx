@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import { STATUS_LABELS, friendsText, whenText } from "../lib/outings.js";
+import { STATUS_LABELS, dayText, friendsText, timesText } from "../lib/outings.js";
+import DateTile from "../components/DateTile.jsx";
 import { refreshNavStatus } from "../lib/navStatus.js";
 import AppShell from "../components/AppShell.jsx";
 import TwoTapButton from "../components/TwoTapButton.jsx";
@@ -10,12 +11,24 @@ import FriendCard from "../components/FriendCard.jsx";
 import FriendFields, { blankFriend, friendFromSaved } from "../components/FriendFields.jsx";
 import { SkeletonRows } from "../components/Skeleton.jsx";
 
-function Detail({ label, children }) {
+const ICONS = {
+  person: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0",
+  people: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9a6 6 0 0 1 12 0M16 4.5a3.5 3.5 0 0 1 0 6.5M21 20a6 6 0 0 0-4-5.6",
+  plus: "M12 5v14M5 12h14",
+};
+
+// One line of the outing, iPhone-settings style: an icon, what it is, the answer.
+function Row({ icon, label, children }) {
   if (!children) return null;
   return (
-    <div className="outing-detail">
-      <div className="narnia-subhead">{label}</div>
-      <div className="outing-detail-value">{children}</div>
+    <div className="outing-row">
+      <svg className="outing-row-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path d={ICONS[icon]} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <div className="outing-row-body">
+        <div className="outing-row-label">{label}</div>
+        <div className="outing-row-value">{children}</div>
+      </div>
     </div>
   );
 }
@@ -230,9 +243,20 @@ export default function OutingDetail() {
 
       {error && <div className="error-banner">{error}</div>}
 
-      {/* Everyone else on the outing sees it as planned, with the goals first:
-          that is what they are there to do. Only the organiser changes it. */}
-      {!canEdit && (
+      <div className="panel outing-hero">
+        <DateTile date={outing.heldOn} size="lg" />
+        <div className="outing-hero-text">
+          <div className="outing-hero-day">{dayText(outing.heldOn)}</div>
+          {timesText(outing) && <div className="outing-hero-line">{timesText(outing)}</div>}
+          {outing.location && (
+            <div className="outing-hero-line outing-hero-place">{outing.location}</div>
+          )}
+        </div>
+      </div>
+
+      {/* The goals come first for everyone: that is what the outing is for.
+          Only the organiser changes them. */}
+      {(outing.goals || !canEdit) && (
         <div className="panel outing-goals">
           <div className="outing-goals-label">Goals</div>
           {outing.goals ? (
@@ -245,23 +269,22 @@ export default function OutingDetail() {
         </div>
       )}
 
-      <div className="panel outing-summary">
-        <Detail label="When">{whenText(outing)}</Detail>
-        <Detail label="Where">{outing.location}</Detail>
-        {canEdit && <Detail label="Goals">{outing.goals}</Detail>}
-        <Detail label="Organised by">
+      <div className="panel outing-rows">
+        <Row icon="person" label="Organised by">
           {outing.isOrganiser ? "You" : outing.organiser}
-        </Detail>
-        <Detail label="Who's going">
-          <span className="narnia-logistics outing-names">
+        </Row>
+        <Row icon="people" label={`Going · ${outing.people.length}`}>
+          <span className="outing-names">
             {outing.people.map((person) => (
               <span className="outing-name" key={person.id}>
                 {person.name}
               </span>
             ))}
           </span>
-        </Detail>
-        <Detail label="Friends coming">{friendsText(outing)}</Detail>
+        </Row>
+        <Row icon="plus" label="Friends coming">
+          {friendsText(outing)}
+        </Row>
       </div>
 
       {canEdit && (
@@ -293,7 +316,7 @@ export default function OutingDetail() {
               </Link>
             )}
             <TwoTapButton
-              className="btn btn-secondary btn-inline"
+              className="btn btn-secondary btn-inline outing-delete"
               confirmLabel="Tap again to delete"
               disabled={busy}
               onConfirm={remove}
