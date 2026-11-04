@@ -5,11 +5,18 @@
 // This file holds the parts that are decisions rather than database work, so they
 // can be tested without one. routes/outings.js does the rest.
 
+const { decodePhoto } = require("./narnia");
+
 const MAX_TYPE = 60;
 const MAX_LOCATION = 160;
 const MAX_LONG_TEXT = 2000;
 const MAX_FRIENDS = 500;
 const MAX_PEOPLE = 200;
+const MAX_NAME = 80;
+const MAX_SHORT = 200;
+const MAX_AGE = 120;
+// Each may carry a picture, and all of it arrives in one request.
+const MAX_FRIENDS_PER_EVALUATION = 10;
 
 function cleanLine(value, max) {
   return String(value ?? "")
@@ -82,8 +89,50 @@ function cleanOuting(body) {
   };
 }
 
-// Answers { error } or { fields }. Saying yes to meeting someone unexpected asks
-// who, because that is the part someone will want to follow up on.
+// One friend met on an outing, with the same details the people database keeps, plus
+// stage of life. Only the name is needed, since often that is all anyone caught.
+function cleanFriend(raw) {
+  const name = cleanLine(raw?.name, MAX_NAME);
+  if (!name) return { error: "Every friend needs a name." };
+
+  const age = raw?.age === "" || raw?.age === null || raw?.age === undefined ? null : Number(raw.age);
+  if (age !== null && (!Number.isInteger(age) || age < 0 || age > MAX_AGE)) {
+    return { error: `${name}'s age doesn't look right.` };
+  }
+
+  const birthdayText = String(raw?.birthday ?? "").trim();
+  const birthday = birthdayText ? validDate(birthdayText) : null;
+  if (birthdayText && !birthday) return { error: `${name}'s birthday doesn't look right.` };
+
+  let photo = null;
+  if (raw?.image) {
+    photo = decodePhoto(raw.image);
+    if (!photo) return { error: `${name}'s picture couldn't be read. Try a different one.` };
+  }
+
+  const id = Number(raw?.id);
+
+  return {
+    fields: {
+      id: Number.isInteger(id) && id > 0 && id < 2 ** 31 ? id : null,
+      name,
+      age,
+      birthday,
+      photo,
+      removePhoto: raw?.removePhoto === true,
+      stage: cleanLine(raw?.stage, MAX_NAME),
+      school: cleanLine(raw?.school, MAX_SHORT),
+      contact: cleanLine(raw?.contact, MAX_SHORT),
+      telegram: cleanLine(raw?.telegram, MAX_SHORT),
+      instagram: cleanLine(raw?.instagram, MAX_SHORT),
+      religion: cleanLine(raw?.religion, MAX_SHORT),
+      notes: cleanLong(raw?.notes),
+    },
+  };
+}
+
+// Answers { error } or { fields }. Saying yes to meeting someone unexpected asks who,
+// because that is the part someone will want to follow up on.
 function cleanEvaluation(body) {
   const how = cleanLong(body?.how);
   if (!how) return { error: "Tell us how the outing was." };
@@ -92,10 +141,41 @@ function cleanEvaluation(body) {
     return { error: "Tell us if we met any unexpected NFs." };
   }
 
-  const nfDetails = body.metNf ? cleanLong(body?.nfDetails) : "";
-  if (body.metNf && !nfDetails) return { error: "Tell us who we met." };
+  if (!body.metNf) return { fields: { how, metNf: false, friends: [] } };
 
-  return { fields: { how, metNf: body.metNf, nfDetails } };
+  const rawFriends = Array.isArray(body.friends) ? body.friends : [];
+  if (rawFriends.length === 0) return { error: "Tell us who we met." };
+  if (rawFriends.length > MAX_FRIENDS_PER_EVALUATION) {
+    return { error: `At most ${MAX_FRIENDS_PER_EVALUATION} friends at a time.` };
+  }
+
+  const friends = [];
+  for (const raw of rawFriends) {
+    const { error, fields } = cleanFriend(raw);
+    if (error) return { error };
+    friends.push(fields);
+  }
+
+  return { fields: { how, metNf: true, friends } };
 }
 
-module.exports = { cleanOuting, cleanEvaluation, cleanCount, cleanTime, validDate };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// What goes in a new person's General Information when a leader adds them. An age is
+// kept as a note with its date rather than as a field, because the database works out
+// age from a birthday, and a number on its own would be wrong in a year.
+function friendNotes(friend, outing) {
+  const [year, month, day] = String(outing.held_on).split("-");
+  const when = `${Number(day)} ${MONTHS[Number(month) - 1]} ${year}`;
+  const where = [outing.hangout_type, outing.location, when].filter(Boolean).join(", ");
+
+  return [
+    friend.notes,
+    friend.age !== null && !friend.birthday ? `Age ${friend.age} in ${MONTHS[Number(month) - 1]} ${year}` : "",
+    `Met on an outing: ${where}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+module.exports = { cleanOuting, cleanEvaluation, cleanFriend, friendNotes, cleanCount, cleanTime, validDate };

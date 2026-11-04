@@ -133,6 +133,8 @@ export const api = {
   endOuting: (token, id) => request(`/outings/${id}/end`, { method: "POST", token }),
   submitOutingEvaluation: (token, id, body) =>
     request(`/outings/${id}/evaluation`, { method: "POST", body, token }),
+  addOutingFriend: (token, id, body) =>
+    request(`/outings/friends/${id}/add`, { method: "POST", body, token }),
 
   // ---- Narnia BM ----
   // The standard answers every change with all the rooms, and a running session

@@ -6,6 +6,8 @@ import { STATUS_LABELS, friendsText, whenText } from "../lib/outings.js";
 import { refreshNavStatus } from "../lib/navStatus.js";
 import AppShell from "../components/AppShell.jsx";
 import TwoTapButton from "../components/TwoTapButton.jsx";
+import FriendCard from "../components/FriendCard.jsx";
+import FriendFields, { blankFriend, friendFromSaved } from "../components/FriendFields.jsx";
 import { SkeletonRows } from "../components/Skeleton.jsx";
 
 function Detail({ label, children }) {
@@ -22,7 +24,7 @@ function EvaluationForm({ outingId, mine, onSaved }) {
   const { token } = useAuth();
   const [how, setHow] = useState(mine?.how ?? "");
   const [metNf, setMetNf] = useState(mine ? mine.metNf : null);
-  const [nfDetails, setNfDetails] = useState(mine?.nfDetails ?? "");
+  const [friends, setFriends] = useState(() => (mine?.friends ?? []).map(friendFromSaved));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -31,7 +33,11 @@ function EvaluationForm({ outingId, mine, onSaved }) {
     setSaving(true);
     setError("");
     try {
-      await api.submitOutingEvaluation(token, outingId, { how, metNf, nfDetails });
+      await api.submitOutingEvaluation(token, outingId, {
+        how,
+        metNf,
+        friends: friends.map(({ key, photoUrl, personId, ...friend }) => friend),
+      });
       onSaved();
     } catch (err) {
       setError(err.message);
@@ -65,7 +71,11 @@ function EvaluationForm({ outingId, mine, onSaved }) {
               key={label}
               className={`narnia-pick${metNf === value ? " narnia-pick-on" : ""}`}
               aria-pressed={metNf === value}
-              onClick={() => setMetNf(value)}
+              onClick={() => {
+                setMetNf(value);
+                // Saying yes starts the first one, rather than asking for one more tap.
+                if (value && friends.length === 0) setFriends([blankFriend()]);
+              }}
             >
               {label}
             </button>
@@ -74,16 +84,28 @@ function EvaluationForm({ outingId, mine, onSaved }) {
       </div>
 
       {metNf === true && (
-        <div className="field">
-          <label htmlFor="evaluation-who">Who?</label>
-          <textarea
-            id="evaluation-who"
-            className="outing-textarea"
-            rows={2}
-            value={nfDetails}
-            onChange={(e) => setNfDetails(e.target.value)}
-            maxLength={2000}
-          />
+        <div className="outing-friend-list">
+          {friends.map((friend) => (
+            <FriendFields
+              key={friend.key}
+              friend={friend}
+              onChange={(change) =>
+                setFriends((list) =>
+                  list.map((item) => (item.key === friend.key ? { ...item, ...change } : item))
+                )
+              }
+              onRemove={() =>
+                setFriends((list) => list.filter((item) => item.key !== friend.key))
+              }
+            />
+          ))}
+          <button
+            type="button"
+            className="btn btn-secondary btn-inline outing-add-friend"
+            onClick={() => setFriends((list) => [...list, blankFriend()])}
+          >
+            + Friend
+          </button>
         </div>
       )}
 
@@ -96,15 +118,21 @@ function EvaluationForm({ outingId, mine, onSaved }) {
   );
 }
 
-function Evaluation({ evaluation, showName }) {
+function Evaluation({ evaluation, showName, canAdd, onChanged }) {
   return (
     <div className="panel outing-evaluation">
       {showName && <div className="outing-evaluation-name">{evaluation.name}</div>}
       <p className="outing-evaluation-text">{evaluation.how}</p>
       <div className="narnia-subhead">Unexpected NFs</div>
-      <p className="outing-evaluation-text">
-        {evaluation.metNf ? evaluation.nfDetails : "No"}
-      </p>
+      {evaluation.friends.length > 0 ? (
+        evaluation.friends.map((friend) => (
+          <FriendCard key={friend.id} friend={friend} canAdd={canAdd} onAdded={onChanged} />
+        ))
+      ) : (
+        <p className="outing-evaluation-text">
+          {evaluation.metNf ? evaluation.nfDetails : "No"}
+        </p>
+      )}
     </div>
   );
 }
@@ -282,7 +310,7 @@ export default function OutingDetail() {
               }}
             />
           ) : (
-            <Evaluation evaluation={mine} />
+            <Evaluation evaluation={mine} canAdd={canRun} onChanged={load} />
           )}
         </section>
       )}
@@ -312,7 +340,13 @@ export default function OutingDetail() {
 
           <div className="outing-list">
             {others.map((evaluation) => (
-              <Evaluation key={evaluation.name} evaluation={evaluation} showName />
+              <Evaluation
+                key={evaluation.name}
+                evaluation={evaluation}
+                showName
+                canAdd={canRun}
+                onChanged={load}
+              />
             ))}
           </div>
         </section>

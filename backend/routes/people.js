@@ -25,6 +25,7 @@ const FIELDS = [
   "birthday",
   "follow_up",
   "school",
+  "stage_of_life",
   "came_church",
   "invited_by",
   "religion",

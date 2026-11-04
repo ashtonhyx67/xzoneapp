@@ -6904,3 +6904,147 @@ body.is-dragging * {
   margin-top: 16px;
   margin-bottom: 0;
 }
+
+/* Someone new met on an outing */
+
+.outing-friend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.outing-friend {
+  padding: 14px;
+  background: var(--bg);
+  border-radius: var(--radius-md);
+}
+
+.outing-friend-locked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.outing-friend .field:last-of-type {
+  margin-bottom: 10px;
+}
+
+.outing-friend-photo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.outing-friend-photo .btn {
+  width: auto;
+}
+
+.outing-add-friend {
+  align-self: flex-start;
+  width: auto;
+}
+
+.friend-photo {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--card-head);
+}
+
+.friend-photo-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-soft);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.friend-card {
+  padding: 12px;
+  margin-top: 8px;
+  background: var(--bg);
+  border-radius: var(--radius-md);
+}
+
+.friend-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.friend-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+}
+
+.friend-in-database {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.friend-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px 12px;
+  margin: 12px 0 0;
+}
+
+.friend-details dt {
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.friend-details dd {
+  margin: 0;
+  font-size: 14px;
+  white-space: pre-line;
+}
+
+.friend-add {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.friend-add-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px;
+  gap: 8px;
+}
+
+.friend-add-row input,
+.friend-add-row select {
+  min-width: 0;
+  height: var(--control-h);
+  padding: 0 10px;
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.friend-add .btn {
+  width: auto;
+}
+
+@media (max-width: 768px) {
+  .friend-add-row input,
+  .friend-add-row select {
+    font-size: 16px;
+  }
+}

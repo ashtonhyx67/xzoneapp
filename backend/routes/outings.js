@@ -3,11 +3,31 @@ const express = require("express");
 const { pool } = require("../db");
 const { requireAuth, loadAccess, requirePermission } = require("../middleware/auth");
 const { PERMISSIONS } = require("../lib/groups");
-const { cleanOuting, cleanEvaluation } = require("../lib/outings");
+const { cleanOuting, cleanEvaluation, friendNotes } = require("../lib/outings");
+const { newPhotoId } = require("../lib/narnia");
+const { normalizeTeam, canEditTeam } = require("../lib/teams");
 
 const router = express.Router();
 
 const route = (handler) => (req, res, next) => handler(req, res, next).catch(next);
+
+// A picture of someone new. Open, because an <img> cannot send a sign-in, so holding
+// the long random address is what lets a leader's screen show it, the same way the
+// photos of the rooms work. Never listed anywhere.
+router.get(
+  "/photos/:id",
+  route(async (req, res) => {
+    const found = await pool.query("SELECT mime, data FROM person_photos WHERE id = $1", [
+      String(req.params.id).slice(0, 64),
+    ]);
+    const photo = found.rows[0];
+    if (!photo) return res.status(404).json({ error: "That picture could not be found." });
+
+    res.setHeader("Content-Type", photo.mime);
+    res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+    res.send(photo.data);
+  })
+);
 
 router.use(requireAuth);
 
@@ -78,6 +98,28 @@ function publicOuting(row, canManage) {
         ? person
         : { id: person.id, personId: person.personId, name: person.name }
     ),
+  };
+}
+
+function photoUrl(id) {
+  return `/api/outings/photos/${id}`;
+}
+
+function publicFriend(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    photoUrl: row.photo_id ? photoUrl(row.photo_id) : "",
+    age: row.age,
+    birthday: row.birthday,
+    stage: row.stage,
+    school: row.school,
+    contact: row.contact,
+    telegram: row.telegram,
+    instagram: row.instagram,
+    religion: row.religion,
+    notes: row.notes,
+    personId: row.person_id,
   };
 }
 
@@ -168,12 +210,17 @@ router.get(
 
     // A leader reads them all. Anyone else reads their own, to change it.
     const evaluations = await pool.query(
-      `SELECT e.how, e.met_nf, e.nf_details, e.submitted_at, op.id AS row_id, op.name
+      `SELECT e.id, e.how, e.met_nf, e.nf_details, e.submitted_at, op.id AS row_id, op.name
          FROM outing_evaluations e
          JOIN outing_people op ON op.id = e.outing_person_id
         WHERE op.outing_id = $1 AND ($2::boolean OR op.id = $3)
         ORDER BY e.submitted_at`,
       [id, canManage, outing.my_row]
+    );
+
+    const friends = await pool.query(
+      "SELECT * FROM outing_friends WHERE evaluation_id = ANY($1::int[]) ORDER BY id",
+      [evaluations.rows.map((row) => row.id)]
     );
 
     res.json({
@@ -185,6 +232,9 @@ router.get(
         how: row.how,
         metNf: row.met_nf,
         nfDetails: row.nf_details,
+        friends: friends.rows
+          .filter((friend) => friend.evaluation_id === row.id)
+          .map(publicFriend),
       })),
     });
   })
@@ -315,7 +365,24 @@ router.delete(
   canRun,
   route(async (req, res) => {
     const id = toId(req.params.id);
-    if (id) await pool.query("DELETE FROM outings WHERE id = $1", [id]);
+    if (id) {
+      await withTransaction(async (client) => {
+        // Pictures of anyone not added to the database have nothing left to belong
+        // to. Those of people who were added stay, because their record still uses them.
+        await client.query(
+          `DELETE FROM person_photos
+            WHERE id IN (
+              SELECT f.photo_id
+                FROM outing_friends f
+                JOIN outing_evaluations e ON e.id = f.evaluation_id
+                JOIN outing_people op ON op.id = e.outing_person_id
+               WHERE op.outing_id = $1 AND f.person_id IS NULL AND f.photo_id IS NOT NULL
+            )`,
+          [id]
+        );
+        await client.query("DELETE FROM outings WHERE id = $1", [id]);
+      });
+    }
     res.json({ deleted: id });
   })
 );
@@ -369,14 +436,179 @@ router.post(
     const { error, fields } = cleanEvaluation(req.body);
     if (error) return res.status(400).json({ error });
 
-    await pool.query(
-      `INSERT INTO outing_evaluations (outing_person_id, user_id, how, met_nf, nf_details)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (outing_person_id)
-       DO UPDATE SET user_id = $2, how = $3, met_nf = $4, nf_details = $5, submitted_at = now()`,
-      [outing.my_row, req.userId, fields.how, fields.metNf, fields.nfDetails]
-    );
+    await withTransaction(async (client) => {
+      const saved = await client.query(
+        `INSERT INTO outing_evaluations (outing_person_id, user_id, how, met_nf, nf_details)
+         VALUES ($1, $2, $3, $4, '')
+         ON CONFLICT (outing_person_id)
+         DO UPDATE SET user_id = $2, how = $3, met_nf = $4, nf_details = '', submitted_at = now()
+         RETURNING id`,
+        [outing.my_row, req.userId, fields.how, fields.metNf]
+      );
+      await saveFriends(client, saved.rows[0].id, fields.friends);
+    });
     res.json({ submitted: true });
+  })
+);
+
+async function storePhoto(client, photo) {
+  const id = newPhotoId();
+  await client.query("INSERT INTO person_photos (id, mime, data) VALUES ($1, $2, $3)", [
+    id,
+    photo.mime,
+    photo.data,
+  ]);
+  return id;
+}
+
+// Brings an evaluation's friends in line with what was just submitted. Anyone a leader
+// has already added to the database stays exactly as they are: that record is the
+// leader's now, and takes no edits from here.
+async function saveFriends(client, evaluationId, friends) {
+  const existing = await client.query("SELECT * FROM outing_friends WHERE evaluation_id = $1", [
+    evaluationId,
+  ]);
+  const byId = new Map(existing.rows.map((row) => [row.id, row]));
+  const kept = new Set();
+
+  for (const friend of friends) {
+    const row = friend.id ? byId.get(friend.id) : null;
+    if (row) kept.add(row.id);
+    if (row?.person_id) continue;
+
+    let photoId = row?.photo_id ?? null;
+    const oldPhoto = photoId;
+    if (friend.photo) photoId = await storePhoto(client, friend.photo);
+    else if (friend.removePhoto) photoId = null;
+
+    const values = [
+      friend.name,
+      photoId,
+      friend.age,
+      friend.birthday,
+      friend.stage,
+      friend.school,
+      friend.contact,
+      friend.telegram,
+      friend.instagram,
+      friend.religion,
+      friend.notes,
+    ];
+
+    if (row) {
+      await client.query(
+        `UPDATE outing_friends
+            SET name = $1, photo_id = $2, age = $3, birthday = $4, stage = $5, school = $6,
+                contact = $7, telegram = $8, instagram = $9, religion = $10, notes = $11
+          WHERE id = $12`,
+        [...values, row.id]
+      );
+    } else {
+      await client.query(
+        `INSERT INTO outing_friends
+           (name, photo_id, age, birthday, stage, school, contact, telegram, instagram,
+            religion, notes, evaluation_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [...values, evaluationId]
+      );
+    }
+
+    if (oldPhoto && oldPhoto !== photoId) {
+      await client.query("DELETE FROM person_photos WHERE id = $1", [oldPhoto]);
+    }
+  }
+
+  for (const row of existing.rows) {
+    if (kept.has(row.id) || row.person_id) continue;
+    await client.query("DELETE FROM outing_friends WHERE id = $1", [row.id]);
+    if (row.photo_id) {
+      await client.query("DELETE FROM person_photos WHERE id = $1", [row.photo_id]);
+    }
+  }
+}
+
+// A leader moving someone into the people database as an NF. With `link`, a person of
+// that name is already there, and this says it is them rather than adding them twice.
+router.post(
+  "/friends/:id/add",
+  canRun,
+  route(async (req, res) => {
+    const id = toId(req.params.id);
+    const found = id
+      ? await pool.query(
+          `SELECT f.*, op.name AS met_by, o.hangout_type, o.location, o.held_on
+             FROM outing_friends f
+             JOIN outing_evaluations e ON e.id = f.evaluation_id
+             JOIN outing_people op ON op.id = e.outing_person_id
+             JOIN outings o ON o.id = op.outing_id
+            WHERE f.id = $1`,
+          [id]
+        )
+      : { rows: [] };
+    const friend = found.rows[0];
+    if (!friend) return res.status(404).json({ error: "That friend could not be found." });
+    if (friend.person_id) {
+      return res.status(409).json({ error: `${friend.name} is already in the database.` });
+    }
+
+    const name = String(req.body?.name ?? friend.name).replace(/\s+/g, " ").trim().slice(0, 80);
+    if (!name) return res.status(400).json({ error: "A name is required." });
+
+    if (req.body?.link === true) {
+      const person = await pool.query("SELECT id FROM people WHERE lower(name) = lower($1)", [name]);
+      if (!person.rows[0]) {
+        return res.status(404).json({ error: `${name} isn't in the database.` });
+      }
+      await pool.query("UPDATE outing_friends SET person_id = $1 WHERE id = $2", [
+        person.rows[0].id,
+        id,
+      ]);
+      return res.json({ personId: person.rows[0].id });
+    }
+
+    const team = normalizeTeam(req.body?.team);
+    if (!canEditTeam(req.access, team)) {
+      return res.status(403).json({ error: `${team} is not one of your teams.` });
+    }
+
+    try {
+      const personId = await withTransaction(async (client) => {
+        const created = await client.query(
+          `INSERT INTO people
+             (name, photo_url, role, contact, telegram, instagram, birthday, school,
+              stage_of_life, religion, invited_by, general_information, team_key)
+           VALUES ($1, $2, 'NF', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+           RETURNING id`,
+          [
+            name,
+            friend.photo_id ? photoUrl(friend.photo_id) : "",
+            friend.contact,
+            friend.telegram,
+            friend.instagram,
+            friend.birthday,
+            friend.school,
+            friend.stage,
+            friend.religion,
+            friend.met_by,
+            friendNotes(friend, friend),
+            team,
+          ]
+        );
+        await client.query("UPDATE outing_friends SET person_id = $1 WHERE id = $2", [
+          created.rows[0].id,
+          id,
+        ]);
+        return created.rows[0].id;
+      });
+      res.json({ personId });
+    } catch (err) {
+      if (err.code === "23505") {
+        return res.status(409).json({
+          error: `${name} is already in the database. Same person, or change the name.`,
+        });
+      }
+      throw err;
+    }
   })
 );
 

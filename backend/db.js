@@ -240,6 +240,11 @@ async function initSchema() {
     ALTER TABLE people ADD COLUMN IF NOT EXISTS team TEXT NOT NULL DEFAULT '';
   `);
 
+  // Student, NS, working and so on.
+  await pool.query(`
+    ALTER TABLE people ADD COLUMN IF NOT EXISTS stage_of_life TEXT NOT NULL DEFAULT '';
+  `);
+
   // Age is derived from birthday rather than stored, so it can never go stale.
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS people_name_key ON people (lower(name));
@@ -852,6 +857,43 @@ async function initSchema() {
       nf_details TEXT NOT NULL DEFAULT '',
       submitted_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+  `);
+
+  // Someone new met on an outing, as whoever met them described them. Held here until
+  // a leader adds them to the people database, which is what person_id then points to.
+  // Pictures sit in their own table because a person's record goes on using one after
+  // the outing that produced it is gone. Listing never reads the image itself.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS person_photos (
+      id TEXT PRIMARY KEY,
+      mime TEXT NOT NULL,
+      data BYTEA NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS outing_friends (
+      id SERIAL PRIMARY KEY,
+      evaluation_id INTEGER NOT NULL REFERENCES outing_evaluations(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      photo_id TEXT REFERENCES person_photos(id) ON DELETE SET NULL,
+      age INTEGER,
+      birthday DATE,
+      stage TEXT NOT NULL DEFAULT '',
+      school TEXT NOT NULL DEFAULT '',
+      contact TEXT NOT NULL DEFAULT '',
+      telegram TEXT NOT NULL DEFAULT '',
+      instagram TEXT NOT NULL DEFAULT '',
+      religion TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      person_id INTEGER REFERENCES people(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS outing_friends_evaluation_idx ON outing_friends (evaluation_id);
   `);
 
   console.log("Database schema ready.");

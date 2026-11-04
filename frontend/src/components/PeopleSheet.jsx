@@ -22,6 +22,7 @@ const COLUMNS = [
   { field: "age", label: "Age", width: 36, readOnly: true },
   { field: "personality_type", label: "Personality", width: 76, readOnly: true },
   { field: "school", label: "School", width: 78 },
+  { field: "stage_of_life", label: "Stage of Life", width: 90 },
   { field: "follow_up", label: "Followup", width: 84 },
   { field: "came_church", label: "Came Church", width: 92 },
   { field: "invited_by", label: "Invited By", width: 88 },

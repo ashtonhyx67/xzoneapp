@@ -5,14 +5,14 @@
 const MAX_EDGE = 1600;
 const QUALITY = 0.82;
 
-export async function shrinkPhoto(file) {
+export async function shrinkPhoto(file, maxEdge = MAX_EDGE) {
   const url = URL.createObjectURL(file);
   try {
     const image = new Image();
     image.src = url;
     await image.decode();
 
-    const scale = Math.min(1, MAX_EDGE / Math.max(image.naturalWidth, image.naturalHeight));
+    const scale = Math.min(1, maxEdge / Math.max(image.naturalWidth, image.naturalHeight));
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(image.naturalWidth * scale);
     canvas.height = Math.round(image.naturalHeight * scale);

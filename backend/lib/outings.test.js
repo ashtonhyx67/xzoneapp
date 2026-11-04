@@ -1,7 +1,15 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { cleanOuting, cleanEvaluation, cleanCount, cleanTime, validDate } = require("./outings");
+const {
+  cleanOuting,
+  cleanEvaluation,
+  cleanFriend,
+  friendNotes,
+  cleanCount,
+  cleanTime,
+  validDate,
+} = require("./outings");
 
 const good = { type: "Sports", heldOn: "2026-11-07", personIds: [1, 2] };
 
@@ -66,18 +74,66 @@ test("an evaluation needs an answer to both questions", () => {
   assert.deepEqual(cleanEvaluation({ how: " Good ", metNf: false }).fields, {
     how: "Good",
     metNf: false,
-    nfDetails: "",
+    friends: [],
   });
 });
 
-test("saying yes to unexpected NFs asks who, and saying no clears it", () => {
-  assert.match(cleanEvaluation({ how: "Good", metNf: true, nfDetails: " " }).error, /who/);
+test("saying yes to unexpected NFs asks who, and saying no clears them", () => {
+  assert.match(cleanEvaluation({ how: "Good", metNf: true }).error, /who/);
+  assert.match(cleanEvaluation({ how: "Good", metNf: true, friends: [] }).error, /who/);
+  assert.match(cleanEvaluation({ how: "Good", metNf: true, friends: [{ name: " " }] }).error, /name/);
+  assert.equal(cleanEvaluation({ how: "Good", metNf: true, friends: [{ name: "Sam" }] }).fields.friends[0].name, "Sam");
+  assert.deepEqual(cleanEvaluation({ how: "Good", metNf: false, friends: [{ name: "Sam" }] }).fields.friends, []);
+  const many = Array.from({ length: 11 }, (_, i) => ({ name: `Friend ${i}` }));
+  assert.match(cleanEvaluation({ how: "Good", metNf: true, friends: many }).error, /At most/);
+});
+
+test("only a friend's name is needed, and the rest is tidied", () => {
+  const { fields } = cleanFriend({
+    name: "  Sam   Tan ",
+    age: "17",
+    birthday: "2009-03-14",
+    stage: " JC ",
+    school: " Raffles ",
+    telegram: "@sam",
+    notes: " Likes basketball\r\nFriend of Ben ",
+  });
+  assert.equal(fields.name, "Sam Tan");
+  assert.equal(fields.age, 17);
+  assert.equal(fields.birthday, "2009-03-14");
+  assert.equal(fields.stage, "JC");
+  assert.equal(fields.school, "Raffles");
+  assert.equal(fields.notes, "Likes basketball\nFriend of Ben");
+  const bare = cleanFriend({ name: "Jo" }).fields;
+  assert.equal(bare.age, null);
+  assert.equal(bare.birthday, null);
+  assert.equal(bare.photo, null);
+});
+
+test("a friend's age, birthday and picture have to be real", () => {
+  assert.match(cleanFriend({ name: "Jo", age: "abc" }).error, /age/);
+  assert.match(cleanFriend({ name: "Jo", age: 200 }).error, /age/);
+  assert.match(cleanFriend({ name: "Jo", age: -1 }).error, /age/);
+  assert.match(cleanFriend({ name: "Jo", birthday: "2026-02-31" }).error, /birthday/);
+  const html = Buffer.from("<script>alert(1)</script>").toString("base64");
+  assert.match(cleanFriend({ name: "Jo", image: `data:image/png;base64,${html}` }).error, /picture/);
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString("base64");
+  assert.equal(cleanFriend({ name: "Jo", image: `data:image/jpeg;base64,${jpeg}` }).fields.photo.mime, "image/jpeg");
+});
+
+test("a friend's notes say where we met them, and keep an age with its date", () => {
+  const outing = { hangout_type: "Sports", location: "Bishan Park", held_on: "2026-11-14" };
   assert.equal(
-    cleanEvaluation({ how: "Good", metNf: true, nfDetails: "Sam, Jo" }).fields.nfDetails,
-    "Sam, Jo"
+    friendNotes({ notes: "Likes basketball", age: 17, birthday: null }, outing),
+    "Likes basketball\nAge 17 in Nov 2026\nMet on an outing: Sports, Bishan Park, 14 Nov 2026"
+  );
+  // A birthday says it better, and keeps saying it next year.
+  assert.equal(
+    friendNotes({ notes: "", age: 17, birthday: "2009-03-14" }, outing),
+    "Met on an outing: Sports, Bishan Park, 14 Nov 2026"
   );
   assert.equal(
-    cleanEvaluation({ how: "Good", metNf: false, nfDetails: "Sam" }).fields.nfDetails,
-    ""
+    friendNotes({ notes: "", age: null, birthday: null }, { hangout_type: "Food", location: "", held_on: "2026-01-02" }),
+    "Met on an outing: Food, 2 Jan 2026"
   );
 });

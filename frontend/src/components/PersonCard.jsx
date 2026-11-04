@@ -12,6 +12,7 @@ const PERSONAL = [
   ["instagram", "Instagram"],
   ["age", "Age"],
   ["school", "School"],
+  ["stage_of_life", "Stage of Life"],
   ["birthday", "Birthday"],
 ];
 
