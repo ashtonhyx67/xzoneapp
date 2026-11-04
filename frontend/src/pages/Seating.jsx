@@ -51,7 +51,7 @@ function moveInto(list, item, key, rowIndex, index) {
 // the roll and gets out of the way. X3 and X2 arrange seating; X1 does not.
 export default function Seating() {
   const { token, can } = useAuth();
-  const canView = can(PERMISSIONS.VIEW_DIRECTORY);
+  const canView = can(PERMISSIONS.VIEW_SEATING);
 
   const [cg, setCg] = useState("");
   const [when, setWhen] = useWeek();
@@ -407,7 +407,7 @@ export default function Seating() {
           <div className="seating-layout" ref={layoutRef}>
             <div className={`seating-plan${drag ? " seating-plan-dragging" : ""}`} ref={planRef}>
               {rows.length === 0 ? (
-                <div className="list-empty">No rows yet.</div>
+                <div className="list-empty">{canEdit ? "No rows yet." : "Not ready yet."}</div>
               ) : (
                 rows.map((row, rowIndex) => {
                   const target = drag?.target;

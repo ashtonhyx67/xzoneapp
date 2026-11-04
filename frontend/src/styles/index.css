@@ -6709,3 +6709,38 @@ body.is-dragging * {
   font-weight: 700;
   cursor: pointer;
 }
+
+.home-shortcuts {
+  margin-top: 16px;
+}
+
+/* Changing your password, and resetting someone else's */
+
+.password-form {
+  margin-top: 12px;
+}
+
+.account-reset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+
+.account-reset input {
+  flex: 1 1 140px;
+  min-width: 0;
+  height: var(--control-h);
+  padding: 0 12px;
+  background: var(--bg);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 14px;
+}
+
+.account-reset input:focus {
+  outline: none;
+  border-color: var(--accent);
+}

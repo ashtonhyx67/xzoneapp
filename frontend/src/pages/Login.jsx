@@ -97,6 +97,8 @@ export default function Login() {
           </div>
         )}
 
+        <div className="auth-switch">Forgot your password? Ask an admin to reset it.</div>
+
         <div className="auth-switch">
           New here?{" "}
           <Link to="/signup" state={location.state}>

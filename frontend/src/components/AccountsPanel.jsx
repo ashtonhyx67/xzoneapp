@@ -6,6 +6,15 @@ import { initials } from "../lib/photo.js";
 import { SkeletonRows } from "./Skeleton.jsx";
 import PersonalityTag from "./PersonalityTag.jsx";
 
+// Short enough to read out or type on a phone, with nothing that looks like anything
+// else, and random enough to be safe for the few minutes before it gets changed.
+function temporaryPassword() {
+  const alphabet = "abcdefghjkmnpqrstuvwxyz23456789";
+  const picks = crypto.getRandomValues(new Uint32Array(8));
+  const chars = Array.from(picks, (n) => alphabet[n % alphabet.length]).join("");
+  return `${chars.slice(0, 4)}-${chars.slice(4)}`;
+}
+
 // Everyone who can sign in, and which group they are in. Groups are defined on
 // the server (backend/lib/groups.js) and arrive with their permissions, so this
 // panel never needs to know what a group is called or what it can do.
@@ -19,6 +28,7 @@ export default function AccountsPanel() {
   const [notice, setNotice] = useState("");
   const [busyId, setBusyId] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
+  const [resetting, setResetting] = useState(null); // { id, password }
 
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "", group: "member" });
@@ -113,6 +123,25 @@ export default function AccountsPanel() {
     } finally {
       setBusyId(null);
       setConfirmId(null);
+    }
+  }
+
+  async function resetPassword(event, account) {
+    event.preventDefault();
+    const { password } = resetting;
+    setBusyId(account.id);
+    setError("");
+    setNotice("");
+    try {
+      await api.resetAccountPassword(token, account.id, password);
+      setResetting(null);
+      setNotice(
+        `${account.name}'s new password is ${password}. Send it to them privately, and ask them to change it under My Account.`
+      );
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -322,13 +351,53 @@ export default function AccountsPanel() {
                       Keep
                     </button>
                   </>
+                ) : resetting?.id === account.id ? (
+                  <form className="account-reset" onSubmit={(e) => resetPassword(e, account)}>
+                    <input
+                      value={resetting.password}
+                      onChange={(e) =>
+                        setResetting({ id: account.id, password: e.target.value })
+                      }
+                      aria-label={`New password for ${account.name}`}
+                      autoComplete="off"
+                      spellCheck={false}
+                      autoCapitalize="none"
+                      required
+                    />
+                    <button
+                      className="btn btn-primary btn-inline"
+                      type="submit"
+                      disabled={busyId === account.id}
+                    >
+                      Reset
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-inline"
+                      type="button"
+                      onClick={() => setResetting(null)}
+                    >
+                      Cancel
+                    </button>
+                  </form>
                 ) : (
-                  <button
-                    className="btn btn-secondary btn-inline"
-                    onClick={() => setConfirmId(account.id)}
-                  >
-                    Remove
-                  </button>
+                  <>
+                    <button
+                      className="btn btn-secondary btn-inline"
+                      onClick={() => {
+                        setError("");
+                        setNotice("");
+                        setResetting({ id: account.id, password: temporaryPassword() });
+                      }}
+                    >
+                      Reset password
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-inline"
+                      onClick={() => setConfirmId(account.id)}
+                    >
+                      Remove
+                    </button>
+                  </>
                 )}
               </span>
             </div>

@@ -593,8 +593,22 @@ async function initSchema() {
      WHERE u.person_id IS NULL AND lower(p.name) = lower(u.name);
   `);
 
-  // Shared expenses have been removed from the app. A database that had them keeps
-  // its split_* tables, unread, because dropping them cannot be undone.
+  // Shared expenses were removed from the app, and the owner asked for their records
+  // to go as well. On a database that never had them, or has already lost them, this
+  // does nothing. The counts go to the log, as the last word on what was there.
+  const splitTables = await pool.query("SELECT to_regclass('split_groups') AS found");
+  if (splitTables.rows[0].found) {
+    const counts = await pool.query(`
+      SELECT (SELECT count(*) FROM split_groups) AS groups,
+             (SELECT count(*) FROM split_expenses) AS expenses
+    `);
+    await pool.query(
+      "DROP TABLE IF EXISTS split_activity, split_comments, split_shares, split_expenses, split_members, split_groups"
+    );
+    console.log(
+      `Removed the shared expense tables (${counts.rows[0].groups} groups, ${counts.rows[0].expenses} expenses).`
+    );
+  }
 
   // ---------- Personality ----------
   // The account carries the type it is currently assigned, because that is what

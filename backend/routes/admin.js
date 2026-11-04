@@ -202,6 +202,46 @@ router.patch(
   })
 );
 
+// For someone who has forgotten their password, and has no other way back in. Also
+// lifts any lockout, since that is usually how they came to be asking. They should
+// change it themselves afterwards, because whoever reset it knows it.
+//
+// Not the owner's: that would let any admin take over the one account that cannot
+// be taken away. And not your own, which is what changing your password is for.
+router.post(
+  "/accounts/:id/password",
+  route(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0 || id >= 2 ** 31) {
+      return res.status(404).json({ error: "Account not found." });
+    }
+
+    const found = await pool.query("SELECT id, name, email FROM users WHERE id = $1", [id]);
+    const target = found.rows[0];
+    if (!target) return res.status(404).json({ error: "Account not found." });
+
+    if (isOwnerEmail(target.email)) {
+      return res.status(403).json({ error: "The owner's password cannot be reset from here." });
+    }
+    if (id === req.userId) {
+      return res.status(400).json({ error: "Change your own password under My Account." });
+    }
+
+    const problem = passwordProblem(req.body?.password, { email: target.email, name: target.name });
+    if (problem) return res.status(400).json({ error: problem });
+
+    await pool.query(
+      `UPDATE users
+          SET password_hash = $1,
+              login_attempts = 0, login_locked_until = NULL,
+              pin_attempts = 0, pin_locked_until = NULL, pin_lockouts = 0
+        WHERE id = $2`,
+      [await hash(req.body.password), id]
+    );
+    res.json({ reset: id });
+  })
+);
+
 router.delete(
   "/accounts/:id",
   route(async (req, res) => {

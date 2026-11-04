@@ -1,27 +1,9 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../lib/permissions.js";
-import AppShell, { NavIcon } from "../components/AppShell.jsx";
-
-function Tile({ tile }) {
-  const inner = (
-    <>
-      <NavIcon name={tile.icon} className="admin-tile-icon" />
-      <span className="admin-tile-label">{tile.label}</span>
-    </>
-  );
-
-  return tile.onClick ? (
-    <button type="button" className="admin-tile" onClick={tile.onClick}>
-      {inner}
-    </button>
-  ) : (
-    <Link className="admin-tile" to={tile.to} state={tile.state}>
-      {inner}
-    </Link>
-  );
-}
+import AppShell from "../components/AppShell.jsx";
+import AdminTile from "../components/AdminTile.jsx";
 
 // Everything in the app, one tap away. Each account only sees what it can open, so
 // a section with nothing in it is left out altogether.
@@ -108,7 +90,7 @@ export default function Admin() {
               <h2 className="admin-card-title">{section.title}</h2>
               <div className="admin-grid">
                 {tiles.map((tile) => (
-                  <Tile key={tile.label} tile={tile} />
+                  <AdminTile key={tile.label} tile={tile} />
                 ))}
               </div>
             </section>

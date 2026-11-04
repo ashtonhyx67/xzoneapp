@@ -91,13 +91,14 @@ async function loadAccess(userId, req) {
   return access;
 }
 
-// Guards a route with a named permission from lib/groups.js.
-function requirePermission(permission) {
+// Guards a route with a named permission from lib/groups.js, or with any one of
+// several when more than one kind of account has a reason to be there.
+function requirePermission(...allowed) {
   return async function check(req, res, next) {
     try {
       const access = await loadAccess(req.userId, req);
       if (!access) return res.status(401).json({ error: "Not signed in." });
-      if (!access.permissions.includes(permission)) {
+      if (!allowed.some((permission) => access.permissions.includes(permission))) {
         return res.status(403).json({ error: "You do not have access to this." });
       }
       req.access = access;

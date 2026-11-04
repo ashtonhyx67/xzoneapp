@@ -64,6 +64,7 @@ export const api = {
   setPin: (token, pin, currentPin) =>
     request("/auth/pin", { method: "POST", body: { pin, currentPin }, token }),
   removePin: (token) => request("/auth/pin", { method: "DELETE", token }),
+  changePassword: (token, body) => request("/auth/password", { method: "POST", body, token }),
   pinLogin: (email, pin) => request("/auth/pin/login", { method: "POST", body: { email, pin } }),
 
   // The quiz is scored on the server, one step at a time: each submit answers
@@ -191,5 +192,7 @@ export const api = {
   setAccountTeams: (token, id, teams) =>
     request(`/admin/accounts/${id}`, { method: "PATCH", body: { teams }, token }),
   deleteAccount: (token, id) => request(`/admin/accounts/${id}`, { method: "DELETE", token }),
+  resetAccountPassword: (token, id, password) =>
+    request(`/admin/accounts/${id}/password`, { method: "POST", body: { password }, token }),
 
 };

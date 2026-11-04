@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import AdminPage from "../components/AdminPage.jsx";
+import PasswordSettings from "../components/PasswordSettings.jsx";
 import PinSettings from "../components/PinSettings.jsx";
 import AppVersion from "../components/AppVersion.jsx";
 import InstallPrompt from "../components/InstallPrompt.jsx";
@@ -29,6 +30,8 @@ export default function AdminAccount() {
             Sign out
           </button>
         </div>
+
+        <PasswordSettings />
 
         <PinSettings />
 

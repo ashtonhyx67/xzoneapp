@@ -7,6 +7,7 @@ import AppShell from "../components/AppShell.jsx";
 import AskPanel from "../components/AskPanel.jsx";
 import MemberRow from "../components/MemberRow.jsx";
 import EventInvite from "../components/EventInvite.jsx";
+import AdminTile from "../components/AdminTile.jsx";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -43,7 +44,7 @@ function isoWeek(date) {
 
 // The top of the dashboard. Attendance and SA are recorded every week, so the
 // week and the day are the first thing the page says.
-function WeekBanner({ firstName, teams }) {
+function WeekBanner({ firstName, teams, showRecords }) {
   // Tick over at midnight rather than only when the tab is reopened.
   const [now, setNow] = useState(() => new Date());
 
@@ -80,13 +81,18 @@ function WeekBanner({ firstName, teams }) {
               {team}
             </span>
           ))}
-          {/* The two things recorded every week, and the way to them. */}
-          <Link className="week-tag week-tag-link" to="/attendance">
-            Attendance
-          </Link>
-          <Link className="week-tag week-tag-link" to="/seating">
-            SA
-          </Link>
+          {/* The two things recorded every week, and the way to them. A member
+              reads neither register, and has their own shortcuts below. */}
+          {showRecords && (
+            <>
+              <Link className="week-tag week-tag-link" to="/attendance">
+                Attendance
+              </Link>
+              <Link className="week-tag week-tag-link" to="/seating">
+                SA
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </section>
@@ -157,14 +163,27 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <WeekBanner firstName={firstName} teams={summary?.scope ?? []} />
+      <WeekBanner firstName={firstName} teams={summary?.scope ?? []} showRecords={canView} />
 
       {summaryError && <div className="error-banner">{summaryError}</div>}
 
       {!canView ? (
-        <div className="panel">
-          <div className="panel-title">Your account is waiting for access.</div>
-        </div>
+        <section className="admin-card home-shortcuts">
+          <div className="admin-grid">
+            <AdminTile tile={{ to: "/narnia", icon: "narnia", label: "Narnia BM" }} />
+            {can(PERMISSIONS.VIEW_SEATING) && (
+              <AdminTile tile={{ to: "/seating", icon: "seating", label: "Seating" }} />
+            )}
+            <AdminTile
+              tile={{
+                to: "/personality",
+                state: { from: "/dashboard" },
+                icon: "personality",
+                label: "My Animal",
+              }}
+            />
+          </div>
+        </section>
       ) : (
         <>
           {/* Above the reminders: a question is usually why someone opened the

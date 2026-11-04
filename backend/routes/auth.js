@@ -270,6 +270,43 @@ router.get(
   })
 );
 
+// ---------- Changing a password ----------
+
+// Asks for the current one, so an unlocked phone left on a table cannot be used to
+// lock its owner out. Someone who has forgotten theirs asks an admin to reset it:
+// see routes/admin.js.
+router.post(
+  "/password",
+  requireAuth,
+  pinChangeLimit,
+  route(async (req, res) => {
+    const { currentPassword, newPassword } = req.body || {};
+
+    const found = await pool.query(
+      "SELECT name, email, password_hash FROM users WHERE id = $1",
+      [req.userId]
+    );
+    const row = found.rows[0];
+    if (!row) return res.status(404).json({ error: "User not found." });
+
+    if (typeof currentPassword !== "string" || !(await verify(currentPassword, row.password_hash))) {
+      return res.status(403).json({ error: "Your current password isn't right." });
+    }
+
+    const problem = passwordProblem(newPassword, { email: row.email, name: row.name });
+    if (problem) return res.status(400).json({ error: problem });
+    if (newPassword === currentPassword) {
+      return res.status(400).json({ error: "That's the password you already have." });
+    }
+
+    await pool.query(`UPDATE users SET password_hash = $1, ${CLEAR_STRIKES} WHERE id = $2`, [
+      await hash(newPassword),
+      req.userId,
+    ]);
+    res.json({ changed: true });
+  })
+);
+
 // ---------- PIN sign-in ----------
 
 // Set a PIN, or change an existing one. The user is already signed in here;

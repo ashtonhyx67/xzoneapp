@@ -461,7 +461,9 @@ router.get(
 router.get(
   "/roll",
   requireAuth,
-  canView,
+  // Whoever arranges the seating needs the names to arrange, whether or not they
+  // can read the registers themselves. Admin is a job that a Member can hold.
+  requirePermission(PERMISSIONS.VIEW_DIRECTORY, PERMISSIONS.EDIT_SEATING),
   route(async (req, res) => {
     const teams = teamsInCg(req.query.cg);
     const { year, week } = resolveWeek(req.query.year, req.query.week);
