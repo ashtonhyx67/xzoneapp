@@ -295,3 +295,47 @@ export function fromTelegram({ text, people, statuses, newKey }) {
     },
   };
 }
+
+// ── Adding a list of people ──────────────────────────────────────────────
+//
+// A list as it is written in the chat — a title, a legend, then sections
+// ("Siblings : 3") with one person a line — turned into people to add to the
+// database. "Austyn Tay (AT) - 👊" is Austyn Tay, invited by AT; the marks
+// after a name belong to whatever the list was for, not to the person.
+
+const SECTION_HEADER = /^([^:]*[A-Za-z][^:]*?)\s*:\s*\d*\s*$/;
+
+export function parseNameList(text) {
+  const lines = String(text ?? "").split(/\r?\n/);
+  const title = (lines.find((line) => line.trim()) ?? "").trim();
+
+  const people = [];
+  let section = null;
+  for (const raw of lines) {
+    const line = plain(raw).trim();
+    if (!line) continue;
+
+    const header = SECTION_HEADER.exec(line);
+    if (header && !LEFTOVER_MARK.test(line)) {
+      section = header[1].trim();
+      continue;
+    }
+    LEFTOVER_MARK.lastIndex = 0;
+    // The title and the legend come before the first section.
+    if (section === null) continue;
+
+    const invited = /\(([^)]*)\)/.exec(line)?.[1]?.trim() ?? "";
+    const name = line
+      .replace(/\([^)]*\)/g, " ")
+      .replace(LEFTOVER_MARK, " ")
+      .replace(/[^\p{L}\p{N}' .-]/gu, " ")
+      .replace(/(^|\s)[-–—]+(\s|$)/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/[-–—\s]+$/, "");
+    if (!name) continue;
+
+    people.push({ name, invitedBy: invited, section });
+  }
+  return { title, people };
+}

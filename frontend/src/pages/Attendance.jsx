@@ -14,6 +14,7 @@ import {
   telegramTeam,
   toTelegram,
   fromTelegram,
+  parseNameList,
   telegramHeading,
 } from "../lib/attendance.js";
 import AppShell from "../components/AppShell.jsx";
@@ -125,6 +126,12 @@ export default function Attendance() {
   const [pasting, setPasting] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [pasteReport, setPasteReport] = useState(null);
+  // Adding a list of new people to the team's database, so they are on every
+  // week's register from then on.
+  const [listing, setListing] = useState(false);
+  const [listText, setListText] = useState("");
+  const [listBusy, setListBusy] = useState(false);
+  const [listReport, setListReport] = useState(null);
 
   const timer = useRef(null);
   const inFlight = useRef(false);
@@ -193,6 +200,7 @@ export default function Attendance() {
     setDraft(null);
     setCopied(false);
     setPasteReport(null);
+    setListReport(null);
   }, [team, when]);
 
   const cg = cgOf(team);
@@ -493,6 +501,76 @@ export default function Attendance() {
     setPasteText("");
   }
 
+  // "cheyenne tan" is written as typed in a hurry; the database keeps names
+  // capitalised. A word already capitalised, or with capitals inside, is left.
+  const tidyName = (name) =>
+    name.replace(/(^|[\s-])(\p{Ll})/gu, (_, gap, letter) => gap + letter.toUpperCase());
+
+  // Each person becomes a record in this team, as an NF unless they are
+  // already in the database. A register is built from the team's people, so
+  // that is what puts them on every week from now on, not just this one.
+  async function addList() {
+    const { title, people: listed } = parseNameList(listText);
+    if (listed.length === 0) {
+      setError("No names found. Put the names under a heading like \"Friends : 3\".");
+      return;
+    }
+
+    setListBusy(true);
+    setError("");
+    const known = new Map(directory.map((person) => [person.name.trim().toLowerCase(), person]));
+    const added = [];
+    const already = [];
+    const failed = [];
+
+    for (const entry of listed) {
+      const name = tidyName(entry.name);
+      const existing = known.get(name.toLowerCase());
+      if (existing) {
+        already.push(`${existing.name}${existing.team_key ? ` (${existing.team_key})` : ""}`);
+        continue;
+      }
+      try {
+        const { person } = await api.createPerson(token, {
+          name,
+          role: "NF",
+          team_key: team,
+          invited_by: entry.invitedBy,
+          general_information: [title, entry.section].filter(Boolean).join(" · "),
+        });
+        known.set(name.toLowerCase(), person);
+        added.push(person);
+      } catch (err) {
+        failed.push(`${name}: ${err.message}`);
+      }
+    }
+
+    if (added.length > 0) {
+      setDirectory((list) => [...list, ...added]);
+      // On this week straight away; the server puts them on every other week
+      // as each one is opened.
+      setPeople((list) => [
+        ...list,
+        ...added.map((person) => ({
+          key: newKey(),
+          personId: person.id,
+          name: person.name,
+          statuses: [],
+          category: categoryOf(person.role),
+          fromTeam: true,
+        })),
+      ]);
+      schedule();
+    }
+
+    setListReport({ added: added.map((person) => person.name), already, failed });
+    setListBusy(false);
+    if (failed.length === 0) {
+      setListing(false);
+      setListText("");
+    }
+  }
+
   async function copyPost() {
     try {
       await navigator.clipboard.writeText(text);
@@ -560,7 +638,21 @@ export default function Attendance() {
                 type="button"
                 className="btn btn-secondary btn-inline"
                 onClick={() => {
+                  setListing((open) => !open);
+                  setPasting(false);
+                  setExporting(false);
+                }}
+              >
+                {listing ? "Close" : "Add people"}
+              </button>
+            )}
+            {canEdit && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-inline"
+                onClick={() => {
                   setPasting((open) => !open);
+                  setListing(false);
                   setExporting(false);
                 }}
               >
@@ -573,6 +665,7 @@ export default function Attendance() {
               onClick={() => {
                 setExporting((open) => !open);
                 setPasting(false);
+                setListing(false);
               }}
             >
               {exporting ? "Close" : "Export for Telegram"}
@@ -607,6 +700,56 @@ export default function Attendance() {
               onChange={(e) => setPasteText(e.target.value)}
               autoFocus
             />
+          </div>
+        )}
+
+        {listing && record && (
+          <div className="export-box">
+            <div className="export-head">
+              <span className="export-title">Add people to {team}</span>
+              <button
+                type="button"
+                className="btn btn-primary btn-inline"
+                onClick={addList}
+                disabled={!listText.trim() || listBusy}
+              >
+                {listBusy ? <span className="spinner" /> : "Add"}
+              </button>
+            </div>
+            <p className="paste-hint">
+              Paste a list with names under headings like "Friends : 3". Each new name is added
+              to the {team} database as NF, with anyone in brackets saved as who invited them,
+              and shows up on every week's register.
+            </p>
+            <textarea
+              className="export-text"
+              aria-label="The list of people"
+              spellCheck={false}
+              value={listText}
+              onChange={(e) => setListText(e.target.value)}
+              autoFocus
+            />
+          </div>
+        )}
+
+        {listReport && (
+          <div className="paste-report panel-notice">
+            <div className="paste-report-head">
+              <strong>
+                Added {listReport.added.length}{" "}
+                {listReport.added.length === 1 ? "person" : "people"} to {team}.
+              </strong>
+              <button type="button" className="link-btn" onClick={() => setListReport(null)}>
+                Done
+              </button>
+            </div>
+            {listReport.added.length > 0 && <p>{listReport.added.join(", ")}.</p>}
+            {listReport.already.length > 0 && (
+              <p>Already in the database, so not added again: {listReport.already.join(", ")}.</p>
+            )}
+            {listReport.failed.length > 0 && (
+              <p className="paste-report-failed">Not added: {listReport.failed.join("; ")}</p>
+            )}
           </div>
         )}
 
