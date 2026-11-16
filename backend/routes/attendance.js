@@ -28,6 +28,18 @@ const MAX_FIELD = 160;
 
 const clean = (value) => String(value ?? "").slice(0, MAX_FIELD).trim();
 
+// The name a register row shows: the record's, unless it was changed on that
+// week. Used with attendance_people as a and people as p.
+const WEEK_NAME = "CASE WHEN a.renamed OR p.id IS NULL THEN a.name ELSE p.name END";
+
+// The group a row is counted under that week: one set on the register wins,
+// otherwise a linked row follows the person's role.
+function weekCategory(row) {
+  return row.own_category
+    ? categoryOf({ role: row.own_category })
+    : categoryOf({ role: row.person_role });
+}
+
 // The built-in statuses plus whatever has been added. Read per request rather
 // than cached, so a status added on one device shows up on the next without a
 // restart.
@@ -57,6 +69,7 @@ function tally(people, allowed) {
 
   let total = 0;
   for (const person of people) {
+    if (person.hidden) continue;
     const bucket = byCategory[person.category];
     if (bucket) bucket.listed += 1;
 
@@ -72,7 +85,7 @@ function tally(people, allowed) {
   const byStatus = Object.fromEntries(
     allowed.map((status) => [
       status.key,
-      people.filter((person) => person.statuses.includes(status.key)).length,
+      people.filter((person) => !person.hidden && person.statuses.includes(status.key)).length,
     ])
   );
 
@@ -157,10 +170,12 @@ async function readWeek(team, year, week, allowed) {
   // to be restated here.
   const rows = await pool.query(
     `SELECT a.id, a.person_id, a.statuses, a.category AS own_category,
+            a.hidden, a.renamed,
             -- A linked row shows the name the record has now, not the one it
             -- had the week it was written, so renaming someone in the database
-            -- carries through instead of leaving the register stale.
-            COALESCE(p.name, a.name) AS name,
+            -- carries through instead of leaving the register stale — unless
+            -- the name was changed on this week, which is kept for this week.
+            ${WEEK_NAME} AS name,
             p.role AS person_role, p.team_key AS person_team
        FROM attendance_people a
        LEFT JOIN people p ON p.id = a.person_id
@@ -173,12 +188,13 @@ async function readWeek(team, year, week, allowed) {
     id: row.id,
     name: row.name,
     personId: row.person_id,
-    statuses: cleanStatuses(row.statuses, allowed),
-    // A linked row is grouped by the person's own role; a name typed in by hand
-    // keeps the group chosen on the register itself.
-    category: row.person_id
-      ? categoryOf({ role: row.person_role })
-      : categoryOf({ role: row.own_category }),
+    statuses: row.hidden ? [] : cleanStatuses(row.statuses, allowed),
+    category: weekCategory(row),
+    // Where a linked row's role would put it, so the page can tell a group
+    // changed for this week from the one the record gives.
+    defaultCategory: row.person_id ? categoryOf({ role: row.person_role }) : null,
+    hidden: row.hidden,
+    renamed: row.renamed,
     // Linked to a database record — this team's, or someone deployed in from
     // another. Those are kept in step automatically, so they are not removed by
     // hand: someone who did not come is left unmarked, which is what absent
@@ -215,17 +231,23 @@ async function writeWeek(team, year, week, people, allowed) {
       const personId =
         person.personId != null && Number.isInteger(asNumber) && asNumber > 0 ? asNumber : null;
 
+      // Only a team member needs hiding; a typed-in name is simply left out.
+      const hidden = Boolean(personId && person.hidden);
       await client.query(
-        `INSERT INTO attendance_people (week_id, position, person_id, name, statuses, category)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+        `INSERT INTO attendance_people
+           (week_id, position, person_id, name, statuses, category, hidden, renamed)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           weekId,
           index,
           personId,
           clean(person.name),
-          serializeStatuses(cleanStatuses(person.statuses, allowed)),
-          // Only kept for an unlinked row; a linked one follows the person.
-          personId ? "" : categoryOf({ role: person.category }),
+          hidden ? "" : serializeStatuses(cleanStatuses(person.statuses, allowed)),
+          // An unlinked row keeps the group it was given. A linked one follows
+          // the person's role unless it was moved to another group this week.
+          personId && !person.regrouped ? "" : categoryOf({ role: person.category }),
+          hidden,
+          Boolean(personId && person.renamed),
         ]
       );
     }
@@ -425,15 +447,14 @@ router.get(
          FROM attendance_weeks w
          JOIN attendance_people a ON a.week_id = w.id
          LEFT JOIN people p ON p.id = a.person_id
-        WHERE w.team = ANY($1::text[]) AND w.year = $2 AND w.week = $3`,
+        WHERE w.team = ANY($1::text[]) AND w.year = $2 AND w.week = $3
+          AND NOT a.hidden`,
       [teams, year, week]
     );
 
     const shape = (row) => ({
       statuses: cleanStatuses(row.statuses, allowed),
-      category: row.person_role
-        ? categoryOf({ role: row.person_role })
-        : categoryOf({ role: row.own_category }),
+      category: weekCategory(row),
     });
 
     const everyone = rows.rows.map(shape);
@@ -474,11 +495,12 @@ router.get(
 
     const allowed = await allowedStatuses();
     const rows = await pool.query(
-      `SELECT COALESCE(p.name, a.name) AS name, a.statuses, w.team
+      `SELECT ${WEEK_NAME} AS name, a.statuses, w.team
          FROM attendance_weeks w
          JOIN attendance_people a ON a.week_id = w.id
          LEFT JOIN people p ON p.id = a.person_id
         WHERE w.team = ANY($1::text[]) AND w.year = $2 AND w.week = $3
+          AND NOT a.hidden
         ORDER BY lower(a.name)`,
       [teams, year, week]
     );

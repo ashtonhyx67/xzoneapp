@@ -58,7 +58,7 @@ async function personDossier(pool, person, allowed) {
       `SELECT w.year, w.week, w.team, a.statuses
          FROM attendance_people a
          JOIN attendance_weeks w ON w.id = a.week_id
-        WHERE a.person_id = $1
+        WHERE a.person_id = $1 AND NOT a.hidden
           AND (w.year > $2 OR (w.year = $2 AND w.week >= $3))
         ORDER BY w.year DESC, w.week DESC`,
       [person.id, oldest.year, oldest.week]
@@ -133,7 +133,7 @@ async function teamOverview(pool, teams, allowed) {
       `SELECT w.team, w.year, w.week, a.statuses
          FROM attendance_weeks w
          JOIN attendance_people a ON a.week_id = w.id
-        WHERE w.team = ANY($1::text[])`,
+        WHERE w.team = ANY($1::text[]) AND NOT a.hidden`,
       [teams]
     ),
   ]);

@@ -27,6 +27,24 @@ const SAVE_DELAY = 700;
 let counter = 0;
 const newKey = () => `new-${(counter += 1)}`;
 
+// A register row as the page holds it. `hidden`, `renamed` and a group that
+// differs from `defaultCategory` are changes made to this week only.
+function rowFromServer(person) {
+  return {
+    key: `p-${person.id}`,
+    personId: person.personId,
+    name: person.name,
+    statuses: person.statuses ?? [],
+    category: person.category,
+    defaultCategory: person.defaultCategory ?? null,
+    fromTeam: person.fromTeam,
+    hidden: Boolean(person.hidden),
+    renamed: Boolean(person.renamed),
+  };
+}
+
+const visible = (row) => !row.hidden;
+
 // One person's line. Memoised because a register can run to forty people and a
 // tap changes exactly one of them — without this, every row and every mark on
 // the page re-rendered on each tap, which is what made marking feel sticky.
@@ -36,11 +54,86 @@ const RegisterRow = React.memo(function RegisterRow({
   person,
   statuses,
   canEdit,
+  editing,
+  first,
+  last,
   onToggle,
   onRename,
+  onRenameWeek,
+  onRegroup,
+  onMove,
   onRemove,
 }) {
   const here = isPresent(person.statuses, statuses);
+
+  // Editing the list: every row can be moved, renamed, put in another group or
+  // taken off — for this week only. The marks wait until it is done.
+  if (editing) {
+    return (
+      <div className="register-row register-row-editing">
+        <span className="register-move">
+          <button
+            type="button"
+            className="register-move-btn"
+            onClick={() => onMove(person.key, -1)}
+            disabled={first}
+            aria-label={`Move ${person.name || "this row"} up`}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="register-move-btn"
+            onClick={() => onMove(person.key, 1)}
+            disabled={last}
+            aria-label={`Move ${person.name || "this row"} down`}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </span>
+
+        <input
+          className="register-name register-name-edit"
+          value={person.name}
+          placeholder="Name"
+          aria-label="Name for this week"
+          onChange={(e) =>
+            person.personId
+              ? onRenameWeek(person.key, e.target.value)
+              : onRename(person.key, e.target.value)
+          }
+        />
+
+        <select
+          className="register-group-pick"
+          aria-label={`Group for ${person.name || "this row"}`}
+          value={person.category || ""}
+          onChange={(e) => onRegroup(person.key, e.target.value)}
+        >
+          {!person.category && <option value="">–</option>}
+          {CATEGORIES.map((category) => (
+            <option key={category.key} value={category.key}>
+              {category.label}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          className="sheet-remove"
+          onClick={() => onRemove(person.key)}
+          aria-label={`Take ${person.name || "this row"} off this week`}
+          title="Take off this week"
+        >
+          ×
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className={`register-row${here ? " register-row-present" : ""}`}>
@@ -126,6 +219,9 @@ export default function Attendance() {
   const [pasting, setPasting] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [pasteReport, setPasteReport] = useState(null);
+  // Changing the list itself — order, names, groups, who is on it — for this
+  // week. Kept apart from marking so a tap meant for a mark never moves a row.
+  const [editingList, setEditingList] = useState(false);
   // Adding a list of new people to the team's database, so they are on every
   // week's register from then on.
   const [listing, setListing] = useState(false);
@@ -172,14 +268,7 @@ export default function Attendance() {
         setRecord(data);
         setStatuses(data.statuses ?? BUILTIN_STATUSES);
         setPeople(
-          data.people.map((person) => ({
-            key: `p-${person.id}`,
-            personId: person.personId,
-            name: person.name,
-            statuses: person.statuses ?? [],
-            category: person.category,
-            fromTeam: person.fromTeam,
-          }))
+          data.people.map(rowFromServer)
         );
         dirty.current = false;
         setError("");
@@ -201,6 +290,7 @@ export default function Attendance() {
     setCopied(false);
     setPasteReport(null);
     setListReport(null);
+    setEditingList(false);
   }, [team, when]);
 
   const cg = cgOf(team);
@@ -261,6 +351,9 @@ export default function Attendance() {
           name: row.name,
           statuses: row.statuses,
           category: row.category,
+          hidden: row.hidden,
+          renamed: row.renamed,
+          regrouped: Boolean(row.personId) && row.category !== row.defaultCategory,
         })),
       });
       // Anyone the server put back — added to the team since this page was
@@ -272,14 +365,7 @@ export default function Attendance() {
         const known = new Set(list.map((row) => row.personId).filter(Boolean));
         const added = (saved.people ?? [])
           .filter((person) => person.personId && !known.has(person.personId))
-          .map((person) => ({
-            key: `p-${person.id}`,
-            personId: person.personId,
-            name: person.name,
-            statuses: person.statuses ?? [],
-            category: person.category,
-            fromTeam: person.fromTeam,
-          }));
+          .map(rowFromServer);
         return added.length ? [...list, ...added] : list;
       });
 
@@ -374,9 +460,74 @@ export default function Attendance() {
     schedule();
   }, [statuses, schedule]);
 
+  // Off this week only. A team member is kept as a hidden row — leaving the row
+  // out is what tells the server to put them back — and a typed-in name goes.
   const removePerson = useCallback(
     (personKey) => {
-      setPeople((list) => list.filter((row) => row.key !== personKey));
+      setPeople((list) =>
+        list.flatMap((row) => {
+          if (row.key !== personKey) return [row];
+          return row.personId ? [{ ...row, hidden: true, statuses: [] }] : [];
+        })
+      );
+      schedule();
+    },
+    [schedule]
+  );
+
+  // The name shown this week. A team member keeps their link to the record, so
+  // they are not put back as a second row; only this week's spelling changes.
+  const renameRow = useCallback(
+    (personKey, name) => {
+      setPeople((list) =>
+        list.map((row) => (row.key === personKey ? { ...row, name, renamed: true } : row))
+      );
+      schedule();
+    },
+    [schedule]
+  );
+
+  // Into another group for this week, at the end of it.
+  const regroupRow = useCallback(
+    (personKey, category) => {
+      setPeople((list) => {
+        const row = list.find((item) => item.key === personKey);
+        if (!row) return list;
+        const rest = list.filter((item) => item.key !== personKey);
+        let at = rest.length;
+        for (let i = rest.length - 1; i >= 0; i -= 1) {
+          if (visible(rest[i]) && rest[i].category === category) {
+            at = i + 1;
+            break;
+          }
+        }
+        return [...rest.slice(0, at), { ...row, category }, ...rest.slice(at)];
+      });
+      schedule();
+    },
+    [schedule]
+  );
+
+  // Up or down one place within its group, skipping anyone hidden.
+  const moveRow = useCallback(
+    (personKey, step) => {
+      setPeople((list) => {
+        const from = list.findIndex((row) => row.key === personKey);
+        if (from === -1) return list;
+        const { category } = list[from];
+        let to = from + step;
+        while (
+          to >= 0 &&
+          to < list.length &&
+          (!visible(list[to]) || list[to].category !== category)
+        ) {
+          to += step;
+        }
+        if (to < 0 || to >= list.length) return list;
+        const next = [...list];
+        [next[from], next[to]] = [next[to], next[from]];
+        return next;
+      });
       schedule();
     },
     [schedule]
@@ -418,13 +569,15 @@ export default function Attendance() {
 
   // The register, grouped the way the sheet groups it. Anyone whose category is
   // not set yet gets their own block at the end rather than being dropped.
+  const shown = useMemo(() => people.filter(visible), [people]);
+
   const groups = useMemo(() => {
     const blocks = CATEGORIES.map((category) => ({
       ...category,
-      people: people.filter((person) => person.category === category.key),
+      people: shown.filter((person) => person.category === category.key),
     }));
 
-    const ungrouped = people.filter((person) => !CATEGORY_KEYS.includes(person.category));
+    const ungrouped = shown.filter((person) => !CATEGORY_KEYS.includes(person.category));
     if (ungrouped.length > 0) {
       blocks.push({
         key: "",
@@ -435,13 +588,13 @@ export default function Attendance() {
     }
 
     return blocks;
-  }, [people]);
+  }, [shown]);
 
   // Counted here as well as on the server so the numbers move as boxes are
   // ticked, rather than waiting for the save to come back.
   const total = useMemo(
-    () => people.filter((person) => isPresent(person.statuses, statuses)).length,
-    [people, statuses]
+    () => shown.filter((person) => isPresent(person.statuses, statuses)).length,
+    [shown, statuses]
   );
 
   // Rebuilt as marks are made, so the post is never a snapshot of the register
@@ -450,10 +603,10 @@ export default function Attendance() {
     () =>
       toTelegram({
         title: defaultTitle({ team, ...when }),
-        people: people.filter((person) => person.name.trim()),
+        people: shown.filter((person) => person.name.trim()),
         statuses,
       }),
-    [team, when, people, statuses]
+    [team, when, shown, statuses]
   );
 
   const text = draft ?? post;
@@ -475,7 +628,7 @@ export default function Attendance() {
 
     const { people: rows, report } = fromTelegram({
       text: pasteText,
-      people,
+      people: shown,
       statuses,
       newKey,
     });
@@ -494,7 +647,7 @@ export default function Attendance() {
     });
 
     setError("");
-    setPeople(linked);
+    setPeople([...linked, ...people.filter((row) => !visible(row))]);
     schedule();
     setPasteReport(report);
     setPasting(false);
@@ -957,6 +1110,23 @@ export default function Attendance() {
               </div>
             )}
 
+            {canEdit && (
+              <div className={`register-editbar${editingList ? " register-editbar-on" : ""}`}>
+                <span>
+                  {editingList
+                    ? "Move, rename, regroup or remove anyone. Changes are for this week only."
+                    : "Need to change who is on this week?"}
+                </span>
+                <button
+                  type="button"
+                  className={`btn btn-inline ${editingList ? "btn-primary" : "btn-secondary"}`}
+                  onClick={() => setEditingList((on) => !on)}
+                >
+                  {editingList ? "Done" : "Edit list"}
+                </button>
+              </div>
+            )}
+
             {groups.map((group) => (
               <section className="register-group" key={group.key || "none"}>
                 <div className="register-group-head">
@@ -977,14 +1147,20 @@ export default function Attendance() {
 
                 {group.people.length > 0 && (
                   <div className="register-rows">
-                    {group.people.map((person) => (
+                    {group.people.map((person, index) => (
                       <RegisterRow
                         key={person.key}
                         person={person}
                         statuses={statuses}
                         canEdit={canEdit}
+                        editing={canEdit && editingList}
+                        first={index === 0}
+                        last={index === group.people.length - 1}
                         onToggle={toggleStatus}
                         onRename={setName}
+                        onRenameWeek={renameRow}
+                        onRegroup={regroupRow}
+                        onMove={moveRow}
                         onRemove={removePerson}
                       />
                     ))}

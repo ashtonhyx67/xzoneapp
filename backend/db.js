@@ -496,6 +496,17 @@ async function initSchema() {
       ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT '';
   `);
 
+  // Changes made to one week's list that stay with that week. `hidden` keeps a
+  // team member off that week without the row going away (a missing row is
+  // what puts a member back); `renamed` shows the week's own spelling instead
+  // of the record's. A linked row's `category`, when set, is its group for
+  // that week rather than the one its role gives it.
+  await pool.query(`
+    ALTER TABLE attendance_people
+      ADD COLUMN IF NOT EXISTS hidden BOOLEAN NOT NULL DEFAULT false,
+      ADD COLUMN IF NOT EXISTS renamed BOOLEAN NOT NULL DEFAULT false;
+  `);
+
   // Carried over from when a person had exactly one status. `status` only
   // exists on a database that ran that version — a new one goes straight to
   // `statuses` — so the back-fill is guarded on the column being there. Without

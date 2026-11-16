@@ -8115,3 +8115,92 @@ textarea.outing-input {
 .paste-report-failed {
   color: var(--danger);
 }
+
+/* ---------- Attendance: editing this week's list ---------- */
+
+.register-editbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.register-editbar-on {
+  background: var(--mark-soft);
+  color: var(--ink);
+}
+
+.register-editbar .btn {
+  flex-shrink: 0;
+  width: auto;
+}
+
+.register-row-editing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.register-move {
+  display: inline-flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.register-move-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.register-move-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.register-move-btn:active:not(:disabled) {
+  background: var(--bg);
+}
+
+.register-name-edit {
+  flex: 1;
+  min-width: 0;
+}
+
+.register-group-pick {
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.register-name.register-name-edit {
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 500;
+}
