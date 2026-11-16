@@ -140,3 +140,158 @@ export function toTelegram({ title, people, statuses }) {
 
   return lines.join("\n").trim() + "\n";
 }
+
+// ── Reading a register back in from Telegram ─────────────────────────────
+//
+// The reverse of toTelegram: a post in the same shape — legend, totals, then
+// each group with its people and their marks — turned back into marks on the
+// register on screen. Used when the week was taken in the chat first.
+
+// Emoji arrive with and without the variation selector (🏘 / 🏘️), so both sides
+// are compared without it.
+const plain = (text) => String(text ?? "").replace(/[︎️]/g, "");
+
+// Anything still looking like an emoji once the known marks are taken out:
+// a keycap digit (1️⃣) or a pictograph (❌, 🙏).
+const LEFTOVER_MARK = /\d⃣|\p{Extended_Pictographic}/gu;
+
+const GROUP_HEADER = /^(R|GI|I|G|NF|\?)\s*:\s*\d*\s*$/i;
+
+const nameKey = (name) => String(name ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+
+// Which register (team and week) a post's first line names: "XIIIA 14/15 Nov
+// Week 46". Either part can be missing; nothing is assumed about the rest.
+export function telegramHeading(text) {
+  const first = String(text ?? "").split("\n").find((line) => line.trim()) ?? "";
+  const team = /^\s*(X[IVX]+[A-Z]?)\b/i.exec(first)?.[1]?.toUpperCase() ?? null;
+  const week = /\bweek\s*(\d{1,2})\b/i.exec(first)?.[1];
+  return { team, week: week ? Number(week) : null };
+}
+
+// `people` are the register's rows (key, personId, name, statuses, category);
+// `statuses` what it offers. Returns the rows to put on screen and what could
+// not be used, so the page can say so instead of quietly dropping it.
+export function fromTelegram({ text, people, statuses, newKey }) {
+  const lines = String(text ?? "").split(/\r?\n/);
+
+  // The legend names marks this register may not have yet ("🏘: Cave"), which
+  // is what lets the page say which status to add.
+  const legend = new Map();
+  for (const line of lines) {
+    const match = /^\s*(\S+)\s*:\s*(.+?)\s*$/.exec(line);
+    if (match && LEFTOVER_MARK.test(plain(match[1]))) legend.set(plain(match[1]), match[2]);
+    LEFTOVER_MARK.lastIndex = 0;
+  }
+
+  const known = statuses
+    .filter((status) => status.emoji)
+    .map((status) => ({ key: status.key, emoji: plain(status.emoji) }))
+    // Longest first, so a two-character mark is not half-matched by a shorter one.
+    .sort((a, b) => b.emoji.length - a.emoji.length);
+
+  const entries = [];
+  const unknownMarks = new Map();
+  const notes = [];
+  let group = null;
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    const header = GROUP_HEADER.exec(line);
+    if (header) {
+      group = header[1].toUpperCase() === "?" ? "" : header[1].toUpperCase();
+      continue;
+    }
+    // Everything above the first group is the heading, legend and totals.
+    if (group === null) continue;
+
+    let rest = plain(line);
+    const note = /\(([^)]*)\)/.exec(rest);
+    if (note) {
+      notes.push(`${note[1].trim()}`);
+      rest = rest.replace(/\([^)]*\)/g, " ");
+    }
+
+    const marks = [];
+    for (const status of known) {
+      if (rest.includes(status.emoji)) {
+        marks.push(status.key);
+        rest = rest.split(status.emoji).join(" ");
+      }
+    }
+
+    const leftovers = rest.match(LEFTOVER_MARK) ?? [];
+    rest = rest.replace(LEFTOVER_MARK, " ");
+    const name = rest.replace(/\s+/g, " ").trim();
+    if (!name) continue;
+
+    for (const mark of leftovers) {
+      if (!unknownMarks.has(mark)) unknownMarks.set(mark, []);
+      unknownMarks.get(mark).push(name);
+    }
+    entries.push({ name, marks, group });
+  }
+
+  // Match each name to a row: exactly, or by the first name alone when only one
+  // row has it ("Glynnis" for "Glynnis Tan"). A row is matched once.
+  const rows = people.map((row) => ({ ...row, statuses: [] }));
+  const taken = new Set();
+  const added = [];
+
+  const findRow = (name) => {
+    const key = nameKey(name);
+    const exact = rows.find((row) => !taken.has(row.key) && nameKey(row.name) === key);
+    if (exact) return exact;
+    const byStart = rows.filter(
+      (row) => !taken.has(row.key) && nameKey(row.name).startsWith(`${key} `)
+    );
+    return byStart.length === 1 ? byStart[0] : null;
+  };
+
+  for (const entry of entries) {
+    const row = findRow(entry.name);
+    if (row) {
+      taken.add(row.key);
+      row.statuses = entry.marks;
+      continue;
+    }
+    const fresh = {
+      key: newKey(),
+      personId: null,
+      name: entry.name,
+      statuses: entry.marks,
+      category: entry.group,
+    };
+    rows.push(fresh);
+    taken.add(fresh.key);
+    added.push(entry.name);
+  }
+
+  // Order marks the way the register offers them, as ticking them would.
+  const order = statuses.map((status) => status.key);
+  for (const row of rows) {
+    row.statuses = [...new Set(row.statuses)].sort(
+      (a, b) => order.indexOf(a) - order.indexOf(b)
+    );
+  }
+
+  const cleared = people.filter(
+    (row) => !taken.has(row.key) && (row.statuses ?? []).length > 0
+  ).length;
+
+  return {
+    people: rows,
+    report: {
+      read: entries.length,
+      added,
+      cleared,
+      notes,
+      unknownMarks: [...unknownMarks].map(([mark, names]) => ({
+        mark,
+        label: legend.get(mark) ?? "",
+        names,
+      })),
+    },
+  };
+}

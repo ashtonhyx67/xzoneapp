@@ -8081,3 +8081,33 @@ textarea.outing-input {
   font-weight: 600;
   cursor: pointer;
 }
+
+/* ---------- Attendance: pasting a post back in ---------- */
+
+.paste-hint {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-soft);
+}
+
+.paste-report {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--good-bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.paste-report-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--good);
+}
+
+.paste-report p {
+  margin: 6px 0 0;
+}

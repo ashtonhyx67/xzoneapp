@@ -209,9 +209,11 @@ async function writeWeek(team, year, week, people, allowed) {
     await client.query("DELETE FROM attendance_people WHERE week_id = $1", [weekId]);
 
     for (const [index, person] of people.entries()) {
-      const personId = Number.isInteger(Number(person.personId))
-        ? Number(person.personId)
-        : null;
+      // Number(null) is 0, which is no one, so a name typed in for the week
+      // must not be turned into a link to person 0.
+      const asNumber = Number(person.personId);
+      const personId =
+        person.personId != null && Number.isInteger(asNumber) && asNumber > 0 ? asNumber : null;
 
       await client.query(
         `INSERT INTO attendance_people (week_id, position, person_id, name, statuses, category)

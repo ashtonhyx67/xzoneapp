@@ -11,7 +11,10 @@ import {
   categoryOf,
   defaultTitle,
   isPresent,
+  telegramTeam,
   toTelegram,
+  fromTelegram,
+  telegramHeading,
 } from "../lib/attendance.js";
 import AppShell from "../components/AppShell.jsx";
 import { SkeletonRows, Ticker } from "../components/Skeleton.jsx";
@@ -118,6 +121,10 @@ export default function Attendance() {
   // has not been touched, so until then it follows the marks being made.
   const [draft, setDraft] = useState(null);
   const [copied, setCopied] = useState(false);
+  // Reading a post from the chat back in: the text pasted, and what came of it.
+  const [pasting, setPasting] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [pasteReport, setPasteReport] = useState(null);
 
   const timer = useRef(null);
   const inFlight = useRef(false);
@@ -185,6 +192,7 @@ export default function Attendance() {
   useEffect(() => {
     setDraft(null);
     setCopied(false);
+    setPasteReport(null);
   }, [team, when]);
 
   const cg = cgOf(team);
@@ -266,6 +274,10 @@ export default function Attendance() {
           }));
         return added.length ? [...list, ...added] : list;
       });
+
+      // New counts are what tells the CG total above to fetch again; without
+      // this it kept showing the numbers from when the page was opened.
+      if (saved.counts) setRecord((current) => (current ? { ...current, counts: saved.counts } : current));
 
       setStatus("idle");
       setError("");
@@ -438,6 +450,49 @@ export default function Attendance() {
 
   const text = draft ?? post;
 
+  // Fills this register from a post in the chat's shape. The post says which
+  // team and week it is, so pasting last week's into this week is refused
+  // rather than quietly overwriting the wrong register.
+  function applyPaste() {
+    const heading = telegramHeading(pasteText);
+    const here = telegramTeam(team);
+    if (heading.team && heading.team !== here) {
+      setError(`That post is for ${heading.team}. Switch to it above, then paste again.`);
+      return;
+    }
+    if (heading.week && heading.week !== when.week) {
+      setError(`That post is for Week ${heading.week}. Switch to it above, then paste again.`);
+      return;
+    }
+
+    const { people: rows, report } = fromTelegram({
+      text: pasteText,
+      people,
+      statuses,
+      newKey,
+    });
+    if (report.read === 0) {
+      setError("No names found. Paste the whole post, from the title down to NF.");
+      return;
+    }
+
+    // A name that is in the database is linked to it, as typing it would.
+    const linked = rows.map((row) => {
+      if (row.personId) return row;
+      const match = directory.find(
+        (person) => person.name.trim().toLowerCase() === row.name.trim().toLowerCase()
+      );
+      return match ? { ...row, personId: match.id, category: categoryOf(match.role) } : row;
+    });
+
+    setError("");
+    setPeople(linked);
+    schedule();
+    setPasteReport(report);
+    setPasting(false);
+    setPasteText("");
+  }
+
   async function copyPost() {
     try {
       await navigator.clipboard.writeText(text);
@@ -500,10 +555,25 @@ export default function Attendance() {
           </span>
 
           <div className="attendance-actions">
+            {canEdit && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-inline"
+                onClick={() => {
+                  setPasting((open) => !open);
+                  setExporting(false);
+                }}
+              >
+                {pasting ? "Close" : "Paste from Telegram"}
+              </button>
+            )}
             <button
               type="button"
               className="btn btn-secondary btn-inline"
-              onClick={() => setExporting((open) => !open)}
+              onClick={() => {
+                setExporting((open) => !open);
+                setPasting(false);
+              }}
             >
               {exporting ? "Close" : "Export for Telegram"}
             </button>
@@ -511,6 +581,75 @@ export default function Attendance() {
         </div>
 
         {error && <div className="error-banner panel-notice">{error}</div>}
+
+        {pasting && record && (
+          <div className="export-box">
+            <div className="export-head">
+              <span className="export-title">Paste from Telegram</span>
+              <button
+                type="button"
+                className="btn btn-primary btn-inline"
+                onClick={applyPaste}
+                disabled={!pasteText.trim()}
+              >
+                Fill register
+              </button>
+            </div>
+            <p className="paste-hint">
+              Paste the whole post for {telegramTeam(team)} Week {when.week}. Marks replace
+              what is ticked now, and anyone not in the post is left unmarked.
+            </p>
+            <textarea
+              className="export-text"
+              aria-label="The post from Telegram"
+              spellCheck={false}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              autoFocus
+            />
+          </div>
+        )}
+
+        {pasteReport && (
+          <div className="paste-report panel-notice">
+            <div className="paste-report-head">
+              <strong>Filled in from Telegram: {pasteReport.read} people.</strong>
+              <button type="button" className="link-btn" onClick={() => setPasteReport(null)}>
+                Done
+              </button>
+            </div>
+            {pasteReport.added.length > 0 && (
+              <p>
+                Not on this register before, so added: {pasteReport.added.join(", ")}.
+              </p>
+            )}
+            {pasteReport.cleared > 0 && (
+              <p>
+                {pasteReport.cleared} {pasteReport.cleared === 1 ? "person" : "people"} not in
+                the post had marks, now cleared.
+              </p>
+            )}
+            {pasteReport.unknownMarks.map(({ mark, label, names }) => (
+              <p key={mark}>
+                {label ? (
+                  <>
+                    {mark} {label} is not a status here yet, so {names.join(", ")}{" "}
+                    {names.length === 1 ? "was" : "were"} not marked for it. Add it with{" "}
+                    <strong>+ Status</strong> (emoji {mark}), then paste again.
+                  </>
+                ) : (
+                  <>
+                    {mark} is not a status, so {names.join(", ")}{" "}
+                    {names.length === 1 ? "is" : "are"} left unmarked.
+                  </>
+                )}
+              </p>
+            ))}
+            {pasteReport.notes.length > 0 && (
+              <p>Notes in brackets are not kept: {pasteReport.notes.join(", ")}.</p>
+            )}
+          </div>
+        )}
 
         {/* The register as the chat wants it. Editable before it is copied —
             the heading carries a term and its week, which is wording this app
